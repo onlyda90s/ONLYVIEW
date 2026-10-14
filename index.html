@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>온리뷰 (onlyview) - 웹 대시보드</title>
+  <!-- UI 스타일링 (Tailwind CSS) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 엑셀 내보내기 (SheetJS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    :root {
+      --primary: #F4A261;
+      --primary-hover: #E76F51;
+      --primary-text: #C85A17;
+      --primary-light: #FFF2E6;
+    }
+
+    .bg-theme { background-color: var(--primary) !important; }
+    .bg-theme-hover:hover { background-color: var(--primary-hover) !important; }
+    .text-theme { color: var(--primary-text) !important; }
+    .bg-theme-light { background-color: var(--primary-light) !important; }
+    .border-theme { border-color: var(--primary) !important; }
+    .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
+  </style>
+</head>
+<body class="bg-[#FAF8F5] text-[#333333] min-h-screen">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } 
+      from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBfKBcYsKume9YqbZwFGtVuFvElrfVGNzY",
+      authDomain: "onlyview-2ef88.firebaseapp.com",
+      projectId: "onlyview-2ef88",
+      storageBucket: "onlyview-2ef88.firebasestorage.app",
+      messagingSenderId: "110107089396",
+      appId: "1:110107089396:web:a0670b16ce10655c2481a1"
+    };
+
+    let app, auth, db, provider;
+
+    try {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      provider = new GoogleAuthProvider();
+    } catch (e) {
+      console.error("Firebase 초기화 에러:", e);
+    }
+
+    let currentUser = null;
+    let targetUserId = null;
+    let isReadOnly = false;
+    let rawCampaignList = [];
+    let editingId = null;
+
+    const themeColors = {
+      orange: { primary: '#F4A261', hover: '#E76F51', text: '#C85A17', light: '#FFF2E6' },
+      red:    { primary: '#E63946', hover: '#D62828', text: '#D62828', light: '#FFEAEB' },
+      yellow: { primary: '#E9C46A', hover: '#F4A261', text: '#B5820F', light: '#FFFBEA' },
+      green:  { primary: '#2A9D8F', hover: '#218380', text: '#1B6A60', light: '#E8F6F4' },
+      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8' },
+      purple: { primary: '#9D4EDD', hover: '#7B2CBF', text: '#5A189A', light: '#F5EBFB' },
+      black:  { primary: '#2B2D42', hover: '#111111', text: '#111111', light: '#F0F0F2' }
+    };
+
+    window.changeTheme = function(colorKey) {
+      const theme = themeColors[colorKey] || themeColors.orange;
+      document.documentElement.style.setProperty('--primary', theme.primary);
+      document.documentElement.style.setProperty('--primary-hover', theme.hover);
+      document.documentElement.style.setProperty('--primary-text', theme.text);
+      document.documentElement.style.setProperty('--primary-light', theme.light);
+      localStorage.setItem('onlyview_theme', colorKey);
+    };
+
+    const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
+    window.changeTheme(savedTheme);
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById('loginBtn')?.addEventListener('click', async () => {
+        try { 
+          await signInWithPopup(auth, provider); 
+        } catch (err) { 
+          alert("로그인 오류: " + err.message); 
+        }
+      });
+
+      document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
+      document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
+      document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      const authSec = document.getElementById('authSection');
+      const appSec = document.getElementById('appSection');
+
+      if (user) {
+        currentUser = user;
+        targetUserId = user.uid;
+        isReadOnly = false;
+
+        authSec.classList.add('hidden');
+        appSec.classList.remove('hidden');
+        document.getElementById('userName').innerText = user.displayName || user.email;
+        document.getElementById('myShareCode').innerText = user.uid;
+
+        updateFormVisibility();
+        loadCampaigns();
+      } else {
+        currentUser = null;
+        targetUserId = null;
+        authSec.classList.remove('hidden');
+        appSec.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', () => {
+      const partnerCode = document.getElementById('partnerCodeInput').value.trim();
+      if (!partnerCode) return alert("동반자의 공유 코드를 입력해주세요.");
+
+      if (currentUser && partnerCode === currentUser.uid) {
+        targetUserId = currentUser.uid;
+        isReadOnly = false;
+        alert("본인 모드로 전환되었습니다.");
+      } else {
+        targetUserId = partnerCode;
+        isReadOnly = true;
+        alert("동반자 읽기 전용 모드로 전환되었습니다.");
+      }
+
+      updateFormVisibility();
+      loadCampaigns();
+    });
+
+    document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
+      if (!currentUser) return;
+      targetUserId = currentUser.uid;
+      isReadOnly = false;
+      document.getElementById('partnerCodeInput').value = '';
+      updateFormVisibility();
+      loadCampaigns();
+    });
+
+    function updateFormVisibility() {
+      const formContainer = document.getElementById('formContainer');
+      const readOnlyBadge = document.getElementById('readOnlyBadge');
+
+      if (isReadOnly) {
+        formContainer.classList.add('hidden');
+        readOnlyBadge.classList.remove('hidden');
+      } else {
+        formContainer.classList.remove('hidden');
+        readOnlyBadge.classList.add('hidden');
+      }
+    }
+
+    async function loadCampaigns() {
+      if (!db || !targetUserId) return;
+
+      try {
+        const q = query(
+          collection(db, "campaigns"), 
+          where("userId", "==", targetUserId),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        
+        rawCampaignList = [];
+        querySnapshot.forEach((docSnap) => {
+          rawCampaignList.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        filterAndRender();
+      } catch (e) {
+        console.error("데이터 로드 실패:", e);
+      }
+    }
+
+    function filterAndRender() {
+      const tableBody = document.getElementById('campaignTableBody');
+      const cardList = document.getElementById('campaignCardList');
+      const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
+
+      let filteredList = rawCampaignList.filter(item => {
+        const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
+                            (item.platformName || '').toLowerCase().includes(searchText);
+        const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
+        return matchesName && matchesStatus;
+      });
+
+      tableBody.innerHTML = '';
+      cardList.innerHTML = '';
+
+      let totalSponsored = 0;
+      let totalPaid = 0;
+      let totalRevenue = 0;
+
+      filteredList.forEach((item) => {
+        totalSponsored += Number(item.sponsoredAmount || 0);
+        totalPaid += Number(item.paidAmount || 0);
+        totalRevenue += Number(item.revenue || 0);
+
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 hover:bg-[#FAF8F5] text-sm';
+        row.innerHTML = `
+          <td class="p-3 font-semibold text-theme">${item.storeName}</td>
+          <td class="p-3">${item.platformName || '-'}</td>
+          <td class="p-3"><span class="px-2 py-1 rounded text-xs text-white ${getStatusBg(item.status)}">${item.status}</span></td>
+          <td class="p-3 text-xs">${item.category || '-'}<br><span class="text-gray-400">${item.location || '-'}</span></td>
+          <td class="p-3">${item.visitDate || '-'}</td>
+          <td class="p-3 text-rose-500 font-medium">${item.deadlineDate || '-'}</td>
+          <td class="p-3">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
+          <td class="p-3 text-rose-500">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
+          <td class="p-3 font-bold text-emerald-600">+${Number(item.revenue || 0).toLocaleString()}원</td>
+          <td class="p-3">
+            <div class="flex items-center gap-2">
+              ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="text-theme underline text-xs font-bold">링크</a>` : '-'}
+              ${!isReadOnly ? `
+                <button onclick="editCampaign('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-600 font-medium">수정</button>
+                <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2 py-1 rounded font-medium">삭제</button>
+              ` : ''}
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(row);
+
+        const card = document.createElement('div');
+        card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-sm';
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-xs px-2 py-0.5 rounded text-white ${getStatusBg(item.status)} mr-1">${item.status}</span>
+              <span class="text-xs text-gray-400">${item.platformName || ''}</span>
+              <h3 class="font-bold text-base text-gray-800 mt-1">${item.storeName}</h3>
+            </div>
+            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">+${Number(item.revenue || 0).toLocaleString()}원</span>
+          </div>
+          <div class="text-xs text-gray-500 space-y-0.5">
+            <div>📅 방문일: ${item.visitDate || '-'} | ⏰ 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
+            <div>💰 제공: ${Number(item.sponsoredAmount || 0).toLocaleString()}원 | 지출: ${Number(item.paidAmount || 0).toLocaleString()}원</div>
+            ${item.keywords ? `<div class="text-theme">🔑 ${item.keywords}</div>` : ''}
+            ${item.memo ? `<div class="bg-[#FAF8F5] p-2 rounded-lg mt-1 text-gray-600">📝 ${item.memo}</div>` : ''}
+          </div>
+          <div class="flex gap-2 mt-2">
+            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="flex-1 text-center bg-theme-light text-theme text-xs py-2 rounded-xl font-bold">🔗 링크</a>` : ''}
+            ${!isReadOnly ? `
+              <button onclick="editCampaign('${item.id}')" class="bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
+              <button onclick="deleteCampaign('${item.id}')" class="bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-xl font-bold">삭제</button>
+            ` : ''}
+          </div>
+        `;
+        cardList.appendChild(card);
+      });
+
+      document.getElementById('statSponsored').innerText = totalSponsored.toLocaleString() + '원';
+      document.getElementById('statPaid').innerText = totalPaid.toLocaleString() + '원';
+      document.getElementById('statRevenue').innerText = totalRevenue.toLocaleString() + '원';
+
+      if (filteredList.length === 0) {
+        const emptyMsg = '<div class="p-6 text-center text-gray-400 text-sm">조건에 해당하는 체험단이 없습니다.</div>';
+        tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
+        cardList.innerHTML = emptyMsg;
+      }
+    }
+
+    function getStatusBg(status) {
+      switch(status) {
+        case '신청': return 'bg-gray-400';
+        case '선정': return 'bg-theme';
+        case '방문': return 'bg-amber-500';
+        case '제출': return 'bg-emerald-500';
+        default: return 'bg-gray-400';
+      }
+    }
+
+    window.editCampaign = function(id) {
+      const item = rawCampaignList.find(c => c.id === id);
+      if (!item) return;
+
+      editingId = id;
+      document.getElementById('storeName').value = item.storeName || '';
+      document.getElementById('platformName').value = item.platformName || '';
+      document.getElementById('status').value = item.status || '신청';
+      document.getElementById('category').value = item.category || '';
+      document.getElementById('location').value = item.location || '';
+      document.getElementById('visitDate').value = item.visitDate || '';
+      document.getElementById('deadlineDate').value = item.deadlineDate || '';
+      document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
+      document.getElementById('paidAmount').value = item.paidAmount || 0;
+      document.getElementById('revenue').value = item.revenue || 0;
+      document.getElementById('contact').value = item.contact || '';
+      document.getElementById('keywords').value = item.keywords || '';
+      document.getElementById('campaignUrl').value = item.campaignUrl || '';
+      document.getElementById('memo').value = item.memo || '';
+
+      document.getElementById('formTitle').innerText = '✏️ 체험단 정보 수정';
+      document.getElementById('submitBtn').innerText = '수정 완료';
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+      window.scrollTo({ top: document.getElementById('formContainer').offsetTop - 20, behavior: 'smooth' });
+    };
+
+    window.cancelEdit = function() {
+      editingId = null;
+      document.getElementById('campaignForm').reset();
+      document.getElementById('formTitle').innerText = '➕ 새 체험단 등록';
+      document.getElementById('submitBtn').innerText = '등록하기';
+      document.getElementById('cancelEditBtn').classList.add('hidden');
+    };
+
+    document.getElementById('cancelEditBtn')?.addEventListener('click', cancelEdit);
+
+    window.deleteCampaign = async function(id) {
+      if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
+      try {
+        await deleteDoc(doc(db, "campaigns", id));
+        alert("삭제되었습니다.");
+        loadCampaigns();
+      } catch (err) {
+        alert("삭제 실패: " + err.message);
+      }
+    };
+
+    document.getElementById('campaignForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isReadOnly || !currentUser) return;
+      
+      const payload = {
+        userId: currentUser.uid,
+        storeName: document.getElementById('storeName').value,
+        platformName: document.getElementById('platformName').value,
+        status: document.getElementById('status').value,
+        category: document.getElementById('category').value,
+        location: document.getElementById('location').value,
+        visitDate: document.getElementById('visitDate').value,
+        deadlineDate: document.getElementById('deadlineDate').value,
+        sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
+        paidAmount: Number(document.getElementById('paidAmount').value || 0),
+        revenue: Number(document.getElementById('revenue').value || 0),
+        contact: document.getElementById('contact').value,
+        keywords: document.getElementById('keywords').value,
+        campaignUrl: document.getElementById('campaignUrl').value,
+        memo: document.getElementById('memo').value,
+      };
+
+      try {
+        if (editingId) {
+          await updateDoc(doc(db, "campaigns", editingId), payload);
+          alert('수정되었습니다!');
+          cancelEdit();
+        } else {
+          payload.createdAt = serverTimestamp();
+          await addDoc(collection(db, "campaigns"), payload);
+          alert('성공적으로 등록되었습니다!');
+          document.getElementById('campaignForm').reset();
+        }
+        loadCampaigns();
+      } catch (err) {
+        alert('저장 실패: ' + err.message);
+      }
+    });
+
+    document.getElementById('downloadExcelBtn')?.addEventListener('click', () => {
+      if (rawCampaignList.length === 0) return alert('다운로드할 데이터가 없습니다.');
+      
+      const excelData = rawCampaignList.map(item => ({
+        '업체명': item.storeName,
+        '사이트명': item.platformName,
+        '진행상황': item.status,
+        '카테고리': item.category,
+        '지역': item.location,
+        '방문일': item.visitDate,
+        '마감일': item.deadlineDate,
+        '제공금액': item.sponsoredAmount,
+        '실결제금액': item.paidAmount,
+        '수익': item.revenue,
+        '연락처': item.contact,
+        '필수키워드': item.keywords,
+        '캠페인링크': item.campaignUrl,
+        '메모': item.memo
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "온리뷰_대시보드");
+      XLSX.writeFile(workbook, `온리뷰_리포트_${new Date().toISOString().slice(0,10)}.xlsx`);
+    });
+  </script>
+
+  <!-- 로그인 전 화면 -->
+  <div id="authSection" class="min-h-screen flex flex-col justify-between items-center p-6 max-w-sm mx-auto">
+    <div class="flex-1 flex flex-col justify-center items-center text-center space-y-3 my-auto">
+      <h1 class="text-4xl font-black text-theme tracking-tight">온리뷰</h1>
+      <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
+      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-medium">
+        체험단 방문 · 마감 · 정산을<br>한곳에서
+      </p>
+    </div>
+
+    <div class="w-full space-y-3 mb-6">
+      <input type="text" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-3.5 text-center text-sm outline-none focus:ring-2 ring-theme">
+      
+      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">
+        Google로 계속하기
+      </button>
+
+      <!-- 문구 수정 반영 -->
+      <p class="text-[11px] text-center text-gray-400 mt-2">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
+      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-1">
+        <span>이용약관</span> · <span>개인정보 처리방침</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로그인 후 대시보드 화면 -->
+  <div id="appSection" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+    <header class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-black text-theme tracking-tight">온리뷰 (onlyview)</h1>
+          <span id="userName" class="text-xs bg-theme-light text-theme px-2.5 py-0.5 rounded-full font-bold"></span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">내 공유 코드: <span id="myShareCode" class="font-mono text-gray-600 font-semibold select-all"></span></p>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-[#FAF8F5] p-2 rounded-xl border border-gray-100">
+        <span class="text-[10px] text-gray-400 font-bold mr-1">테마:</span>
+        <button onclick="changeTheme('red')" class="w-4 h-4 rounded-full bg-[#E63946] border border-white shadow-sm hover:scale-110 transition" title="빨강"></button>
+        <button onclick="changeTheme('orange')" class="w-4 h-4 rounded-full bg-[#F4A261] border border-white shadow-sm hover:scale-110 transition" title="주황"></button>
+        <button onclick="changeTheme('yellow')" class="w-4 h-4 rounded-full bg-[#E9C46A] border border-white shadow-sm hover:scale-110 transition" title="노랑"></button>
+        <button onclick="changeTheme('green')" class="w-4 h-4 rounded-full bg-[#2A9D8F] border border-white shadow-sm hover:scale-110 transition" title="초록"></button>
+        <button onclick="changeTheme('blue')" class="w-4 h-4 rounded-full bg-[#457B9D] border border-white shadow-sm hover:scale-110 transition" title="파랑"></button>
+        <button onclick="changeTheme('purple')" class="w-4 h-4 rounded-full bg-[#9D4EDD] border border-white shadow-sm hover:scale-110 transition" title="보라"></button>
+        <button onclick="changeTheme('black')" class="w-4 h-4 rounded-full bg-[#2B2D42] border border-white shadow-sm hover:scale-110 transition" title="검정"></button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div class="flex gap-1 w-full md:w-auto">
+          <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2 rounded-xl text-xs w-full md:w-36 outline-none focus:ring-2 ring-theme">
+          <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-3 py-2 rounded-xl font-bold shrink-0">조회</button>
+          <button id="resetToMyDataBtn" class="bg-gray-200 text-gray-700 text-xs px-2.5 py-2 rounded-xl font-bold shrink-0">내 데이터</button>
+        </div>
+        <button id="downloadExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1">📊 엑셀 내보내기</button>
+        <button id="logoutBtn" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-2">로그아웃</button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-theme">
+        <div class="text-xs font-semibold text-gray-400 mb-1">총 제공금액 가치</div>
+        <div id="statSponsored" class="text-2xl font-black text-gray-800">0원</div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500">
+        <div class="text-xs font-semibold text-gray-400 mb-1">총 실결제 금액 (지출)</div>
+        <div id="statPaid" class="text-2xl font-black text-rose-600">0원</div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+        <div class="text-xs font-semibold text-gray-400 mb-1">총 순수익 (원고료 등)</div>
+        <div id="statRevenue" class="text-2xl font-black text-emerald-600">0원</div>
+      </div>
+    </div>
+
+    <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
+      ⚠️ 현재 <strong>동반자 읽기 전용 모드</strong>입니다. 데이터를 추가하거나 수정할 수 없습니다.
+    </div>
+
+    <div id="formContainer" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="formTitle" class="text-base font-bold text-gray-800">➕ 새 체험단 등록</h2>
+        <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
+      </div>
+      
+      <form id="campaignForm" class="space-y-3 text-sm">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <input type="text" id="storeName" placeholder="업체명 *" required class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+          <input type="text" id="platformName" placeholder="사이트명 (예: 레뷰)" class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+          <select id="status" class="border p-2.5 rounded-xl bg-white outline-none focus:ring-2 ring-theme">
+            <option value="신청">신청</option>
+            <option value="선정">선정</option>
+            <option value="방문">방문</option>
+            <option value="제출">제출 (완료)</option>
+          </select>
+          <div class="flex gap-1">
+            <input type="text" id="category" placeholder="카테고리" class="w-1/2 border p-2.5 rounded-xl text-xs">
+            <input type="text" id="location" placeholder="지역" class="w-1/2 border p-2.5 rounded-xl text-xs">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div>
+            <label class="block text-[10px] text-theme font-bold mb-0.5">📅 방문예정일</label>
+            <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] text-rose-600 font-bold mb-0.5">⏰ 포스팅마감일</label>
+            <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs">
+          </div>
+          <input type="number" id="sponsoredAmount" placeholder="제공금액 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
+          <input type="number" id="paidAmount" placeholder="실결제금액 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
+          <input type="number" id="revenue" placeholder="수익/원고료 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" id="contact" placeholder="연락처" class="border p-2.5 rounded-xl">
+          <input type="text" id="keywords" placeholder="필수 키워드 (#강남맛집)" class="border p-2.5 rounded-xl">
+          <input type="url" id="campaignUrl" placeholder="캠페인 URL 링크" class="border p-2.5 rounded-xl">
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-3">
+          <input type="text" id="memo" placeholder="가이드 및 기타 메모 사항" class="w-full border p-2.5 rounded-xl">
+          <button id="submitBtn" type="submit" class="bg-theme bg-theme-hover text-white font-bold py-2.5 px-6 rounded-xl shrink-0 transition">등록하기</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
+      <h3 class="font-bold text-gray-800 text-sm shrink-0">📋 체험단 목록 관리</h3>
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
+        <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
+          <option value="ALL">상태 전체</option>
+          <option value="신청">신청</option>
+          <option value="선정">선정</option>
+          <option value="방문">방문</option>
+          <option value="제출">제출 (완료)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-[#FAF8F5] border-b border-gray-100 text-gray-400 text-xs">
+          <tr>
+            <th class="p-3">업체명</th>
+            <th class="p-3">사이트</th>
+            <th class="p-3">상태</th>
+            <th class="p-3">분류/지역</th>
+            <th class="p-3">방문일</th>
+            <th class="p-3">마감일</th>
+            <th class="p-3">제공금액</th>
+            <th class="p-3">실결제</th>
+            <th class="p-3">수익</th>
+            <th class="p-3">관리</th>
+          </tr>
+        </thead>
+        <tbody id="campaignTableBody"></tbody>
+      </table>
+    </div>
+
+    <div id="campaignCardList" class="block md:hidden space-y-3"></div>
+  </div>
+
+</body>
+</html>
