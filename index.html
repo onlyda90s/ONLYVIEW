@@ -145,35 +145,6 @@
       }
     };
 
-    // 텍스트 분석 및 정보 자동 추출 함수
-    function parseTextToFields(text) {
-      if (!text) return;
-
-      // 금액 추출 (예: 30,000원 / 5만원 / 3만원 상당 등)
-      const priceMatch = text.match(/([0-9,]+)\s*원/) || text.match(/([0-9]+)\s*만\s*원/);
-      if (priceMatch) {
-        let val = priceMatch[1].replace(/,/g, '');
-        if (text.includes("만원") && !val.endsWith("0000")) {
-          val = parseInt(val, 10) * 10000;
-        }
-        if (!isNaN(val)) {
-          document.getElementById('sponsoredAmount').value = val;
-        }
-      }
-
-      // 첫 줄 또는 정제 텍스트를 매장명으로 대입
-      let lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length > 0) {
-        let cleanTitle = lines[0]
-          .replace(/\[.*?\]|\(.*?\)/g, '')
-          .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
-          .trim();
-        if (cleanTitle) {
-          document.getElementById('storeName').value = cleanTitle;
-        }
-      }
-    }
-
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
         try { await signInWithPopup(auth, provider); } 
@@ -197,8 +168,8 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // URL 자동 등록 처리
-      document.getElementById('parseUrlBtn')?.addEventListener('click', () => {
+      // 원스톱 자동 파싱
+      document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
         
@@ -213,24 +184,56 @@
         else if (url.includes("ringble.co.kr")) platform = "링블";
 
         if (platform) document.getElementById('platformName').value = platform;
-        alert("사이트명과 URL이 설정되었습니다. 아래 복사한 텍스트로 정보 채우기를 활용해보세요.");
-      });
 
-      // 클립보드 복사 텍스트 감지 및 추출
-      document.getElementById('pasteTextBtn')?.addEventListener('click', async () => {
+        const parseBtn = document.getElementById('parseUrlBtn');
+        parseBtn.innerText = "분석 중...";
+        parseBtn.disabled = true;
+
         try {
-          const text = await navigator.clipboard.readText();
-          if (text) {
-            parseTextToFields(text);
-            alert("복사한 텍스트에서 매장명 및 금액 정보를 추출해 채웠습니다.");
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          const res = await fetch(proxyUrl);
+          const data = await res.json();
+
+          if (data.contents) {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(data.contents, 'text/html');
+
+            const ogTitle = htmlDoc.querySelector('meta[property="og:title"]')?.content || 
+                            htmlDoc.querySelector('meta[name="title"]')?.content || 
+                            htmlDoc.querySelector('title')?.innerText || "";
+
+            const ogDesc = htmlDoc.querySelector('meta[property="og:description"]')?.content || 
+                           htmlDoc.querySelector('meta[name="description"]')?.content || "";
+
+            if (ogTitle) {
+              let cleanTitle = ogTitle
+                .replace(/\[.*?\]|\(.*?\)|<.*?>/g, '')
+                .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
+                .split('-')[0]
+                .split('|')[0]
+                .split(':')[0]
+                .trim();
+
+              if (cleanTitle) document.getElementById('storeName').value = cleanTitle;
+            }
+
+            const fullText = ogTitle + " " + ogDesc + " " + htmlDoc.body.innerText;
+            const priceMatch = fullText.match(/([0-9,]+)\s*원/);
+            if (priceMatch && priceMatch[1]) {
+              const price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+              if (!isNaN(price) && price >= 1000) {
+                document.getElementById('sponsoredAmount').value = price;
+              }
+            }
           }
-        } catch (err) {
-          const manualText = prompt("체험단 모집글의 제목이나 매장명/제공내역 텍스트를 붙여넣어주세요:");
-          if (manualText) {
-            parseTextToFields(manualText);
-            alert("입력한 텍스트에서 매장명 및 금액 정보를 추출해 채웠습니다.");
-          }
+        } catch (e) {
+          console.warn("보안 제한으로 기본 정보만 추출되었습니다.", e);
+        } finally {
+          parseBtn.innerText = "URL 연결하기";
+          parseBtn.disabled = false;
         }
+
+        alert("자동 정보 불러오기가 완료되었습니다.");
       });
     });
 
@@ -930,18 +933,15 @@
       <!-- 2. 체험 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-6">
         
-        <!-- URL 및 클립보드 빠른 등록 영역 -->
+        <!-- URL 원스톱 연결 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-          <h3 class="font-bold text-gray-800 text-sm">URL 및 텍스트로 빠른 등록하기</h3>
-          <p class="text-xs text-gray-400">사이트 주소를 넣으면 사이트명이 자동 선택되며, 모집글 제목/금액 텍스트를 복사후 아래 버튼을 누르면 매장명과 금액이 자동 채워집니다.</p>
+          <h3 class="font-bold text-gray-800 text-sm">URL로 빠른 등록하기</h3>
+          <p class="text-xs text-gray-400">체험단 모집 사이트(레뷰, 리뷰노트 등)의 주소를 붙여넣고 버튼을 누르면 정보를 자동으로 가져옵니다.</p>
           
-          <div class="flex flex-col md:flex-row gap-2">
+          <div class="flex gap-2">
             <input type="url" id="quickUrlInput" placeholder="https://..." class="border p-2.5 rounded-xl text-xs flex-1 outline-none focus:ring-2 ring-theme">
-            <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0 transition">
+            <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-5 py-2.5 rounded-xl font-bold shrink-0 transition">
               URL 연결하기
-            </button>
-            <button id="pasteTextBtn" type="button" class="bg-theme bg-theme-hover text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0 transition">
-              복사한 텍스트로 정보 채우기
             </button>
           </div>
         </div>
