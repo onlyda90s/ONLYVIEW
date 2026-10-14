@@ -65,6 +65,20 @@
     let currentCalDate = new Date();
     let selectedStatus = "신청";
 
+    function formatCleanDate(dateVal) {
+      if (!dateVal) return "";
+      const clean = dateVal.trim();
+      const parts = clean.split("-");
+      if (parts.length === 3) {
+        let year = parts[0];
+        if (year.length > 4) year = year.slice(0, 4);
+        const month = String(parts[1]).padStart(2, '0');
+        const day = String(parts[2]).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      return clean;
+    }
+
     const themeColors = {
       orange: { primary: '#F4A261', hover: '#E76F51', text: '#C85A17', light: '#FFF2E6', bg: '#FAF8F5' },
       red:    { primary: '#E63946', hover: '#D62828', text: '#D62828', light: '#FFEAEB', bg: '#FFF5F5' },
@@ -131,6 +145,35 @@
       }
     };
 
+    // 텍스트 분석 및 정보 자동 추출 함수
+    function parseTextToFields(text) {
+      if (!text) return;
+
+      // 금액 추출 (예: 30,000원 / 5만원 / 3만원 상당 등)
+      const priceMatch = text.match(/([0-9,]+)\s*원/) || text.match(/([0-9]+)\s*만\s*원/);
+      if (priceMatch) {
+        let val = priceMatch[1].replace(/,/g, '');
+        if (text.includes("만원") && !val.endsWith("0000")) {
+          val = parseInt(val, 10) * 10000;
+        }
+        if (!isNaN(val)) {
+          document.getElementById('sponsoredAmount').value = val;
+        }
+      }
+
+      // 첫 줄 또는 정제 텍스트를 매장명으로 대입
+      let lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length > 0) {
+        let cleanTitle = lines[0]
+          .replace(/\[.*?\]|\(.*?\)/g, '')
+          .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
+          .trim();
+        if (cleanTitle) {
+          document.getElementById('storeName').value = cleanTitle;
+        }
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
         try { await signInWithPopup(auth, provider); } 
@@ -154,8 +197,8 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // 강황된 URL 파싱 로직
-      document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
+      // URL 자동 등록 처리
+      document.getElementById('parseUrlBtn')?.addEventListener('click', () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
         
@@ -170,59 +213,24 @@
         else if (url.includes("ringble.co.kr")) platform = "링블";
 
         if (platform) document.getElementById('platformName').value = platform;
+        alert("사이트명과 URL이 설정되었습니다. 아래 복사한 텍스트로 정보 채우기를 활용해보세요.");
+      });
 
-        const parseBtn = document.getElementById('parseUrlBtn');
-        parseBtn.innerText = "불러오는 중...";
-        parseBtn.disabled = true;
-
+      // 클립보드 복사 텍스트 감지 및 추출
+      document.getElementById('pasteTextBtn')?.addEventListener('click', async () => {
         try {
-          // OpenGraph 및 Title 메타 태그 읽기 시도
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-          const res = await fetch(proxyUrl);
-          const data = await res.json();
-
-          if (data.contents) {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(data.contents, 'text/html');
-
-            const ogTitle = htmlDoc.querySelector('meta[property="og:title"]')?.content || 
-                            htmlDoc.querySelector('meta[name="title"]')?.content || 
-                            htmlDoc.querySelector('title')?.innerText || "";
-
-            const ogDesc = htmlDoc.querySelector('meta[property="og:description"]')?.content || 
-                           htmlDoc.querySelector('meta[name="description"]')?.content || "";
-
-            // 업체명 정제 추출
-            if (ogTitle) {
-              let cleanTitle = ogTitle
-                .replace(/\[.*?\]|\(.*?\)|<.*?>/g, '')
-                .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
-                .split('-')[0]
-                .split('|')[0]
-                .split(':')[0]
-                .trim();
-
-              if (cleanTitle) document.getElementById('storeName').value = cleanTitle;
-            }
-
-            // 금액 숫자 추출 시도 (가치/제공)
-            const fullText = ogTitle + " " + ogDesc + " " + htmlDoc.body.innerText;
-            const priceMatch = fullText.match(/([0-9,]+)\s*원/);
-            if (priceMatch && priceMatch[1]) {
-              const price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-              if (!isNaN(price) && price >= 1000) {
-                document.getElementById('sponsoredAmount').value = price;
-              }
-            }
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            parseTextToFields(text);
+            alert("복사한 텍스트에서 매장명 및 금액 정보를 추출해 채웠습니다.");
           }
-        } catch (e) {
-          console.warn("웹 파싱 제한 - 기본 플랫폼명만 자동 지정되었습니다.", e);
-        } finally {
-          parseBtn.innerText = "URL 정보 가져오기";
-          parseBtn.disabled = false;
+        } catch (err) {
+          const manualText = prompt("체험단 모집글의 제목이나 매장명/제공내역 텍스트를 붙여넣어주세요:");
+          if (manualText) {
+            parseTextToFields(manualText);
+            alert("입력한 텍스트에서 매장명 및 금액 정보를 추출해 채웠습니다.");
+          }
         }
-
-        alert("URL 정보 불러오기가 완료되었습니다. 매장명과 날짜/금액을 확인해주세요.");
       });
     });
 
@@ -369,7 +377,14 @@
         
         rawCampaignList = [];
         querySnapshot.forEach((docSnap) => {
-          rawCampaignList.push({ id: docSnap.id, ...docSnap.data() });
+          const d = docSnap.data();
+          rawCampaignList.push({ 
+            id: docSnap.id, 
+            ...d,
+            applyDate: formatCleanDate(d.applyDate || ''),
+            visitDate: formatCleanDate(d.visitDate || ''),
+            deadlineDate: formatCleanDate(d.deadlineDate || '')
+          });
         });
 
         filterAndRender();
@@ -671,9 +686,9 @@
       
       setStatusBtn(item.status || '신청');
 
-      document.getElementById('applyDate').value = item.applyDate || '';
-      document.getElementById('visitDate').value = item.visitDate || '';
-      document.getElementById('deadlineDate').value = item.deadlineDate || '';
+      document.getElementById('applyDate').value = formatCleanDate(item.applyDate || '');
+      document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
+      document.getElementById('deadlineDate').value = formatCleanDate(item.deadlineDate || '');
       document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
       document.getElementById('paidAmount').value = item.paidAmount || 0;
       document.getElementById('revenue').value = item.revenue || 0;
@@ -719,9 +734,9 @@
         storeName: document.getElementById('storeName').value,
         platformName: document.getElementById('platformName').value,
         status: selectedStatus,
-        applyDate: document.getElementById('applyDate').value,
-        visitDate: document.getElementById('visitDate').value,
-        deadlineDate: document.getElementById('deadlineDate').value,
+        applyDate: formatCleanDate(document.getElementById('applyDate').value),
+        visitDate: formatCleanDate(document.getElementById('visitDate').value),
+        deadlineDate: formatCleanDate(document.getElementById('deadlineDate').value),
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
         paidAmount: Number(document.getElementById('paidAmount').value || 0),
         revenue: Number(document.getElementById('revenue').value || 0),
@@ -915,14 +930,18 @@
       <!-- 2. 체험 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-6">
         
-        <!-- URL 빠른 등록 -->
+        <!-- URL 및 클립보드 빠른 등록 영역 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-          <h3 class="font-bold text-gray-800 text-sm">URL로 빠르게 등록하기</h3>
-          <p class="text-xs text-gray-400">체험단 모집 사이트(레뷰, 리뷰노트 등)의 주소를 붙여넣으세요.</p>
-          <div class="flex gap-2">
+          <h3 class="font-bold text-gray-800 text-sm">URL 및 텍스트로 빠른 등록하기</h3>
+          <p class="text-xs text-gray-400">사이트 주소를 넣으면 사이트명이 자동 선택되며, 모집글 제목/금액 텍스트를 복사후 아래 버튼을 누르면 매장명과 금액이 자동 채워집니다.</p>
+          
+          <div class="flex flex-col md:flex-row gap-2">
             <input type="url" id="quickUrlInput" placeholder="https://..." class="border p-2.5 rounded-xl text-xs flex-1 outline-none focus:ring-2 ring-theme">
             <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0 transition">
-              URL 정보 가져오기
+              URL 연결하기
+            </button>
+            <button id="pasteTextBtn" type="button" class="bg-theme bg-theme-hover text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0 transition">
+              복사한 텍스트로 정보 채우기
             </button>
           </div>
         </div>
@@ -961,19 +980,19 @@
               </div>
             </div>
 
-            <!-- 날짜 지정 (신청일 / 방문일 / 마감일) -->
+            <!-- 날짜 지정 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
               <div>
                 <label class="block text-xs text-gray-600 font-bold mb-1">신청일</label>
-                <input type="date" id="applyDate" class="w-full border p-2 rounded-xl text-xs bg-white">
+                <input type="date" id="applyDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
               <div>
                 <label class="block text-xs text-amber-700 font-bold mb-1">방문예정일</label>
-                <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs bg-white">
+                <input type="date" id="visitDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
               <div>
                 <label class="block text-xs text-rose-600 font-bold mb-1">포스팅마감일</label>
-                <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs bg-white">
+                <input type="date" id="deadlineDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
             </div>
 
