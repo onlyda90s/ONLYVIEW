@@ -154,7 +154,7 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // URL 파싱 로직 강화
+      // 강황된 URL 파싱 로직
       document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
@@ -166,40 +166,63 @@
         else if (url.includes("reviewnote.co.kr")) platform = "리뷰노트";
         else if (url.includes("dinnerqueen.net")) platform = "디너퀸";
         else if (url.includes("chvu.co.kr")) platform = "체험단";
+        else if (url.includes("mables.kr")) platform = "마블";
+        else if (url.includes("ringble.co.kr")) platform = "링블";
 
         if (platform) document.getElementById('platformName').value = platform;
 
+        const parseBtn = document.getElementById('parseUrlBtn');
+        parseBtn.innerText = "불러오는 중...";
+        parseBtn.disabled = true;
+
         try {
-          const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+          // OpenGraph 및 Title 메타 태그 읽기 시도
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          const res = await fetch(proxyUrl);
           const data = await res.json();
+
           if (data.contents) {
             const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-            const pageTitle = doc.querySelector('title')?.innerText || '';
-            const metaTitle = doc.querySelector('meta[property="og:title"]')?.content || '';
-            
-            let titleText = metaTitle || pageTitle;
-            titleText = titleText.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+            const htmlDoc = parser.parseFromString(data.contents, 'text/html');
 
-            if (titleText) {
-              const cleanStoreName = titleText.split('-')[0].split('|')[0].trim();
-              document.getElementById('storeName').value = cleanStoreName;
+            const ogTitle = htmlDoc.querySelector('meta[property="og:title"]')?.content || 
+                            htmlDoc.querySelector('meta[name="title"]')?.content || 
+                            htmlDoc.querySelector('title')?.innerText || "";
+
+            const ogDesc = htmlDoc.querySelector('meta[property="og:description"]')?.content || 
+                           htmlDoc.querySelector('meta[name="description"]')?.content || "";
+
+            // 업체명 정제 추출
+            if (ogTitle) {
+              let cleanTitle = ogTitle
+                .replace(/\[.*?\]|\(.*?\)|<.*?>/g, '')
+                .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
+                .split('-')[0]
+                .split('|')[0]
+                .split(':')[0]
+                .trim();
+
+              if (cleanTitle) document.getElementById('storeName').value = cleanTitle;
             }
 
-            const bodyText = doc.body.innerText;
-            const priceMatch = bodyText.match(/([0-9,]+)\s*원\s*(이용권|제공|상당)/);
-            if (priceMatch) {
-              const amount = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-              if (!isNaN(amount)) {
-                document.getElementById('sponsoredAmount').value = amount;
+            // 금액 숫자 추출 시도 (가치/제공)
+            const fullText = ogTitle + " " + ogDesc + " " + htmlDoc.body.innerText;
+            const priceMatch = fullText.match(/([0-9,]+)\s*원/);
+            if (priceMatch && priceMatch[1]) {
+              const price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+              if (!isNaN(price) && price >= 1000) {
+                document.getElementById('sponsoredAmount').value = price;
               }
             }
           }
         } catch (e) {
-          console.log("자동 추출 연동 에러:", e);
+          console.warn("웹 파싱 제한 - 기본 플랫폼명만 자동 지정되었습니다.", e);
+        } finally {
+          parseBtn.innerText = "URL 정보 가져오기";
+          parseBtn.disabled = false;
         }
 
-        alert("URL 주소 정보 설정이 완료되었습니다. 나머지 내용을 확인해주세요.");
+        alert("URL 정보 불러오기가 완료되었습니다. 매장명과 날짜/금액을 확인해주세요.");
       });
     });
 
@@ -779,7 +802,7 @@
   <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden min-h-screen w-full flex-col md:flex-row">
     
-    <!-- 좌측 사이드바 메뉴 (두 번째 메뉴: 체험 등록) -->
+    <!-- 좌측 사이드바 메뉴 -->
     <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-5 flex flex-col justify-between shrink-0">
       <div class="space-y-6">
         <div>
@@ -889,7 +912,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (이모티콘 제거 및 요약 동선 반영) -->
+      <!-- 2. 체험 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-6">
         
         <!-- URL 빠른 등록 -->
@@ -954,7 +977,7 @@
               </div>
             </div>
 
-            <!-- 금액 단축 관리 -->
+            <!-- 금액 관리 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
