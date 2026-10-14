@@ -750,8 +750,8 @@
       </div>
     </aside>
 
-    <!-- 우측 메인 콘텐츠 영역 -->
-    <main class="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto">
+    <!-- 우측 메인 콘텐츠 영역 (좌우 여백 확장: px-6 md:px-12) -->
+    <main class="flex-1 px-6 md:px-12 py-6 space-y-6 overflow-y-auto">
 
       <!-- 동반자 읽기 전용 알림 -->
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
@@ -761,19 +761,23 @@
       <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-6">
         
-        <!-- 대시보드 헤더 (월 변경) -->
+        <!-- 대시보드 헤더 (대시보드 서브텍스트 삭제) -->
         <div class="flex items-center justify-between">
           <div>
             <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
-            <p class="text-xs text-gray-500 font-bold mt-1">대시보드</p>
           </div>
-          <div class="flex gap-1">
-            <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">◀ 이전달</button>
-            <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달 ▶</button>
+          <div class="flex items-center gap-2">
+            <button onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition">
+              + 체험단 등록
+            </button>
+            <div class="flex gap-1">
+              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">◀ 이전달</button>
+              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달 ▶</button>
+            </div>
           </div>
         </div>
 
-        <!-- 1) 상단: 진행 상태별 카운트 위젯 (색상 테마 미적용 고정) -->
+        <!-- 1) 상단: 진행 상태별 카운트 위젯 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <div class="text-xs text-gray-500 font-bold">신청 현황</div>
