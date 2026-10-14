@@ -107,7 +107,12 @@
         renderDashboardView();
       }
       else if (tabName === 'list') document.getElementById('sectionList')?.classList.remove('hidden');
-      else if (tabName === 'form') document.getElementById('sectionForm')?.classList.remove('hidden');
+      else if (tabName === 'form') {
+        document.getElementById('sectionForm')?.classList.remove('hidden');
+        if (!editingId) {
+          document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
+        }
+      }
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
@@ -132,6 +137,20 @@
 
       document.getElementById('closeModalBtn')?.addEventListener('click', () => {
         document.getElementById('dayModal')?.classList.add('hidden');
+      });
+
+      document.getElementById('parseUrlBtn')?.addEventListener('click', () => {
+        const url = document.getElementById('quickUrlInput').value.trim();
+        if (!url) return alert("캠페인 URL을 입력해주세요.");
+        
+        document.getElementById('campaignUrl').value = url;
+        
+        if (url.includes("revu.net")) document.getElementById('platformName').value = "레뷰";
+        else if (url.includes("reviewnote.co.kr")) document.getElementById('platformName').value = "리뷰노트";
+        else if (url.includes("dinnerqueen.net")) document.getElementById('platformName').value = "디너퀸";
+        else if (url.includes("chvu.co.kr")) document.getElementById('platformName').value = "체험단";
+
+        alert("URL 주소가 설정되었습니다. 나머지 세부 정보를 작성해주세요.");
       });
     });
 
@@ -582,6 +601,7 @@
       document.getElementById('status').value = item.status || '신청';
       document.getElementById('category').value = item.category || '';
       document.getElementById('location').value = item.location || '';
+      document.getElementById('applyDate').value = item.applyDate || '';
       document.getElementById('visitDate').value = item.visitDate || '';
       document.getElementById('deadlineDate').value = item.deadlineDate || '';
       document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
@@ -631,6 +651,7 @@
         status: document.getElementById('status').value,
         category: document.getElementById('category').value,
         location: document.getElementById('location').value,
+        applyDate: document.getElementById('applyDate').value,
         visitDate: document.getElementById('visitDate').value,
         deadlineDate: document.getElementById('deadlineDate').value,
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
@@ -669,11 +690,12 @@
         '진행상황': item.status,
         '카테고리': item.category,
         '지역': item.location,
+        '신청일': item.applyDate,
         '방문일': item.visitDate,
         '마감일': item.deadlineDate,
         '제공금액': item.sponsoredAmount,
         '실결제금액': item.paidAmount,
-        '수익': item.revenue,
+        '실수익': item.revenue,
         '연락처': item.contact,
         '필수키워드': item.keywords,
         '캠페인링크': item.campaignUrl,
@@ -687,26 +709,26 @@
     });
   </script>
 
-  <!-- 로그인 전 화면 -->
-  <div id="authSection" class="min-h-screen w-full flex flex-col justify-start items-center p-6 pt-16 max-w-sm mx-auto">
-    <div class="text-center space-y-2 mb-6">
-      <h1 class="text-4xl font-black text-theme tracking-tight">온리뷰</h1>
+  <!-- 로그인 전 화면 (하단 배치 및 여백 2배 확장) -->
+  <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
+    <div class="text-center space-y-3 mb-16">
+      <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
       <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
-      <p class="text-sm text-gray-600 mt-2 leading-relaxed font-medium">
+      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-medium">
         체험단 방문 · 마감 · 정산을<br>한곳에서
       </p>
     </div>
 
-    <div class="w-full space-y-3 mb-3">
-      <input type="text" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-3.5 text-center text-sm outline-none focus:ring-2 ring-theme">
+    <div class="w-full space-y-4 mb-6">
+      <input type="text" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
       
-      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
+      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">
         Google로 계속하기
       </button>
 
-      <p class="text-[11px] text-center text-gray-400 mt-2">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
-      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-1">
+      <p class="text-[11px] text-center text-gray-400 mt-3">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
+      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-2">
         <span>이용약관</span> · <span>개인정보 처리방침</span>
       </div>
     </div>
@@ -750,7 +772,7 @@
       </div>
     </aside>
 
-    <!-- 우측 메인 콘텐츠 영역 (좌우 여백 확장: px-6 md:px-12) -->
+    <!-- 우측 메인 콘텐츠 영역 -->
     <main class="flex-1 px-6 md:px-12 py-6 space-y-6 overflow-y-auto">
 
       <!-- 동반자 읽기 전용 알림 -->
@@ -760,8 +782,6 @@
 
       <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-6">
-        
-        <!-- 대시보드 헤더 (대시보드 서브텍스트 삭제) -->
         <div class="flex items-center justify-between">
           <div>
             <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
@@ -777,7 +797,6 @@
           </div>
         </div>
 
-        <!-- 1) 상단: 진행 상태별 카운트 위젯 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <div class="text-xs text-gray-500 font-bold">신청 현황</div>
@@ -797,10 +816,7 @@
           </div>
         </div>
 
-        <!-- 2) 중앙: 캘린더 & 마감 임박 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <!-- 캘린더 -->
           <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <div class="flex justify-between items-center">
               <h3 class="font-bold text-gray-800 text-sm">월별 일정 달력</h3>
@@ -809,7 +825,6 @@
             <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
           </div>
 
-          <!-- 마감 임박 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
               <span>마감 임박 일정</span>
@@ -817,26 +832,19 @@
             </h3>
             <div id="upcomingList" class="space-y-2"></div>
           </div>
-
         </div>
 
-        <!-- 3) 하단: 이번주 방문 예정 & 방문 미정 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <!-- 이번주 방문 예정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm">이번 주 방문 예정</h3>
             <div id="weeklyVisitList" class="space-y-2"></div>
           </div>
 
-          <!-- 방문 미정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm">방문 미정</h3>
             <div id="unscheduledVisitList" class="space-y-2"></div>
           </div>
-
         </div>
-
       </div>
 
       <!-- 2. 체험단 목록 탭 -->
@@ -867,7 +875,7 @@
                 <th class="p-3">마감일</th>
                 <th class="p-3">제공금액</th>
                 <th class="p-3">실결제</th>
-                <th class="p-3">수익</th>
+                <th class="p-3">실수익</th>
                 <th class="p-3">관리</th>
               </tr>
             </thead>
@@ -879,52 +887,108 @@
       </div>
 
       <!-- 3. 체험단 등록/수정 탭 -->
-      <div id="sectionForm" class="hidden">
-        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div class="flex justify-between items-center mb-4">
+      <div id="sectionForm" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+          <h3 class="font-bold text-gray-800 text-sm">🔗 URL로 빠르게 등록하기</h3>
+          <p class="text-xs text-gray-400">체험단 모집 사이트(레뷰, 리뷰노트 등)의 캠페인 주소를 붙여넣으세요.</p>
+          <div class="flex gap-2">
+            <input type="url" id="quickUrlInput" placeholder="https://..." class="border p-2.5 rounded-xl text-xs flex-1 outline-none focus:ring-2 ring-theme">
+            <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0 transition">
+              URL 정보 가져오기
+            </button>
+          </div>
+        </div>
+
+        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+          <div class="flex justify-between items-center border-b pb-3">
             <h2 id="formTitle" class="text-base font-bold text-gray-800">새 체험단 등록</h2>
             <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
           </div>
           
-          <form id="campaignForm" class="space-y-4 text-sm">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <input type="text" id="storeName" placeholder="업체명 *" required class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              <input type="text" id="platformName" placeholder="사이트명 (예: 레뷰)" class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              <select id="status" class="border p-2.5 rounded-xl bg-white outline-none focus:ring-2 ring-theme">
-                <option value="신청">신청</option>
-                <option value="선정">선정</option>
-                <option value="방문">방문</option>
-                <option value="제출">제출 (완료)</option>
+          <form id="campaignForm" class="space-y-5 text-sm">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">진행 상태 *</label>
+              <select id="status" class="w-full md:w-64 border p-2.5 rounded-xl bg-white outline-none focus:ring-2 ring-theme font-bold">
+                <option value="신청">📝 신청</option>
+                <option value="선정">🎉 선정</option>
+                <option value="방문">📅 방문예정</option>
+                <option value="제출">⏰ 제출대기 (완료)</option>
               </select>
-              <div class="flex gap-1">
-                <input type="text" id="category" placeholder="카테고리" class="w-1/2 border p-2.5 rounded-xl text-xs">
-                <input type="text" id="location" placeholder="지역" class="w-1/2 border p-2.5 rounded-xl text-xs">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
+                <input type="text" id="storeName" placeholder="예: 강남 파스타" required class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">사이트명</label>
+                <input type="text" id="platformName" placeholder="예: 레뷰, 리뷰노트" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">카테고리</label>
+                <input type="text" id="category" placeholder="예: 맛집, 뷰티, 제품" class="w-full border p-2.5 rounded-xl text-xs outline-none focus:ring-2 ring-theme">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">지역</label>
+                <input type="text" id="location" placeholder="예: 강남, 홍대, 택배" class="w-full border p-2.5 rounded-xl text-xs outline-none focus:ring-2 ring-theme">
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
               <div>
-                <label class="block text-[10px] text-theme font-bold mb-0.5">방문예정일</label>
-                <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs">
+                <label class="block text-xs text-gray-600 font-bold mb-1">신청일</label>
+                <input type="date" id="applyDate" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
               <div>
-                <label class="block text-[10px] text-rose-600 font-bold mb-0.5">포스팅마감일</label>
-                <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs">
+                <label class="block text-xs text-amber-700 font-bold mb-1">방문예정일</label>
+                <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
-              <input type="number" id="sponsoredAmount" placeholder="제공금액 (원)" class="border p-2.5 rounded-xl md:mt-4">
-              <input type="number" id="paidAmount" placeholder="실결제금액 (원)" class="border p-2.5 rounded-xl md:mt-4">
-              <input type="number" id="revenue" placeholder="수익/원고료 (원)" class="border p-2.5 rounded-xl md:mt-4">
+              <div>
+                <label class="block text-xs text-rose-600 font-bold mb-1">포스팅마감일</label>
+                <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs bg-white">
+              </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input type="text" id="contact" placeholder="연락처" class="border p-2.5 rounded-xl">
-              <input type="text" id="keywords" placeholder="필수 키워드 (#강남맛집)" class="border p-2.5 rounded-xl">
-              <input type="url" id="campaignUrl" placeholder="캠페인 URL 링크" class="border p-2.5 rounded-xl">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 가치 (원)</label>
+                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-rose-600 mb-1">실결제금액 / 지출 (원)</label>
+                <input type="number" id="paidAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-emerald-600 mb-1">실수익 / 원고료 (원)</label>
+                <input type="number" id="revenue" placeholder="0" class="w-full border p-2.5 rounded-xl">
+              </div>
             </div>
 
-            <div class="flex flex-col md:flex-row gap-3">
-              <input type="text" id="memo" placeholder="가이드 및 기타 메모 사항" class="w-full border p-2.5 rounded-xl">
-              <button id="submitBtn" type="submit" class="bg-theme bg-theme-hover text-white font-bold py-2.5 px-6 rounded-xl shrink-0 transition">등록하기</button>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
+                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border p-2.5 rounded-xl">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">필수 키워드</label>
+                <input type="text" id="keywords" placeholder="#강남맛집 #파스타" class="w-full border p-2.5 rounded-xl">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">캠페인 URL</label>
+                <input type="url" id="campaignUrl" placeholder="https://..." class="w-full border p-2.5 rounded-xl">
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-700">기타 메모 사항</label>
+              <textarea id="memo" rows="2" placeholder="가이드라인 및 참고사항 입력..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+              <button id="submitBtn" type="submit" class="w-full md:w-auto bg-theme bg-theme-hover text-white font-bold py-3 px-8 rounded-xl transition shadow-sm">
+                등록하기
+              </button>
             </div>
           </form>
         </div>
