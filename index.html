@@ -102,7 +102,10 @@
         activeBtn.classList.add('bg-theme', 'text-white');
       }
 
-      if (tabName === 'dashboard') document.getElementById('sectionDashboard')?.classList.remove('hidden');
+      if (tabName === 'dashboard') {
+        document.getElementById('sectionDashboard')?.classList.remove('hidden');
+        renderDashboardView();
+      }
       else if (tabName === 'list') document.getElementById('sectionList')?.classList.remove('hidden');
       else if (tabName === 'form') document.getElementById('sectionForm')?.classList.remove('hidden');
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
@@ -311,6 +314,7 @@
 
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
+      if (!calGrid) return;
       calGrid.innerHTML = '';
 
       const firstDay = new Date(year, month - 1, 1).getDay();
@@ -342,10 +346,10 @@
 
         matched.forEach(c => {
           if (c.visitDate === dateStr) {
-            html += `<div class="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded truncate font-medium mb-0.5">📅 ${c.storeName}</div>`;
+            html += `<div class="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded truncate font-medium mb-0.5">[방문] ${c.storeName}</div>`;
           }
           if (c.deadlineDate === dateStr) {
-            html += `<div class="text-[9px] bg-rose-100 text-rose-800 px-1 py-0.5 rounded truncate font-bold mb-0.5">⏰ ${c.storeName}</div>`;
+            html += `<div class="text-[9px] bg-rose-100 text-rose-800 px-1 py-0.5 rounded truncate font-bold mb-0.5">[마감] ${c.storeName}</div>`;
           }
         });
 
@@ -355,9 +359,8 @@
       }
     }
 
-    // 날짜 클릭 시 모달 열기
     window.openDayModal = function(dateStr, items) {
-      document.getElementById('modalDateTitle').innerText = `📅 ${dateStr} 일정 상세`;
+      document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
       const modalList = document.getElementById('modalItemList');
       modalList.innerHTML = '';
 
@@ -373,9 +376,9 @@
               <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${item.status}</span>
             </div>
             <div class="text-gray-500">사이트: ${item.platformName || '-'} | 카테고리: ${item.category || '-'}</div>
-            <div class="text-gray-500">📅 방문일: ${item.visitDate || '미정'} | ⏰ 마감일: ${item.deadlineDate || '미정'}</div>
-            ${item.memo ? `<div class="bg-white p-2 rounded text-gray-600 mt-1">📝 ${item.memo}</div>` : ''}
-            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="inline-block text-theme underline font-bold mt-1">🔗 캠페인 링크 이동</a>` : ''}
+            <div class="text-gray-500">방문일: ${item.visitDate || '미정'} | 마감일: ${item.deadlineDate || '미정'}</div>
+            ${item.memo ? `<div class="bg-white p-2 rounded text-gray-600 mt-1">메모: ${item.memo}</div>` : ''}
+            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="inline-block text-theme underline font-bold mt-1">캠페인 링크 이동</a>` : ''}
           `;
           modalList.appendChild(div);
         });
@@ -386,6 +389,7 @@
 
     function renderUpcomingDeadlines() {
       const container = document.getElementById('upcomingList');
+      if (!container) return;
       container.innerHTML = '';
 
       const today = new Date();
@@ -424,11 +428,12 @@
       });
     }
 
-    // 이번 주 방문 예정 & 방문 미정 항목
     function renderWeeklyAndUnscheduledVisits() {
       const weeklyContainer = document.getElementById('weeklyVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
       
+      if (!weeklyContainer || !unscheduledContainer) return;
+
       weeklyContainer.innerHTML = '';
       unscheduledContainer.innerHTML = '';
 
@@ -437,7 +442,6 @@
       const nextWeek = new Date(today);
       nextWeek.setDate(today.getDate() + 7);
 
-      // 1. 이번 주 방문 예정
       const weeklyItems = rawCampaignList.filter(c => {
         if (!c.visitDate) return false;
         const vDate = new Date(c.visitDate);
@@ -456,13 +460,12 @@
               <span class="font-bold text-gray-800">${item.storeName}</span>
               <span class="text-[10px] text-gray-400 block">${item.platformName || ''}</span>
             </div>
-            <span class="text-amber-700 font-bold text-[11px]">📅 ${item.visitDate}</span>
+            <span class="text-amber-700 font-bold text-[11px]">${item.visitDate}</span>
           `;
           weeklyContainer.appendChild(div);
         });
       }
 
-      // 2. 선정 후 방문 미정
       const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
@@ -536,13 +539,13 @@
             <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">+${Number(item.revenue || 0).toLocaleString()}원</span>
           </div>
           <div class="text-xs text-gray-500 space-y-0.5">
-            <div>📅 방문일: ${item.visitDate || '-'} | ⏰ 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
-            <div>💰 제공: ${Number(item.sponsoredAmount || 0).toLocaleString()}원 | 지출: ${Number(item.paidAmount || 0).toLocaleString()}원</div>
-            ${item.keywords ? `<div class="text-theme">🔑 ${item.keywords}</div>` : ''}
-            ${item.memo ? `<div class="bg-theme-light p-2 rounded-lg mt-1 text-gray-600">📝 ${item.memo}</div>` : ''}
+            <div>방문일: ${item.visitDate || '-'} | 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
+            <div>제공: ${Number(item.sponsoredAmount || 0).toLocaleString()}원 | 지출: ${Number(item.paidAmount || 0).toLocaleString()}원</div>
+            ${item.keywords ? `<div class="text-theme">키워드: ${item.keywords}</div>` : ''}
+            ${item.memo ? `<div class="bg-theme-light p-2 rounded-lg mt-1 text-gray-600">메모: ${item.memo}</div>` : ''}
           </div>
           <div class="flex gap-2 mt-2">
-            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="flex-1 text-center bg-theme-light text-theme text-xs py-2 rounded-xl font-bold">🔗 링크</a>` : ''}
+            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="flex-1 text-center bg-theme-light text-theme text-xs py-2 rounded-xl font-bold">링크</a>` : ''}
             ${!isReadOnly ? `
               <button onclick="editCampaign('${item.id}')" class="bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
               <button onclick="deleteCampaign('${item.id}')" class="bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-xl font-bold">삭제</button>
@@ -589,7 +592,7 @@
       document.getElementById('campaignUrl').value = item.campaignUrl || '';
       document.getElementById('memo').value = item.memo || '';
 
-      document.getElementById('formTitle').innerText = '✏️ 체험단 정보 수정';
+      document.getElementById('formTitle').innerText = '체험단 정보 수정';
       document.getElementById('submitBtn').innerText = '수정 완료';
       document.getElementById('cancelEditBtn').classList.remove('hidden');
 
@@ -599,7 +602,7 @@
     window.cancelEdit = function() {
       editingId = null;
       document.getElementById('campaignForm').reset();
-      document.getElementById('formTitle').innerText = '➕ 새 체험단 등록';
+      document.getElementById('formTitle').innerText = '새 체험단 등록';
       document.getElementById('submitBtn').innerText = '등록하기';
       document.getElementById('cancelEditBtn').classList.add('hidden');
     };
@@ -726,23 +729,23 @@
         <!-- 메뉴 목록 -->
         <nav class="space-y-1.5 text-sm font-bold">
           <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-left bg-theme text-white">
-            📊 대시보드
+            대시보드
           </button>
           <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            📋 체험단 목록
+            체험단 목록
           </button>
           <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            ➕ 체험단 등록
+            체험단 등록
           </button>
           <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            ⚙️ 설정 및 공유
+            설정 및 공유
           </button>
         </nav>
       </div>
 
       <div class="pt-4 border-t border-gray-100 space-y-2 mt-6 md:mt-0">
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2.5 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
-        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">📊 엑셀 내보내기</button>
+        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
         <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 font-semibold text-center">로그아웃</button>
       </div>
     </aside>
@@ -752,7 +755,7 @@
 
       <!-- 동반자 읽기 전용 알림 -->
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
-        ⚠️ 현재 <strong>동반자 읽기 전용 모드</strong>입니다. 데이터를 추가하거나 수정할 수 없습니다.
+        현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
       <!-- 1. 대시보드 탭 -->
@@ -761,8 +764,8 @@
         <!-- 대시보드 헤더 (월 변경) -->
         <div class="flex items-center justify-between">
           <div>
-            <h2 id="dashMonthTitle" class="text-2xl font-black text-gray-800">2026년 10월</h2>
-            <p class="text-xs text-gray-400 font-semibold mt-0.5">대시보드 현황 요약</p>
+            <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
+            <p class="text-xs text-gray-500 font-bold mt-1">대시보드</p>
           </div>
           <div class="flex gap-1">
             <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">◀ 이전달</button>
@@ -770,42 +773,42 @@
           </div>
         </div>
 
-        <!-- 1) 상단: 진행 상태별 카운트 위젯 -->
+        <!-- 1) 상단: 진행 상태별 카운트 위젯 (색상 테마 미적용 고정) -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-400 font-bold">📝 신청 현황</div>
-            <div id="cntApply" class="text-xl font-black text-gray-700 mt-1">0건</div>
+            <div class="text-xs text-gray-500 font-bold">신청 현황</div>
+            <div id="cntApply" class="text-xl font-black text-gray-500 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-theme font-bold">🎉 선정 현황</div>
-            <div id="cntSelect" class="text-xl font-black text-theme mt-1">0건</div>
+            <div class="text-xs text-gray-900 font-bold">선정 현황</div>
+            <div id="cntSelect" class="text-xl font-black text-gray-900 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-amber-600 font-bold">📅 방문예정</div>
-            <div id="cntVisit" class="text-xl font-black text-amber-600 mt-1">0건</div>
+            <div class="text-xs text-orange-500 font-bold">방문 예정</div>
+            <div id="cntVisit" class="text-xl font-black text-orange-500 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-emerald-600 font-bold">⏰ 제출대기/완료</div>
+            <div class="text-xs text-emerald-600 font-bold">제출 대기</div>
             <div id="cntSubmit" class="text-xl font-black text-emerald-600 mt-1">0건</div>
           </div>
         </div>
 
-        <!-- 2) 중앙: 캘린더 & 마감 임박 (2열 구조) -->
+        <!-- 2) 중앙: 캘린더 & 마감 임박 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          <!-- 캘린더 (2칸 차지) -->
+          <!-- 캘린더 -->
           <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <div class="flex justify-between items-center">
-              <h3 class="font-bold text-gray-800 text-sm">📅 월별 일정 달력</h3>
-              <span class="text-[10px] text-gray-400">날짜를 클릭하면 해당 날짜 일정을 확인할 수 있습니다.</span>
+              <h3 class="font-bold text-gray-800 text-sm">월별 일정 달력</h3>
+              <span class="text-[10px] text-gray-400">날짜를 클릭하면 상세 일정을 확인할 수 있습니다.</span>
             </div>
             <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
           </div>
 
-          <!-- 마감 임박 (1칸 차지) -->
+          <!-- 마감 임박 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
-              <span>🚨 마감 임박 일정</span>
+              <span>마감 임박 일정</span>
               <span class="text-[10px] text-rose-500 font-semibold">포스팅 마감 D-Day</span>
             </h3>
             <div id="upcomingList" class="space-y-2"></div>
@@ -813,24 +816,18 @@
 
         </div>
 
-        <!-- 3) 하단: 이번주 방문 예정 & 선정 후 방문 미정 (요청사항 반영) -->
+        <!-- 3) 하단: 이번주 방문 예정 & 방문 미정 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          <!-- 이번주 방문 예정 (1칸) -->
+          <!-- 이번주 방문 예정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1">
-              <span>📅 이번 주 방문 예정</span>
-              <span class="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-bold">7일 이내</span>
-            </h3>
+            <h3 class="font-bold text-gray-800 text-sm">이번 주 방문 예정</h3>
             <div id="weeklyVisitList" class="space-y-2"></div>
           </div>
 
-          <!-- 선정 후 방문 일자 미정 (1칸) -->
+          <!-- 방문 미정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1">
-              <span>⚠️ 방문 미정 (선정 후 일자 미지정)</span>
-              <span class="text-[10px] text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-bold">일정 등록 필요</span>
-            </h3>
+            <h3 class="font-bold text-gray-800 text-sm">방문 미정</h3>
             <div id="unscheduledVisitList" class="space-y-2"></div>
           </div>
 
@@ -841,7 +838,7 @@
       <!-- 2. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
-          <h3 class="font-bold text-gray-800 text-sm shrink-0">📋 체험단 목록</h3>
+          <h3 class="font-bold text-gray-800 text-sm shrink-0">체험단 목록</h3>
           <div class="flex items-center gap-2 w-full md:w-auto">
             <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
             <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
@@ -881,7 +878,7 @@
       <div id="sectionForm" class="hidden">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div class="flex justify-between items-center mb-4">
-            <h2 id="formTitle" class="text-base font-bold text-gray-800">➕ 새 체험단 등록</h2>
+            <h2 id="formTitle" class="text-base font-bold text-gray-800">새 체험단 등록</h2>
             <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
           </div>
           
@@ -903,11 +900,11 @@
 
             <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div>
-                <label class="block text-[10px] text-theme font-bold mb-0.5">📅 방문예정일</label>
+                <label class="block text-[10px] text-theme font-bold mb-0.5">방문예정일</label>
                 <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs">
               </div>
               <div>
-                <label class="block text-[10px] text-rose-600 font-bold mb-0.5">⏰ 포스팅마감일</label>
+                <label class="block text-[10px] text-rose-600 font-bold mb-0.5">포스팅마감일</label>
                 <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs">
               </div>
               <input type="number" id="sponsoredAmount" placeholder="제공금액 (원)" class="border p-2.5 rounded-xl md:mt-4">
@@ -931,10 +928,10 @@
 
       <!-- 4. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-6">
-        <h2 class="text-xl font-bold text-gray-800">⚙️ 시스템 설정</h2>
+        <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">🔗 공유 코드 관리</h3>
+          <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
           <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between">
             <div>
               <div class="text-xs text-gray-500 font-semibold">동반자에게 알려줄 코드</div>
@@ -945,7 +942,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">👥 동반자 내역 조회 (읽기 전용)</h3>
+          <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
           <div class="flex gap-2">
             <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
             <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
@@ -953,7 +950,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">🎨 테마 색상 설정</h3>
+          <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
           <div class="flex items-center gap-3">
             <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
             <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
@@ -973,7 +970,7 @@
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">📅 일정 상세</h3>
+        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
         <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
       </div>
       <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
