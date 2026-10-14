@@ -27,7 +27,7 @@
     .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
   </style>
 </head>
-<body class="text-[#333333] min-h-screen flex flex-col md:flex-row">
+<body class="text-[#333333] min-h-screen">
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -62,6 +62,7 @@
     let rawCampaignList = [];
     let editingId = null;
     let myCustomCode = "";
+    let currentCalDate = new Date();
 
     const themeColors = {
       orange: { primary: '#F4A261', hover: '#E76F51', text: '#C85A17', light: '#FFF2E6', bg: '#FAF8F5' },
@@ -86,7 +87,6 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
 
-    // 메뉴 탭 전환 함수
     window.switchTab = function(tabName) {
       const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettings'];
       sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
@@ -102,13 +102,10 @@
         activeBtn.classList.add('bg-theme', 'text-white');
       }
 
-      if (tabName === 'dashboard' || tabName === 'list') {
-        document.getElementById(tabName === 'dashboard' ? 'sectionDashboard' : 'sectionList')?.classList.remove('hidden');
-      } else if (tabName === 'form') {
-        document.getElementById('sectionForm')?.classList.remove('hidden');
-      } else if (tabName === 'settings') {
-        document.getElementById('sectionSettings')?.classList.remove('hidden');
-      }
+      if (tabName === 'dashboard') document.getElementById('sectionDashboard')?.classList.remove('hidden');
+      else if (tabName === 'list') document.getElementById('sectionList')?.classList.remove('hidden');
+      else if (tabName === 'form') document.getElementById('sectionForm')?.classList.remove('hidden');
+      else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -120,6 +117,19 @@
       document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
       document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
       document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
+
+      document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
+        currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+        renderDashboardView();
+      });
+      document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
+        currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+        renderDashboardView();
+      });
+
+      document.getElementById('closeModalBtn')?.addEventListener('click', () => {
+        document.getElementById('dayModal')?.classList.add('hidden');
+      });
     });
 
     onAuthStateChanged(auth, async (user) => {
@@ -224,6 +234,7 @@
 
         updateFormVisibility();
         loadCampaigns();
+        switchTab('dashboard');
       } catch (e) {
         alert("조회 실패: " + e.message);
       }
@@ -239,15 +250,15 @@
     });
 
     function updateFormVisibility() {
-      const formContainer = document.getElementById('formContainer');
       const readOnlyBadge = document.getElementById('readOnlyBadge');
+      const resetBtn = document.getElementById('resetToMyDataBtn');
 
       if (isReadOnly) {
-        formContainer.classList.add('hidden');
         readOnlyBadge.classList.remove('hidden');
+        resetBtn.classList.remove('hidden');
       } else {
-        formContainer.classList.remove('hidden');
         readOnlyBadge.classList.add('hidden');
+        resetBtn.classList.add('hidden');
       }
     }
 
@@ -268,8 +279,207 @@
         });
 
         filterAndRender();
+        renderDashboardView();
       } catch (e) {
         console.error("데이터 로드 실패:", e);
+      }
+    }
+
+    function renderDashboardView() {
+      const year = currentCalDate.getFullYear();
+      const month = currentCalDate.getMonth() + 1;
+      document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
+
+      let cntApply = 0, cntSelect = 0, cntVisit = 0, cntSubmit = 0;
+
+      rawCampaignList.forEach(item => {
+        if (item.status === '신청') cntApply++;
+        else if (item.status === '선정') cntSelect++;
+        else if (item.status === '방문') cntVisit++;
+        else if (item.status === '제출') cntSubmit++;
+      });
+
+      document.getElementById('cntApply').innerText = cntApply + '건';
+      document.getElementById('cntSelect').innerText = cntSelect + '건';
+      document.getElementById('cntVisit').innerText = cntVisit + '건';
+      document.getElementById('cntSubmit').innerText = cntSubmit + '건';
+
+      renderCalendar(year, month);
+      renderUpcomingDeadlines();
+      renderWeeklyAndUnscheduledVisits();
+    }
+
+    function renderCalendar(year, month) {
+      const calGrid = document.getElementById('calendarGrid');
+      calGrid.innerHTML = '';
+
+      const firstDay = new Date(year, month - 1, 1).getDay();
+      const lastDate = new Date(year, month, 0).getDate();
+
+      const days = ['일', '월', '화', '수', '목', '금', '토'];
+      days.forEach((d, idx) => {
+        const dh = document.createElement('div');
+        dh.className = `text-center text-xs font-bold py-1 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
+        dh.innerText = d;
+        calGrid.appendChild(dh);
+      });
+
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'bg-gray-50/50 rounded-xl min-h-[50px]';
+        calGrid.appendChild(empty);
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (let date = 1; date <= lastDate; date++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+        const dayCell = document.createElement('div');
+        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[60px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
+        
+        let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
+        
+        const matched = rawCampaignList.filter(c => c.visitDate === dateStr || c.deadlineDate === dateStr);
+
+        matched.forEach(c => {
+          if (c.visitDate === dateStr) {
+            html += `<div class="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded truncate font-medium mb-0.5">📅 ${c.storeName}</div>`;
+          }
+          if (c.deadlineDate === dateStr) {
+            html += `<div class="text-[9px] bg-rose-100 text-rose-800 px-1 py-0.5 rounded truncate font-bold mb-0.5">⏰ ${c.storeName}</div>`;
+          }
+        });
+
+        dayCell.innerHTML = html;
+        dayCell.onclick = () => openDayModal(dateStr, matched);
+        calGrid.appendChild(dayCell);
+      }
+    }
+
+    // 날짜 클릭 시 모달 열기
+    window.openDayModal = function(dateStr, items) {
+      document.getElementById('modalDateTitle').innerText = `📅 ${dateStr} 일정 상세`;
+      const modalList = document.getElementById('modalItemList');
+      modalList.innerHTML = '';
+
+      if (items.length === 0) {
+        modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">등록된 일정이 없습니다.</div>';
+      } else {
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 space-y-1 text-xs';
+          div.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-sm text-theme">${item.storeName}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${item.status}</span>
+            </div>
+            <div class="text-gray-500">사이트: ${item.platformName || '-'} | 카테고리: ${item.category || '-'}</div>
+            <div class="text-gray-500">📅 방문일: ${item.visitDate || '미정'} | ⏰ 마감일: ${item.deadlineDate || '미정'}</div>
+            ${item.memo ? `<div class="bg-white p-2 rounded text-gray-600 mt-1">📝 ${item.memo}</div>` : ''}
+            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="inline-block text-theme underline font-bold mt-1">🔗 캠페인 링크 이동</a>` : ''}
+          `;
+          modalList.appendChild(div);
+        });
+      }
+
+      document.getElementById('dayModal')?.classList.remove('hidden');
+    };
+
+    function renderUpcomingDeadlines() {
+      const container = document.getElementById('upcomingList');
+      container.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      let deadlineList = rawCampaignList.filter(c => c.deadlineDate && c.status !== '제출').map(c => {
+        const dDate = new Date(c.deadlineDate);
+        dDate.setHours(0,0,0,0);
+        const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
+        return { ...c, diffDays };
+      }).sort((a, b) => a.diffDays - b.diffDays);
+
+      if (deadlineList.length === 0) {
+        container.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">마감 임박 일정이 없습니다.</div>';
+        return;
+      }
+
+      deadlineList.slice(0, 5).forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 flex items-center justify-between text-xs';
+        
+        let badgeClass = 'bg-gray-200 text-gray-700';
+        let dText = `D-${item.diffDays}`;
+        if (item.diffDays < 0) { badgeClass = 'bg-rose-500 text-white'; dText = `지연 (D+${Math.abs(item.diffDays)})`; }
+        else if (item.diffDays === 0) { badgeClass = 'bg-rose-600 text-white font-bold'; dText = '오늘 마감'; }
+        else if (item.diffDays <= 3) { badgeClass = 'bg-amber-500 text-white font-bold'; }
+
+        card.innerHTML = `
+          <div>
+            <div class="font-bold text-gray-800">${item.storeName}</div>
+            <div class="text-[10px] text-gray-400">마감일: ${item.deadlineDate}</div>
+          </div>
+          <span class="px-2 py-1 rounded-lg text-[10px] ${badgeClass}">${dText}</span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 이번 주 방문 예정 & 방문 미정 항목
+    function renderWeeklyAndUnscheduledVisits() {
+      const weeklyContainer = document.getElementById('weeklyVisitList');
+      const unscheduledContainer = document.getElementById('unscheduledVisitList');
+      
+      weeklyContainer.innerHTML = '';
+      unscheduledContainer.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+
+      // 1. 이번 주 방문 예정
+      const weeklyItems = rawCampaignList.filter(c => {
+        if (!c.visitDate) return false;
+        const vDate = new Date(c.visitDate);
+        vDate.setHours(0,0,0,0);
+        return vDate >= today && vDate <= nextWeek;
+      });
+
+      if (weeklyItems.length === 0) {
+        weeklyContainer.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">이번 주 예정된 방문이 없습니다.</div>';
+      } else {
+        weeklyItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-2.5 bg-amber-50/60 rounded-xl border border-amber-100 flex justify-between items-center text-xs';
+          div.innerHTML = `
+            <div>
+              <span class="font-bold text-gray-800">${item.storeName}</span>
+              <span class="text-[10px] text-gray-400 block">${item.platformName || ''}</span>
+            </div>
+            <span class="text-amber-700 font-bold text-[11px]">📅 ${item.visitDate}</span>
+          `;
+          weeklyContainer.appendChild(div);
+        });
+      }
+
+      // 2. 선정 후 방문 미정
+      const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
+
+      if (unscheduledItems.length === 0) {
+        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">일정 미지정 항목이 없습니다.</div>';
+      } else {
+        unscheduledItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-2.5 bg-rose-50/60 rounded-xl border border-rose-100 flex justify-between items-center text-xs';
+          div.innerHTML = `
+            <div>
+              <span class="font-bold text-gray-800">${item.storeName}</span>
+              <span class="text-[10px] text-gray-400 block">마감일: ${item.deadlineDate || '미정'}</span>
+            </div>
+            <button onclick="editCampaign('${item.id}')" class="text-[10px] bg-rose-600 text-white px-2 py-1 rounded-lg font-bold">일정 잡기</button>
+          `;
+          unscheduledContainer.appendChild(div);
+        });
       }
     }
 
@@ -289,15 +499,7 @@
       tableBody.innerHTML = '';
       cardList.innerHTML = '';
 
-      let totalSponsored = 0;
-      let totalPaid = 0;
-      let totalRevenue = 0;
-
       filteredList.forEach((item) => {
-        totalSponsored += Number(item.sponsoredAmount || 0);
-        totalPaid += Number(item.paidAmount || 0);
-        totalRevenue += Number(item.revenue || 0);
-
         const row = document.createElement('tr');
         row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm';
         row.innerHTML = `
@@ -349,10 +551,6 @@
         `;
         cardList.appendChild(card);
       });
-
-      document.getElementById('statSponsored').innerText = totalSponsored.toLocaleString() + '원';
-      document.getElementById('statPaid').innerText = totalPaid.toLocaleString() + '원';
-      document.getElementById('statRevenue').innerText = totalRevenue.toLocaleString() + '원';
 
       if (filteredList.length === 0) {
         const emptyMsg = '<div class="p-6 text-center text-gray-400 text-sm">조건에 해당하는 체험단이 없습니다.</div>';
@@ -512,7 +710,7 @@
   </div>
 
   <!-- 로그인 후 대시보드 (사이드바 + 메인 영역) -->
-  <div id="appSection" class="hidden w-full min-h-screen flex-col md:flex-row">
+  <div id="appSection" class="hidden min-h-screen w-full flex-col md:flex-row">
     
     <!-- 좌측 사이드바 메뉴 -->
     <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-5 flex flex-col justify-between shrink-0">
@@ -542,7 +740,8 @@
         </nav>
       </div>
 
-      <div class="pt-4 border-t border-gray-100 space-y-2">
+      <div class="pt-4 border-t border-gray-100 space-y-2 mt-6 md:mt-0">
+        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2.5 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
         <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">📊 엑셀 내보내기</button>
         <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 font-semibold text-center">로그아웃</button>
       </div>
@@ -558,25 +757,89 @@
 
       <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-6">
-        <h2 class="text-xl font-bold text-gray-800">📊 한눈에 보는 요약</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-theme">
-            <div class="text-xs font-semibold text-gray-400 mb-1">총 제공금액 가치</div>
-            <div id="statSponsored" class="text-2xl font-black text-gray-800">0원</div>
+        
+        <!-- 대시보드 헤더 (월 변경) -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 id="dashMonthTitle" class="text-2xl font-black text-gray-800">2026년 10월</h2>
+            <p class="text-xs text-gray-400 font-semibold mt-0.5">대시보드 현황 요약</p>
           </div>
-          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500">
-            <div class="text-xs font-semibold text-gray-400 mb-1">총 실결제 금액 (지출)</div>
-            <div id="statPaid" class="text-2xl font-black text-rose-600">0원</div>
-          </div>
-          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
-            <div class="text-xs font-semibold text-gray-400 mb-1">총 순수익 (원고료 등)</div>
-            <div id="statRevenue" class="text-2xl font-black text-emerald-600">0원</div>
+          <div class="flex gap-1">
+            <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">◀ 이전달</button>
+            <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달 ▶</button>
           </div>
         </div>
+
+        <!-- 1) 상단: 진행 상태별 카운트 위젯 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-xs text-gray-400 font-bold">📝 신청 현황</div>
+            <div id="cntApply" class="text-xl font-black text-gray-700 mt-1">0건</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-xs text-theme font-bold">🎉 선정 현황</div>
+            <div id="cntSelect" class="text-xl font-black text-theme mt-1">0건</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-xs text-amber-600 font-bold">📅 방문예정</div>
+            <div id="cntVisit" class="text-xl font-black text-amber-600 mt-1">0건</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-xs text-emerald-600 font-bold">⏰ 제출대기/완료</div>
+            <div id="cntSubmit" class="text-xl font-black text-emerald-600 mt-1">0건</div>
+          </div>
+        </div>
+
+        <!-- 2) 중앙: 캘린더 & 마감 임박 (2열 구조) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- 캘린더 (2칸 차지) -->
+          <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-gray-800 text-sm">📅 월별 일정 달력</h3>
+              <span class="text-[10px] text-gray-400">날짜를 클릭하면 해당 날짜 일정을 확인할 수 있습니다.</span>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+          </div>
+
+          <!-- 마감 임박 (1칸 차지) -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
+              <span>🚨 마감 임박 일정</span>
+              <span class="text-[10px] text-rose-500 font-semibold">포스팅 마감 D-Day</span>
+            </h3>
+            <div id="upcomingList" class="space-y-2"></div>
+          </div>
+
+        </div>
+
+        <!-- 3) 하단: 이번주 방문 예정 & 선정 후 방문 미정 (요청사항 반영) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- 이번주 방문 예정 (1칸) -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1">
+              <span>📅 이번 주 방문 예정</span>
+              <span class="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-bold">7일 이내</span>
+            </h3>
+            <div id="weeklyVisitList" class="space-y-2"></div>
+          </div>
+
+          <!-- 선정 후 방문 일자 미정 (1칸) -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1">
+              <span>⚠️ 방문 미정 (선정 후 일자 미지정)</span>
+              <span class="text-[10px] text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-bold">일정 등록 필요</span>
+            </h3>
+            <div id="unscheduledVisitList" class="space-y-2"></div>
+          </div>
+
+        </div>
+
       </div>
 
       <!-- 2. 체험단 목록 탭 -->
-      <div id="sectionList" class="space-y-4">
+      <div id="sectionList" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
           <h3 class="font-bold text-gray-800 text-sm shrink-0">📋 체험단 목록</h3>
           <div class="flex items-center gap-2 w-full md:w-auto">
@@ -668,23 +931,24 @@
 
       <!-- 4. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">⚙️ 시스템 설정</h2>
+
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
           <h3 class="font-bold text-gray-800 text-base">🔗 공유 코드 관리</h3>
           <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between">
             <div>
-              <div class="text-xs text-gray-500 font-semibold">내 현재 공유 코드</div>
+              <div class="text-xs text-gray-500 font-semibold">동반자에게 알려줄 코드</div>
               <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
             </div>
             <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
           </div>
+        </div>
 
-          <hr class="border-gray-100">
-
-          <h3 class="font-bold text-gray-800 text-base">👥 동반자 공유 내역 조회</h3>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <h3 class="font-bold text-gray-800 text-base">👥 동반자 내역 조회 (읽기 전용)</h3>
           <div class="flex gap-2">
             <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
             <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
-            <button id="resetToMyDataBtn" class="bg-gray-200 text-gray-700 text-xs px-3 py-2.5 rounded-xl font-bold">내 데이터 보기</button>
           </div>
         </div>
 
@@ -703,6 +967,17 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
+  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">📅 일정 상세</h3>
+        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
+      </div>
+      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
+    </div>
   </div>
 
 </body>
