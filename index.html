@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>온리뷰 (onlyview) - 웹 대시보드</title>
+  <title>온리뷰 (onlyview) - 대시보드</title>
   <!-- UI 스타일링 (Tailwind CSS) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- 엑셀 내보내기 (SheetJS) -->
@@ -27,7 +27,7 @@
     .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
   </style>
 </head>
-<body class="text-[#333333] min-h-screen">
+<body class="text-[#333333] min-h-screen flex flex-col md:flex-row">
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -86,6 +86,31 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
 
+    // 메뉴 탭 전환 함수
+    window.switchTab = function(tabName) {
+      const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettings'];
+      sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
+
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('bg-theme', 'text-white');
+        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+      });
+
+      const activeBtn = document.getElementById(`nav-${tabName}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+        activeBtn.classList.add('bg-theme', 'text-white');
+      }
+
+      if (tabName === 'dashboard' || tabName === 'list') {
+        document.getElementById(tabName === 'dashboard' ? 'sectionDashboard' : 'sectionList')?.classList.remove('hidden');
+      } else if (tabName === 'form') {
+        document.getElementById('sectionForm')?.classList.remove('hidden');
+      } else if (tabName === 'settings') {
+        document.getElementById('sectionSettings')?.classList.remove('hidden');
+      }
+    };
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
         try { await signInWithPopup(auth, provider); } 
@@ -108,21 +133,23 @@
 
         authSec.classList.add('hidden');
         appSec.classList.remove('hidden');
+        appSec.classList.add('flex');
+        
         document.getElementById('userName').innerText = user.displayName || user.email;
 
         await fetchUserCustomCode();
-
         updateFormVisibility();
         loadCampaigns();
+        switchTab('dashboard');
       } else {
         currentUser = null;
         targetUserId = null;
         authSec.classList.remove('hidden');
         appSec.classList.add('hidden');
+        appSec.classList.remove('flex');
       }
     });
 
-    // 커스텀 공유코드 불러오기 및 생성
     async function fetchUserCustomCode() {
       if (!currentUser) return;
       try {
@@ -132,7 +159,6 @@
         if (userSnap.exists() && userSnap.data().customCode) {
           myCustomCode = userSnap.data().customCode;
         } else {
-          // 초기 미설정 시 기본 6자리 무작위 생성
           myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
           await setDoc(userDocRef, { customCode: myCustomCode, uid: currentUser.uid }, { merge: true });
           await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid });
@@ -144,7 +170,6 @@
       }
     }
 
-    // 커스텀 공유코드 수정 버튼 이벤트
     document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
       const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리 숫자/영문):", myCustomCode);
       if (!newCode) return;
@@ -157,10 +182,9 @@
       try {
         const codeSnap = await getDoc(doc(db, "userCodes", trimmed));
         if (codeSnap.exists() && codeSnap.data().uid !== currentUser.uid) {
-          return alert("이미 사용 중인 코드입니다. 다른 코드를 입력해주세요.");
+          return alert("이미 사용 중인 코드입니다.");
         }
 
-        // 기존 코드 삭제 후 새 코드 추가
         if (myCustomCode) {
           await deleteDoc(doc(db, "userCodes", myCustomCode));
         }
@@ -176,7 +200,6 @@
       }
     });
 
-    // 동반자 조회 (4/6자리 커스텀 코드 또는 UID 모두 지원)
     document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
       const partnerCode = document.getElementById('partnerCodeInput').value.trim();
       if (!partnerCode) return alert("동반자의 공유 코드를 입력해주세요.");
@@ -184,7 +207,6 @@
       let realUid = partnerCode;
 
       try {
-        // 커스텀 코드 매핑 매치 확인
         const codeSnap = await getDoc(doc(db, "userCodes", partnerCode));
         if (codeSnap.exists()) {
           realUid = codeSnap.data().uid;
@@ -203,7 +225,7 @@
         updateFormVisibility();
         loadCampaigns();
       } catch (e) {
-        alert("조회 중 오류가 발생했습니다: " + e.message);
+        alert("조회 실패: " + e.message);
       }
     });
 
@@ -373,7 +395,7 @@
       document.getElementById('submitBtn').innerText = '수정 완료';
       document.getElementById('cancelEditBtn').classList.remove('hidden');
 
-      window.scrollTo({ top: document.getElementById('formContainer').offsetTop - 20, behavior: 'smooth' });
+      switchTab('form');
     };
 
     window.cancelEdit = function() {
@@ -431,6 +453,7 @@
           document.getElementById('campaignForm').reset();
         }
         loadCampaigns();
+        switchTab('dashboard');
       } catch (err) {
         alert('저장 실패: ' + err.message);
       }
@@ -464,7 +487,7 @@
   </script>
 
   <!-- 로그인 전 화면 -->
-  <div id="authSection" class="min-h-screen flex flex-col justify-start items-center p-6 pt-16 max-w-sm mx-auto">
+  <div id="authSection" class="min-h-screen w-full flex flex-col justify-start items-center p-6 pt-16 max-w-sm mx-auto">
     <div class="text-center space-y-2 mb-6">
       <h1 class="text-4xl font-black text-theme tracking-tight">온리뷰</h1>
       <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
@@ -488,145 +511,198 @@
     </div>
   </div>
 
-  <!-- 로그인 후 대시보드 화면 -->
-  <div id="appSection" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-    <header class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-xl font-black text-theme tracking-tight">온리뷰 (onlyview)</h1>
-          <span id="userName" class="text-xs bg-theme-light text-theme px-2.5 py-0.5 rounded-full font-bold"></span>
-        </div>
-        <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
-          내 공유 코드: <span id="myShareCode" class="font-mono text-gray-800 font-bold select-all"></span>
-          <button id="editCodeBtn" class="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-1 font-sans">코드 변경</button>
-        </p>
-      </div>
-
-      <div class="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-        <span class="text-[10px] text-gray-400 font-bold mr-1">테마:</span>
-        <button onclick="changeTheme('red')" class="w-4 h-4 rounded-full bg-[#E63946] border border-white shadow-sm hover:scale-110 transition" title="빨강"></button>
-        <button onclick="changeTheme('orange')" class="w-4 h-4 rounded-full bg-[#F4A261] border border-white shadow-sm hover:scale-110 transition" title="주황"></button>
-        <button onclick="changeTheme('yellow')" class="w-4 h-4 rounded-full bg-[#E9C46A] border border-white shadow-sm hover:scale-110 transition" title="노랑"></button>
-        <button onclick="changeTheme('green')" class="w-4 h-4 rounded-full bg-[#2A9D8F] border border-white shadow-sm hover:scale-110 transition" title="초록"></button>
-        <button onclick="changeTheme('blue')" class="w-4 h-4 rounded-full bg-[#457B9D] border border-white shadow-sm hover:scale-110 transition" title="파랑"></button>
-        <button onclick="changeTheme('purple')" class="w-4 h-4 rounded-full bg-[#9D4EDD] border border-white shadow-sm hover:scale-110 transition" title="보라"></button>
-        <button onclick="changeTheme('black')" class="w-4 h-4 rounded-full bg-[#2B2D42] border border-white shadow-sm hover:scale-110 transition" title="검정"></button>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-        <div class="flex gap-1 w-full md:w-auto">
-          <input type="text" id="partnerCodeInput" placeholder="동반자 코드 (4/6자리)" class="border p-2 rounded-xl text-xs w-full md:w-36 outline-none focus:ring-2 ring-theme">
-          <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-3 py-2 rounded-xl font-bold shrink-0">조회</button>
-          <button id="resetToMyDataBtn" class="bg-gray-200 text-gray-700 text-xs px-2.5 py-2 rounded-xl font-bold shrink-0">내 데이터</button>
-        </div>
-        <button id="downloadExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1">📊 엑셀 내보내기</button>
-        <button id="logoutBtn" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-2">로그아웃</button>
-      </div>
-    </header>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-theme">
-        <div class="text-xs font-semibold text-gray-400 mb-1">총 제공금액 가치</div>
-        <div id="statSponsored" class="text-2xl font-black text-gray-800">0원</div>
-      </div>
-      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500">
-        <div class="text-xs font-semibold text-gray-400 mb-1">총 실결제 금액 (지출)</div>
-        <div id="statPaid" class="text-2xl font-black text-rose-600">0원</div>
-      </div>
-      <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
-        <div class="text-xs font-semibold text-gray-400 mb-1">총 순수익 (원고료 등)</div>
-        <div id="statRevenue" class="text-2xl font-black text-emerald-600">0원</div>
-      </div>
-    </div>
-
-    <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
-      ⚠️ 현재 <strong>동반자 읽기 전용 모드</strong>입니다. 데이터를 추가하거나 수정할 수 없습니다.
-    </div>
-
-    <div id="formContainer" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-      <div class="flex justify-between items-center mb-4">
-        <h2 id="formTitle" class="text-base font-bold text-gray-800">➕ 새 체험단 등록</h2>
-        <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
-      </div>
-      
-      <form id="campaignForm" class="space-y-3 text-sm">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <input type="text" id="storeName" placeholder="업체명 *" required class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-          <input type="text" id="platformName" placeholder="사이트명 (예: 레뷰)" class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-          <select id="status" class="border p-2.5 rounded-xl bg-white outline-none focus:ring-2 ring-theme">
-            <option value="신청">신청</option>
-            <option value="선정">선정</option>
-            <option value="방문">방문</option>
-            <option value="제출">제출 (완료)</option>
-          </select>
-          <div class="flex gap-1">
-            <input type="text" id="category" placeholder="카테고리" class="w-1/2 border p-2.5 rounded-xl text-xs">
-            <input type="text" id="location" placeholder="지역" class="w-1/2 border p-2.5 rounded-xl text-xs">
+  <!-- 로그인 후 대시보드 (사이드바 + 메인 영역) -->
+  <div id="appSection" class="hidden w-full min-h-screen flex-col md:flex-row">
+    
+    <!-- 좌측 사이드바 메뉴 -->
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-5 flex flex-col justify-between shrink-0">
+      <div class="space-y-6">
+        <div>
+          <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
+          <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
+          <div class="mt-3 p-2.5 bg-theme-light rounded-xl flex items-center justify-between">
+            <span id="userName" class="text-xs font-bold text-theme truncate"></span>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div>
-            <label class="block text-[10px] text-theme font-bold mb-0.5">📅 방문예정일</label>
-            <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs">
-          </div>
-          <div>
-            <label class="block text-[10px] text-rose-600 font-bold mb-0.5">⏰ 포스팅마감일</label>
-            <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs">
-          </div>
-          <input type="number" id="sponsoredAmount" placeholder="제공금액 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
-          <input type="number" id="paidAmount" placeholder="실결제금액 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
-          <input type="number" id="revenue" placeholder="수익/원고료 (원)" class="border p-2.5 rounded-xl mt-4 md:mt-0">
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input type="text" id="contact" placeholder="연락처" class="border p-2.5 rounded-xl">
-          <input type="text" id="keywords" placeholder="필수 키워드 (#강남맛집)" class="border p-2.5 rounded-xl">
-          <input type="url" id="campaignUrl" placeholder="캠페인 URL 링크" class="border p-2.5 rounded-xl">
-        </div>
-
-        <div class="flex flex-col md:flex-row gap-3">
-          <input type="text" id="memo" placeholder="가이드 및 기타 메모 사항" class="w-full border p-2.5 rounded-xl">
-          <button id="submitBtn" type="submit" class="bg-theme bg-theme-hover text-white font-bold py-2.5 px-6 rounded-xl shrink-0 transition">등록하기</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
-      <h3 class="font-bold text-gray-800 text-sm shrink-0">📋 체험단 목록 관리</h3>
-      <div class="flex items-center gap-2 w-full md:w-auto">
-        <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
-        <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
-          <option value="ALL">상태 전체</option>
-          <option value="신청">신청</option>
-          <option value="선정">선정</option>
-          <option value="방문">방문</option>
-          <option value="제출">제출 (완료)</option>
-        </select>
+        <!-- 메뉴 목록 -->
+        <nav class="space-y-1.5 text-sm font-bold">
+          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-left bg-theme text-white">
+            📊 대시보드
+          </button>
+          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+            📋 체험단 목록
+          </button>
+          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+            ➕ 체험단 등록
+          </button>
+          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+            ⚙️ 설정 및 공유
+          </button>
+        </nav>
       </div>
-    </div>
 
-    <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-      <table class="w-full text-left border-collapse">
-        <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
-          <tr>
-            <th class="p-3">업체명</th>
-            <th class="p-3">사이트</th>
-            <th class="p-3">상태</th>
-            <th class="p-3">분류/지역</th>
-            <th class="p-3">방문일</th>
-            <th class="p-3">마감일</th>
-            <th class="p-3">제공금액</th>
-            <th class="p-3">실결제</th>
-            <th class="p-3">수익</th>
-            <th class="p-3">관리</th>
-          </tr>
-        </thead>
-        <tbody id="campaignTableBody"></tbody>
-      </table>
-    </div>
+      <div class="pt-4 border-t border-gray-100 space-y-2">
+        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">📊 엑셀 내보내기</button>
+        <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 font-semibold text-center">로그아웃</button>
+      </div>
+    </aside>
 
-    <div id="campaignCardList" class="block md:hidden space-y-3"></div>
+    <!-- 우측 메인 콘텐츠 영역 -->
+    <main class="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto">
+
+      <!-- 동반자 읽기 전용 알림 -->
+      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
+        ⚠️ 현재 <strong>동반자 읽기 전용 모드</strong>입니다. 데이터를 추가하거나 수정할 수 없습니다.
+      </div>
+
+      <!-- 1. 대시보드 탭 -->
+      <div id="sectionDashboard" class="space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">📊 한눈에 보는 요약</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-theme">
+            <div class="text-xs font-semibold text-gray-400 mb-1">총 제공금액 가치</div>
+            <div id="statSponsored" class="text-2xl font-black text-gray-800">0원</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-rose-500">
+            <div class="text-xs font-semibold text-gray-400 mb-1">총 실결제 금액 (지출)</div>
+            <div id="statPaid" class="text-2xl font-black text-rose-600">0원</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+            <div class="text-xs font-semibold text-gray-400 mb-1">총 순수익 (원고료 등)</div>
+            <div id="statRevenue" class="text-2xl font-black text-emerald-600">0원</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 체험단 목록 탭 -->
+      <div id="sectionList" class="space-y-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
+          <h3 class="font-bold text-gray-800 text-sm shrink-0">📋 체험단 목록</h3>
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
+            <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
+              <option value="ALL">상태 전체</option>
+              <option value="신청">신청</option>
+              <option value="선정">선정</option>
+              <option value="방문">방문</option>
+              <option value="제출">제출 (완료)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
+              <tr>
+                <th class="p-3">업체명</th>
+                <th class="p-3">사이트</th>
+                <th class="p-3">상태</th>
+                <th class="p-3">분류/지역</th>
+                <th class="p-3">방문일</th>
+                <th class="p-3">마감일</th>
+                <th class="p-3">제공금액</th>
+                <th class="p-3">실결제</th>
+                <th class="p-3">수익</th>
+                <th class="p-3">관리</th>
+              </tr>
+            </thead>
+            <tbody id="campaignTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="campaignCardList" class="block md:hidden space-y-3"></div>
+      </div>
+
+      <!-- 3. 체험단 등록/수정 탭 -->
+      <div id="sectionForm" class="hidden">
+        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-center mb-4">
+            <h2 id="formTitle" class="text-base font-bold text-gray-800">➕ 새 체험단 등록</h2>
+            <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
+          </div>
+          
+          <form id="campaignForm" class="space-y-4 text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input type="text" id="storeName" placeholder="업체명 *" required class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              <input type="text" id="platformName" placeholder="사이트명 (예: 레뷰)" class="border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              <select id="status" class="border p-2.5 rounded-xl bg-white outline-none focus:ring-2 ring-theme">
+                <option value="신청">신청</option>
+                <option value="선정">선정</option>
+                <option value="방문">방문</option>
+                <option value="제출">제출 (완료)</option>
+              </select>
+              <div class="flex gap-1">
+                <input type="text" id="category" placeholder="카테고리" class="w-1/2 border p-2.5 rounded-xl text-xs">
+                <input type="text" id="location" placeholder="지역" class="w-1/2 border p-2.5 rounded-xl text-xs">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
+                <label class="block text-[10px] text-theme font-bold mb-0.5">📅 방문예정일</label>
+                <input type="date" id="visitDate" class="w-full border p-2 rounded-xl text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] text-rose-600 font-bold mb-0.5">⏰ 포스팅마감일</label>
+                <input type="date" id="deadlineDate" class="w-full border p-2 rounded-xl text-xs">
+              </div>
+              <input type="number" id="sponsoredAmount" placeholder="제공금액 (원)" class="border p-2.5 rounded-xl md:mt-4">
+              <input type="number" id="paidAmount" placeholder="실결제금액 (원)" class="border p-2.5 rounded-xl md:mt-4">
+              <input type="number" id="revenue" placeholder="수익/원고료 (원)" class="border p-2.5 rounded-xl md:mt-4">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input type="text" id="contact" placeholder="연락처" class="border p-2.5 rounded-xl">
+              <input type="text" id="keywords" placeholder="필수 키워드 (#강남맛집)" class="border p-2.5 rounded-xl">
+              <input type="url" id="campaignUrl" placeholder="캠페인 URL 링크" class="border p-2.5 rounded-xl">
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3">
+              <input type="text" id="memo" placeholder="가이드 및 기타 메모 사항" class="w-full border p-2.5 rounded-xl">
+              <button id="submitBtn" type="submit" class="bg-theme bg-theme-hover text-white font-bold py-2.5 px-6 rounded-xl shrink-0 transition">등록하기</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 4. 설정 및 공유 탭 -->
+      <div id="sectionSettings" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <h3 class="font-bold text-gray-800 text-base">🔗 공유 코드 관리</h3>
+          <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between">
+            <div>
+              <div class="text-xs text-gray-500 font-semibold">내 현재 공유 코드</div>
+              <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
+            </div>
+            <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
+          </div>
+
+          <hr class="border-gray-100">
+
+          <h3 class="font-bold text-gray-800 text-base">👥 동반자 공유 내역 조회</h3>
+          <div class="flex gap-2">
+            <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
+            <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
+            <button id="resetToMyDataBtn" class="bg-gray-200 text-gray-700 text-xs px-3 py-2.5 rounded-xl font-bold">내 데이터 보기</button>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <h3 class="font-bold text-gray-800 text-base">🎨 테마 색상 설정</h3>
+          <div class="flex items-center gap-3">
+            <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
+            <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
+            <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
+            <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
+            <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
+            <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
+            <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
+          </div>
+        </div>
+      </div>
+
+    </main>
   </div>
 
 </body>
