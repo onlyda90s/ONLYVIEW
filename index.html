@@ -168,7 +168,7 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // Vercel API 연동 파싱
+      // Render API 연동 파싱
       document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
@@ -190,7 +190,8 @@
         parseBtn.disabled = true;
 
         try {
-          const apiUrl = `https://onlyview.vercel.app/api/parse?url=${encodeURIComponent(url)}`;
+          // 구축 완료된 Render 스크래퍼 API 호출
+          const apiUrl = `https://onlyview-scraper.onrender.com/parse?url=${encodeURIComponent(url)}`;
           const res = await fetch(apiUrl);
           const result = await res.json();
 
@@ -207,8 +208,8 @@
             alert("URL 정보를 불러오지 못했습니다. 정보를 직접 확인해 주세요.");
           }
         } catch (e) {
-          console.error("Vercel 파서 연결 오류:", e);
-          alert("사이트 연동 중 오류가 발생했습니다.");
+          console.error("Render 파서 연결 오류:", e);
+          alert("사이트 연동 중 오류가 발생했습니다. (무료 서버 첫 호출 시 30초 정도 소요될 수 있습니다)");
         } finally {
           parseBtn.innerText = "URL 연결하기";
           parseBtn.disabled = false;
