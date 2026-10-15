@@ -1029,7 +1029,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (개별 줄 연락처/메모 반영) -->
+      <!-- 2. 체험 등록 탭 (정확한 줄바꿈 및 검정색 라벨 통일) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="flex justify-between items-center border-b pb-3">
@@ -1041,7 +1041,7 @@
             
             <!-- 진행 상태 선택 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-bold text-gray-700">진행 상태</label>
+              <label class="block text-xs font-bold text-gray-900">진행 상태</label>
               <div class="flex gap-1.5">
                 <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
                   신청
@@ -1058,28 +1058,28 @@
               </div>
             </div>
 
-            <!-- 1줄: 체험단 사이트 | 매장명(업체명) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-              <div class="space-y-1.5">
-                <label class="block text-xs font-bold text-gray-700">체험단 사이트</label>
-                <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
-                <input type="hidden" id="platformName" value="개별">
-              </div>
-              <div>
-                <label id="storeNameLabel" class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
-                <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-              </div>
+            <!-- 1줄: 체험단 사이트 (독립 줄) -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-gray-900">체험단 사이트</label>
+              <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
+              <input type="hidden" id="platformName" value="개별">
             </div>
 
-            <!-- 2줄: 제공금액 | 신청일 OR 포스팅 마감일 -->
+            <!-- 2줄: 매장명 (독립 줄) -->
+            <div>
+              <label id="storeNameLabel" class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
+              <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            </div>
+
+            <!-- 3줄: 제공금액 | 신청일 OR 포스팅 마감일 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label id="sponsoredAmountLabel" class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
+                <label id="sponsoredAmountLabel" class="block text-xs font-bold text-gray-900 mb-1">제공금액 (원)</label>
                 <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
 
               <div id="rowApplyDate">
-                <label class="block text-xs font-bold text-gray-500 mb-1">신청일 (자동 세팅)</label>
+                <label class="block text-xs font-bold text-gray-900 mb-1">신청일 (자동 세팅)</label>
                 <input type="date" id="applyDate" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
               </div>
 
@@ -1089,42 +1089,42 @@
               </div>
             </div>
 
-            <!-- 3줄: 방문예정일(시간) | 동반인원 (선정 전용) -->
+            <!-- 4줄: 방문예정일 | 동반인원 (선정 전용) -->
             <div id="rowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-amber-700 mb-1">방문예정일 (시간 포함)</label>
+                <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
                 <div class="flex gap-1.5">
                   <input type="date" id="visitDate" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
                   <input type="time" id="visitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
                 </div>
               </div>
               <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">동반인원 (멤버 이름)</label>
+                <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
                 <input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
             </div>
 
-            <!-- 4줄: 추가 결제금액 | 실수익 (선정/배송 전용) -->
+            <!-- 5줄: 결제금액 | 실수익 (선정/배송 전용) -->
             <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">추가 결제금액 (원)</label>
+                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (원)</label>
                 <input type="number" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
               <div>
-                <label class="block text-xs font-bold text-emerald-600 mb-1">실수익 (원)</label>
+                <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
                 <input type="number" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
             </div>
 
-            <!-- 5줄: 업체 연락처 (독립 줄) -->
+            <!-- 6줄: 업체 연락처 (독립 줄) -->
             <div id="rowContact" class="hidden">
-              <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
+              <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
               <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
             </div>
 
-            <!-- 6줄: 메모 (독립 줄) -->
+            <!-- 7줄: 메모 (독립 줄) -->
             <div id="rowMemo" class="hidden">
-              <label class="block text-xs font-bold text-gray-700 mb-1">메모</label>
+              <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
               <textarea id="memo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
             </div>
 
