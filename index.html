@@ -157,7 +157,8 @@
       const rowDeadlineDate = document.getElementById('rowDeadlineDate');
       const rowVisit = document.getElementById('rowVisit');
       const rowFinancial = document.getElementById('rowFinancial');
-      const rowContactMemo = document.getElementById('rowContactMemo');
+      const rowContact = document.getElementById('rowContact');
+      const rowMemo = document.getElementById('rowMemo');
 
       if (status === '신청') {
         if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
@@ -166,11 +167,13 @@
         rowDeadlineDate?.classList.add('hidden');
         rowVisit?.classList.add('hidden');
         rowFinancial?.classList.add('hidden');
-        rowContactMemo?.classList.add('hidden');
+        rowContact?.classList.add('hidden');
+        rowMemo?.classList.add('hidden');
       } else {
         rowApplyDate?.classList.add('hidden');
         rowDeadlineDate?.classList.remove('hidden');
-        rowContactMemo?.classList.remove('hidden');
+        rowContact?.classList.remove('hidden');
+        rowMemo?.classList.remove('hidden');
 
         if (status === '선정') {
           if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
@@ -1026,7 +1029,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (대칭 정돈 2컬럼 레이아웃) -->
+      <!-- 2. 체험 등록 탭 (개별 줄 연락처/메모 반영) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="flex justify-between items-center border-b pb-3">
@@ -1113,16 +1116,16 @@
               </div>
             </div>
 
-            <!-- 5줄: 업체 연락처 | 기타 메모 사항 (선정/배송/원고료 전용) -->
-            <div id="rowContactMemo" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
-                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">기타 메모 사항</label>
-                <textarea id="memo" rows="1" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
-              </div>
+            <!-- 5줄: 업체 연락처 (독립 줄) -->
+            <div id="rowContact" class="hidden">
+              <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
+              <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            </div>
+
+            <!-- 6줄: 메모 (독립 줄) -->
+            <div id="rowMemo" class="hidden">
+              <label class="block text-xs font-bold text-gray-700 mb-1">메모</label>
+              <textarea id="memo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
             </div>
 
             <div class="flex justify-end pt-3 border-t border-gray-100">
