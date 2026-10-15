@@ -168,7 +168,7 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // Render API 연동 파싱
+      // 브라우저 클라이언트 연동 파싱
       document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
@@ -190,26 +190,79 @@
         parseBtn.disabled = true;
 
         try {
-          // 구축 완료된 Render 스크래퍼 API 호출
-          const apiUrl = `https://onlyview-scraper.onrender.com/parse?url=${encodeURIComponent(url)}`;
-          const res = await fetch(apiUrl);
-          const result = await res.json();
+          let storeName = "";
+          let sponsoredAmount = 0;
+          let deadlineDate = "";
 
-          if (result.success) {
-            if (result.storeName) document.getElementById('storeName').value = result.storeName;
-            if (result.sponsoredAmount && result.sponsoredAmount > 0) {
-              document.getElementById('sponsoredAmount').value = result.sponsoredAmount;
+          // 1. 리뷰노트 직통 API 파싱 (클라이언트 차단 우회)
+          if (url.includes("reviewnote.co.kr")) {
+            const cidMatch = url.match(/campaigns\/([0-9a-zA-Z]+)/);
+            if (cidMatch) {
+              const cid = cidMatch[1];
+              const apiRes = await fetch(`https://www.reviewnote.co.kr/api/v1/campaigns/${cid}`);
+              if (apiRes.ok) {
+                const resJson = await apiRes.json();
+                const data = resJson.data || resJson;
+
+                storeName = data.title || data.storeName || data.name || "";
+                
+                // 지역태그 및 불필요 문구 정제
+                storeName = storeName.replace(/\[.*?\]|\(.*?\)/g, '').replace(/리뷰노트|모집|캠페인/g, '').split('-')[0].trim();
+
+                const offer = data.benefit || data.offer || data.providedService || "";
+                const manM = String(offer).match(/([0-9]+)\s*만\s*원/);
+                if (manM) {
+                  sponsoredAmount = parseInt(manM[1], 10) * 10000;
+                } else {
+                  const priceM = String(offer).match(/([0-9,]+)\s*원/);
+                  if (priceM) sponsoredAmount = parseInt(priceM[1].replace(/,/g, ''), 10);
+                }
+
+                const rawEnd = data.reviewEndDate || data.endDate || data.closedAt || "";
+                if (rawEnd) deadlineDate = String(rawEnd).slice(0, 10);
+              }
             }
-            if (result.deadlineDate) {
-              document.getElementById('deadlineDate').value = formatCleanDate(result.deadlineDate);
+          }
+
+          // 2. 다른 플랫폼 CORS 우회 프록시 연동
+          if (!storeName) {
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            const proxyData = await res.json();
+            const html = proxyData.contents || "";
+
+            // og:title 파싱
+            const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+            if (ogTitle) {
+              storeName = ogTitle[1].replace(/\[.*?\]|\(.*?\)/g, '').replace(/디너의여왕|디너퀸|레뷰|체험단|모집/g, '').split('-')[0].trim();
             }
+
+            const manM = html.match(/([0-9]+)\s*만\s*원/);
+            if (manM) {
+              sponsoredAmount = parseInt(manM[1], 10) * 10000;
+            } else {
+              const priceM = html.match(/([0-9,]+)\s*원/);
+              if (priceM && priceM[1]) sponsoredAmount = parseInt(priceM[1].replace(/,/g, ''), 10);
+            }
+
+            const dateM = html.match(/(?:마감|제출|포스팅)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/i);
+            if (dateM) deadlineDate = dateM[1].replace(/[\.\/]/g, '-');
+          }
+
+          // 입력창 자동 할당
+          if (storeName) document.getElementById('storeName').value = storeName;
+          if (sponsoredAmount > 0) document.getElementById('sponsoredAmount').value = sponsoredAmount;
+          if (deadlineDate) document.getElementById('deadlineDate').value = formatCleanDate(deadlineDate);
+
+          if (storeName || sponsoredAmount > 0 || deadlineDate) {
             alert("URL 정보가 성공적으로 추출되었습니다!");
           } else {
-            alert("URL 정보를 불러오지 못했습니다. 정보를 직접 확인해 주세요.");
+            alert("정보를 자동으로 파싱하지 못했습니다. 직접 입력을 진행해 주세요.");
           }
+
         } catch (e) {
-          console.error("Render 파서 연결 오류:", e);
-          alert("사이트 연동 중 오류가 발생했습니다. (무료 서버 첫 호출 시 30초 정도 소요될 수 있습니다)");
+          console.error("클라이언트 연동 오류:", e);
+          alert("URL 정보를 불러오는 중 오류가 발생했습니다.");
         } finally {
           parseBtn.innerText = "URL 연결하기";
           parseBtn.disabled = false;
@@ -1042,71 +1095,4 @@
                 <th class="p-3">매장명</th>
                 <th class="p-3">사이트</th>
                 <th class="p-3">상태</th>
-                <th class="p-3">방문일</th>
-                <th class="p-3">마감일</th>
-                <th class="p-3">제공금액</th>
-                <th class="p-3">결제금액</th>
-                <th class="p-3">실수익</th>
-                <th class="p-3">관리</th>
-              </tr>
-            </thead>
-            <tbody id="campaignTableBody"></tbody>
-          </table>
-        </div>
-
-        <div id="campaignCardList" class="block md:hidden space-y-3"></div>
-      </div>
-
-      <!-- 4. 설정 및 공유 탭 -->
-      <div id="sectionSettings" class="hidden space-y-6">
-        <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
-          <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between">
-            <div>
-              <div class="text-xs text-gray-500 font-semibold">동반자에게 알려줄 코드</div>
-              <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
-            </div>
-            <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
-          <div class="flex gap-2">
-            <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
-            <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
-          <div class="flex items-center gap-3">
-            <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
-            <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
-            <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
-            <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
-            <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
-            <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
-            <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
-          </div>
-        </div>
-      </div>
-
-    </main>
-  </div>
-
-  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
-  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
-        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
-      </div>
-      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+                <th class="p-3">방
