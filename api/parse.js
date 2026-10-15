@@ -12,10 +12,12 @@ export default async function handler(req, res) {
   }
 
   try {
+    // JSDOM / Next.js Data 파이프라인 파싱용 헤더 설정
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.9'
       }
     });
 
@@ -25,78 +27,68 @@ export default async function handler(req, res) {
     let sponsoredAmount = 0;
     let deadlineDate = "";
 
-    // 1. 디너퀸 (dinnerqueen.net) 전용 추출
-    if (url.includes("dinnerqueen.net")) {
-      // 매장명 (og:title에서 '디너의여왕' 및 뒤쪽 꼬리표 제외)
-      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
-      if (ogTitle && ogTitle[1]) {
-        storeName = ogTitle[1]
-          .replace(/^디너의여왕\s*-\s*/i, '')
-          .replace(/\[.*?\]|\(.*?\)/g, '')
-          .split('-')[0]
-          .split('|')[0]
-          .trim();
-      }
+    // 1. Next.js / React 동적 상태 스크립트 데이터(__NEXT_DATA__) 우선 정밀 탐색
+    const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (nextDataMatch && nextDataMatch[1]) {
+      try {
+        const nextJson = JSON.parse(nextDataMatch[1]);
+        const pageProps = nextJson?.props?.pageProps || {};
+        const campaign = pageProps?.campaign || pageProps?.data || {};
 
-      // 제공 내역 및 금액 탐색 (상세 설명 문맥 추출)
-      const descMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
-      const searchTarget = (descMatch ? descMatch[1] : "") + " " + html;
+        if (campaign.title || campaign.name || campaign.storeName) {
+          storeName = campaign.title || campaign.name || campaign.storeName;
+        }
+        if (campaign.offer || campaign.benefit) {
+          const offerText = campaign.offer || campaign.benefit;
+          const pMatch = String(offerText).match(/([0-9,]+)\s*원/);
+          if (pMatch) sponsoredAmount = parseInt(pMatch[1].replace(/,/g, ''), 10);
+        }
+        if (campaign.reviewEndDate || campaign.endDate) {
+          deadlineDate = String(campaign.reviewEndDate || campaign.endDate).slice(0, 10);
+        }
+      } catch (e) {
+        console.warn("NEXT_DATA JSON 파싱 스킵", e);
+      }
+    }
+
+    // 2. 스크립트 데이터 미발견 시 HTML DOM 문맥 2차 보완 파싱
+    if (!storeName) {
+      // H1 태그, og:title 정제
+      const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
       
-      const priceMatch = searchTarget.match(/([0-9,]+)\s*원/);
-      if (priceMatch && priceMatch[1]) {
-        const p = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-        if (!isNaN(p) && p >= 1000) sponsoredAmount = p;
-      }
-
-      // 마감일 추출 (리뷰 등록 마감일 / 포스팅 마감일)
-      const dateMatch = html.match(/(?:마감일|마감|제출)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/i);
-      if (dateMatch && dateMatch[1]) {
-        deadlineDate = dateMatch[1].replace(/[\.\/]/g, '-');
-      }
-    } 
-    // 2. 레뷰 (revu.net) 전용 추출
-    else if (url.includes("revu.net")) {
-      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
-      if (ogTitle && ogTitle[1]) {
-        storeName = ogTitle[1]
-          .replace(/\[.*?\]|\(.*?\)/g, '')
-          .replace(/레뷰|모집|캠페인/g, '')
-          .trim();
-      }
-
-      const priceMatch = html.match(/([0-9,]+)\s*원/);
-      if (priceMatch && priceMatch[1]) {
-        const p = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-        if (!isNaN(p) && p >= 1000) sponsoredAmount = p;
-      }
-
-      const dateMatch = html.match(/(?:포스팅|마감)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/i);
-      if (dateMatch && dateMatch[1]) {
-        deadlineDate = dateMatch[1].replace(/[\.\/]/g, '-');
-      }
-    } 
-    // 3. 공통/기타 플랫폼 파싱
-    else {
-      const titleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
-                         html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      let rawTitle = titleMatch ? titleMatch[1] : "";
+      let rawTitle = h1Match ? h1Match[1] : (ogTitle ? ogTitle[1] : "");
+      rawTitle = rawTitle.replace(/<[^>]*>/g, '').trim();
 
       storeName = rawTitle
-        .replace(/\[.*?\]|\(.*?\)|<.*?>/g, '')
-        .replace(/디너의여왕|디너퀸|레뷰|리뷰노트|체험단|모집|캠페인/g, '')
+        .replace(/^\[.*?\]/g, '') // [전북/전주시] 등 지역태그 제거
+        .replace(/\[.*?\]|\(.*?\)/g, '')
+        .replace(/리뷰노트|레뷰|디너의여왕|디너퀸|체험단|모집|캠페인/g, '')
         .split('-')[0]
         .split('|')[0]
         .trim();
+    }
 
-      const priceMatch = html.match(/([0-9,]+)\s*원/);
-      if (priceMatch && priceMatch[1]) {
-        const p = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-        if (!isNaN(p) && p >= 1000) sponsoredAmount = p;
+    // 제공 금액 2차 탐색 (7만원식사권 -> 70000 변환 등)
+    if (!sponsoredAmount) {
+      const manMatch = html.match(/([0-9]+)\s*만\s*원/);
+      if (manMatch && manMatch[1]) {
+        sponsoredAmount = parseInt(manMatch[1], 10) * 10000;
+      } else {
+        const priceMatch = html.match(/([0-9,]+)\s*원/);
+        if (priceMatch && priceMatch[1]) {
+          const p = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+          if (!isNaN(p) && p >= 1000) sponsoredAmount = p;
+        }
       }
+    }
 
-      const dateMatch = html.match(/202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9]/);
+    // 마감일 2차 탐색
+    if (!deadlineDate) {
+      const dateMatch = html.match(/(?:마감일|마감|제출)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/i) ||
+                        html.match(/202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9]/);
       if (dateMatch) {
-        deadlineDate = dateMatch[0].replace(/[\.\/]/g, '-');
+        deadlineDate = (dateMatch[1] || dateMatch[0]).replace(/[\.\/]/g, '-');
       }
     }
 
