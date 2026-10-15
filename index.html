@@ -134,10 +134,10 @@
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
-    // 상태 토글
+    // 상태 토글 (신청, 선정, 배송, 원고료)
     window.setStatusBtn = function(status) {
       selectedStatus = status;
-      const statuses = ['신청', '선정', '택배', '취소'];
+      const statuses = ['신청', '선정', '배송', '원고료'];
       
       statuses.forEach(s => {
         const btn = document.getElementById(`btnStatus_${s}`);
@@ -149,6 +149,49 @@
           }
         }
       });
+
+      // 폼 가시성 전환
+      const storeLabel = document.getElementById('storeNameLabel');
+      const rowApplyDate = document.getElementById('rowApplyDate');
+      const rowDeadlineDate = document.getElementById('rowDeadlineDate');
+      const fieldVisit = document.getElementById('fieldVisit');
+      const fieldCompanions = document.getElementById('fieldCompanions');
+      const fieldReceive = document.getElementById('fieldReceive');
+      const rowFinancial = document.getElementById('rowFinancial');
+      const rowContactMemo = document.getElementById('rowContactMemo');
+
+      if (status === '신청') {
+        if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+        rowApplyDate?.classList.remove('hidden');
+        rowDeadlineDate?.classList.add('hidden');
+        fieldVisit?.classList.add('hidden');
+        fieldCompanions?.classList.add('hidden');
+        fieldReceive?.classList.add('hidden');
+        rowFinancial?.classList.add('hidden');
+        rowContactMemo?.classList.add('hidden');
+      } else {
+        rowApplyDate?.classList.add('hidden');
+        rowDeadlineDate?.classList.remove('hidden');
+        rowFinancial?.classList.remove('hidden');
+        rowContactMemo?.classList.remove('hidden');
+
+        if (status === '선정') {
+          if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+          fieldVisit?.classList.remove('hidden');
+          fieldCompanions?.classList.remove('hidden');
+          fieldReceive?.classList.add('hidden');
+        } else if (status === '배송') {
+          if (storeLabel) storeLabel.innerText = "매장명 (제품명) *";
+          fieldVisit?.classList.add('hidden');
+          fieldCompanions?.classList.add('hidden');
+          fieldReceive?.classList.remove('hidden');
+        } else if (status === '원고료') {
+          if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+          fieldVisit?.classList.add('hidden');
+          fieldCompanions?.classList.add('hidden');
+          fieldReceive?.classList.add('hidden');
+        }
+      }
     };
 
     // 사이트 칩 UI 렌더링
@@ -172,7 +215,6 @@
         container.appendChild(btn);
       });
 
-      // '+' 사이트 추가 버튼
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.innerText = '+ 추가';
@@ -373,6 +415,7 @@
             ...d,
             applyDate: formatCleanDate(d.applyDate || ''),
             visitDate: formatCleanDate(d.visitDate || ''),
+            receiveDate: formatCleanDate(d.receiveDate || ''),
             deadlineDate: formatCleanDate(d.deadlineDate || '')
           });
         });
@@ -396,7 +439,7 @@
       let cntSubmitDone = 0; // 제출 완료 (초록)
 
       rawCampaignList.forEach(item => {
-        if (item.status === '선정') {
+        if (item.status === '선정' || item.status === '배송' || item.status === '원고료') {
           cntSelect++;
           if (!item.visitDate) cntVisitWait++;
           else cntVisitPlan++;
@@ -678,11 +721,11 @@
       switch(status) {
         case '신청': return 'bg-gray-400';
         case '선정': return 'bg-gray-900';
-        case '택배': return 'bg-blue-600';
+        case '배송': return 'bg-blue-600';
+        case '원고료': return 'bg-purple-600';
         case '방문': return 'bg-amber-500';
         case '제출':
         case '완료': return 'bg-emerald-600';
-        case '취소': return 'bg-rose-500';
         default: return 'bg-gray-400';
       }
     }
@@ -699,7 +742,16 @@
       setStatusBtn(item.status || '선정');
 
       document.getElementById('applyDate').value = formatCleanDate(item.applyDate || '');
+      document.getElementById('deadlineDate').value = formatCleanDate(item.deadlineDate || '');
+      document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
+      document.getElementById('visitTime').value = item.visitTime || '';
+      document.getElementById('companions').value = item.companions || '';
+      document.getElementById('receiveDate').value = formatCleanDate(item.receiveDate || '');
       document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
+      document.getElementById('paidAmount').value = item.paidAmount || 0;
+      document.getElementById('revenue').value = item.revenue || 0;
+      document.getElementById('contact').value = item.contact || '';
+      document.getElementById('memo').value = item.memo || '';
 
       document.getElementById('formTitle').innerText = '체험 정보 수정';
       document.getElementById('submitBtn').innerText = '수정 완료';
@@ -740,8 +792,17 @@
         storeName: document.getElementById('storeName').value,
         platformName: document.getElementById('platformName').value,
         status: selectedStatus,
-        applyDate: formatCleanDate(document.getElementById('applyDate').value),
+        applyDate: formatCleanDate(document.getElementById('applyDate')?.value || ''),
+        deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
+        visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''),
+        visitTime: document.getElementById('visitTime')?.value || '',
+        companions: document.getElementById('companions')?.value || '',
+        receiveDate: formatCleanDate(document.getElementById('receiveDate')?.value || ''),
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
+        paidAmount: Number(document.getElementById('paidAmount')?.value || 0),
+        revenue: Number(document.getElementById('revenue')?.value || 0),
+        contact: document.getElementById('contact')?.value || '',
+        memo: document.getElementById('memo')?.value || '',
       };
 
       try {
@@ -772,6 +833,7 @@
         '사이트명': item.platformName,
         '진행상황': item.status,
         '신청일': item.applyDate,
+        '수령일': item.receiveDate,
         '방문일': item.visitDate,
         '방문시간': item.visitTime,
         '동반인원': item.companions,
@@ -780,7 +842,6 @@
         '결제금액': item.paidAmount,
         '실수익·원고료': item.revenue,
         '연락처': item.contact,
-        '캠페인링크': item.campaignUrl,
         '메모': item.memo
       }));
 
@@ -934,7 +995,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (회색 박스 없는 깔끔 독립 행 구조) -->
+      <!-- 2. 체험 등록 탭 (상태별 맞춤 심플 폼) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
           <div class="flex justify-between items-center border-b pb-3">
@@ -944,7 +1005,7 @@
           
           <form id="campaignForm" class="space-y-5 text-sm">
             
-            <!-- 진행 상태 (회색 배경 없이 독립 행 선택) -->
+            <!-- 진행 상태 선택 (신청, 선정, 배송, 원고료) -->
             <div class="space-y-1.5">
               <label class="block text-xs font-bold text-gray-700">진행 상태</label>
               <div class="flex gap-1.5">
@@ -954,16 +1015,16 @@
                 <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
                   선정
                 </button>
-                <button type="button" id="btnStatus_택배" onclick="setStatusBtn('택배')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
-                  택배
+                <button type="button" id="btnStatus_배송" onclick="setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                  배송
                 </button>
-                <button type="button" id="btnStatus_취소" onclick="setStatusBtn('취소')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
-                  취소
+                <button type="button" id="btnStatus_원고료" onclick="setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                  원고료
                 </button>
               </div>
             </div>
 
-            <!-- 체험단 사이트 (라벨명 변경 & 원클릭 칩 + 커스텀) -->
+            <!-- 체험단 사이트 -->
             <div class="space-y-1.5">
               <label class="block text-xs font-bold text-gray-700">체험단 사이트</label>
               <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
@@ -972,19 +1033,72 @@
 
             <!-- 매장명 -->
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
+              <label id="storeNameLabel" class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
               <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
             </div>
 
-            <!-- 하단: 제공금액 / 신청일(자동) -->
+            <!-- 제공금액 & 날짜 영역 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
                 <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
-              <div>
+
+              <!-- 신청일 (신청 상태용) -->
+              <div id="rowApplyDate">
                 <label class="block text-xs font-bold text-gray-500 mb-1">신청일 (자동 세팅)</label>
                 <input type="date" id="applyDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
+              </div>
+
+              <!-- 포스팅 마감일 (선정/배송/원고료 상태용) -->
+              <div id="rowDeadlineDate" class="hidden">
+                <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
+                <input type="date" id="deadlineDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+              </div>
+            </div>
+
+            <!-- 동적 입력 영역 1: 방문예정일 & 동반인원 (선정) -->
+            <div id="fieldVisit" class="hidden grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-amber-700 mb-1">방문예정일</label>
+                <div class="flex gap-2">
+                  <input type="date" id="visitDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                  <input type="time" id="visitTime" class="w-32 border border-gray-200 p-3 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">동반인원 (멤버 이름)</label>
+                <input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              </div>
+            </div>
+
+            <!-- 동적 입력 영역 2: 택배 수령일 (배송) -->
+            <div id="fieldReceive" class="hidden">
+              <label class="block text-xs font-bold text-blue-600 mb-1">택배 수령일 (선택)</label>
+              <input type="date" id="receiveDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+            </div>
+
+            <!-- 동적 입력 영역 3: 정산 금액 (선정/배송/원고료) -->
+            <div id="rowFinancial" class="hidden grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-rose-600 mb-1">추가 결제금액 (지출 원)</label>
+                <input type="number" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-emerald-600 mb-1">실수익 / 원고료 (원)</label>
+                <input type="number" id="revenue" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              </div>
+            </div>
+
+            <!-- 동적 입력 영역 4: 연락처 & 메모 (선정/배송/원고료) -->
+            <div id="rowContactMemo" class="hidden space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">업체 / 담당자 연락처</label>
+                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">가이드라인 및 메모</label>
+                <textarea id="memo" rows="2" placeholder="가이드라인 및 참고사항 입력..." class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm"></textarea>
               </div>
             </div>
 
@@ -1007,10 +1121,10 @@
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
               <option value="선정">선정</option>
-              <option value="택배">택배</option>
+              <option value="배송">배송</option>
+              <option value="원고료">원고료</option>
               <option value="방문">방문</option>
               <option value="제출">제출/완료</option>
-              <option value="취소">취소</option>
             </select>
           </div>
         </div>
@@ -1077,7 +1191,7 @@
     </main>
   </div>
 
-  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
+  <!-- 캘린더 날짜 클릭 시 나오는 시간 순 모달 팝업 -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
