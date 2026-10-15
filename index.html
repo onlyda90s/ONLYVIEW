@@ -168,7 +168,7 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // Vercel API 기반 원스톱 URL 파싱 연동
+      // Vercel API 연동 파싱
       document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
@@ -190,21 +190,21 @@
         parseBtn.disabled = true;
 
         try {
-          // 생성된 Vercel API 주소 호출
           const apiUrl = `https://onlyview.vercel.app/api/parse?url=${encodeURIComponent(url)}`;
           const res = await fetch(apiUrl);
           const result = await res.json();
 
           if (result.success) {
-            if (result.storeName) {
-              document.getElementById('storeName').value = result.storeName;
-            }
+            if (result.storeName) document.getElementById('storeName').value = result.storeName;
             if (result.sponsoredAmount && result.sponsoredAmount > 0) {
               document.getElementById('sponsoredAmount').value = result.sponsoredAmount;
             }
+            if (result.deadlineDate) {
+              document.getElementById('deadlineDate').value = formatCleanDate(result.deadlineDate);
+            }
             alert("URL 정보가 성공적으로 추출되었습니다!");
           } else {
-            alert("URL 정보를 불러오지 못했습니다. 매장명을 직접 확인해주세요.");
+            alert("URL 정보를 불러오지 못했습니다. 정보를 직접 확인해 주세요.");
           }
         } catch (e) {
           console.error("Vercel 파서 연결 오류:", e);
