@@ -1,1132 +1,162 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>온리뷰 (onlyview) - 대시보드</title>
-  <!-- UI 스타일링 (Tailwind CSS) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 엑셀 내보내기 (SheetJS) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  
-  <style>
-    :root {
-      --primary: #F4A261;
-      --primary-hover: #E76F51;
-      --primary-text: #C85A17;
-      --primary-light: #FFF2E6;
-      --bg-color: #FAF8F5;
-    }
+<script>
+(function () {
+  // ===== 설정: 주소에 이 글자가 들어 있으면 사이트명을 자동으로 채웁니다 =====
+  var PLATFORMS = [
+    ["revu.net", "레뷰"], ["reviewnote.co.kr", "리뷰노트"], ["dinnerqueen.net", "디너의여왕"],
+    ["chvu.co.kr", "체험뷰"], ["mables.kr", "마블"], ["ringble.co.kr", "링블"],
+    ["gangnam-review.net", "강남맛집"], ["seoulouba.co.kr", "서울오빠"],
+    ["reviewplace.co.kr", "리뷰플레이스"], ["cloudreview.co.kr", "클라우드리뷰"]
+  ];
+  var GENERIC = /^(레뷰|리뷰노트|디너의여왕|디너퀸|체험뷰|마블|링블|강남맛집|서울오빠|리뷰플레이스|클라우드리뷰|체험단|홈|home)$/i;
+  var $ = function (id) { return document.getElementById(id); };
 
-    body { background-color: var(--bg-color) !important; transition: background-color 0.3s ease; }
-    .bg-theme { background-color: var(--primary) !important; }
-    .bg-theme-hover:hover { background-color: var(--primary-hover) !important; }
-    .text-theme { color: var(--primary-text) !important; }
-    .bg-theme-light { background-color: var(--primary-light) !important; }
-    .border-theme { border-color: var(--primary) !important; }
-    .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
-  </style>
-</head>
-<body class="text-[#333333] min-h-screen">
+  function detectPlatform(url) {
+    var host = ""; try { host = new URL(url).hostname; } catch (e) { return ""; }
+    for (var i = 0; i < PLATFORMS.length; i++) if (host.indexOf(PLATFORMS[i][0]) !== -1) return PLATFORMS[i][1];
+    return "";
+  }
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } 
-      from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp } 
-      from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBfKBcYsKume9YqbZwFGtVuFvElrfVGNzY",
-      authDomain: "onlyview-2ef88.firebaseapp.com",
-      projectId: "onlyview-2ef88",
-      storageBucket: "onlyview-2ef88.firebasestorage.app",
-      messagingSenderId: "110107089396",
-      appId: "1:110107089396:web:a0670b16ce10655c2481a1"
-    };
-
-    let app, auth, db, provider;
-
-    try {
-      app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-      db = getFirestore(app);
-      provider = new GoogleAuthProvider();
-    } catch (e) {
-      console.error("Firebase 초기화 에러:", e);
-    }
-
-    let currentUser = null;
-    let targetUserId = null;
-    let isReadOnly = false;
-    let rawCampaignList = [];
-    let editingId = null;
-    let myCustomCode = "";
-    let currentCalDate = new Date();
-    let selectedStatus = "신청";
-
-    function formatCleanDate(dateVal) {
-      if (!dateVal) return "";
-      const clean = dateVal.trim();
-      const parts = clean.split("-");
-      if (parts.length === 3) {
-        let year = parts[0];
-        if (year.length > 4) year = year.slice(0, 4);
-        const month = String(parts[1]).padStart(2, '0');
-        const day = String(parts[2]).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-      return clean;
-    }
-
-    const themeColors = {
-      orange: { primary: '#F4A261', hover: '#E76F51', text: '#C85A17', light: '#FFF2E6', bg: '#FAF8F5' },
-      red:    { primary: '#E63946', hover: '#D62828', text: '#D62828', light: '#FFEAEB', bg: '#FFF5F5' },
-      yellow: { primary: '#E9C46A', hover: '#F4A261', text: '#B5820F', light: '#FFFBEA', bg: '#FCFBF7' },
-      green:  { primary: '#2A9D8F', hover: '#218380', text: '#1B6A60', light: '#E8F6F4', bg: '#F4FBF9' },
-      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8', bg: '#F4F8FB' },
-      purple: { primary: '#9D4EDD', hover: '#7B2CBF', text: '#5A189A', light: '#F5EBFB', bg: '#FAF5FC' },
-      black:  { primary: '#2B2D42', hover: '#111111', text: '#111111', light: '#EAEAEA', bg: '#F2F2F4' }
-    };
-
-    window.changeTheme = function(colorKey) {
-      const theme = themeColors[colorKey] || themeColors.orange;
-      document.documentElement.style.setProperty('--primary', theme.primary);
-      document.documentElement.style.setProperty('--primary-hover', theme.hover);
-      document.documentElement.style.setProperty('--primary-text', theme.text);
-      document.documentElement.style.setProperty('--primary-light', theme.light);
-      document.documentElement.style.setProperty('--bg-color', theme.bg);
-      localStorage.setItem('onlyview_theme', colorKey);
-    };
-
-    const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
-    window.changeTheme(savedTheme);
-
-    window.switchTab = function(tabName) {
-      const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettings'];
-      sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
-
-      document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.classList.remove('bg-theme', 'text-white');
-        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-      });
-
-      const activeBtn = document.getElementById(`nav-${tabName}`);
-      if (activeBtn) {
-        activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-        activeBtn.classList.add('bg-theme', 'text-white');
-      }
-
-      if (tabName === 'dashboard') {
-        document.getElementById('sectionDashboard')?.classList.remove('hidden');
-        renderDashboardView();
-      }
-      else if (tabName === 'list') document.getElementById('sectionList')?.classList.remove('hidden');
-      else if (tabName === 'form') {
-        document.getElementById('sectionForm')?.classList.remove('hidden');
-        if (!editingId) {
-          document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
-        }
-      }
-      else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
-    };
-
-    window.setStatusBtn = function(status) {
-      selectedStatus = status;
-      const applyBtn = document.getElementById('btnStatusApply');
-      const selectBtn = document.getElementById('btnStatusSelect');
-
-      if (status === '신청') {
-        applyBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition";
-        selectBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
-      } else {
-        applyBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
-        selectBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition";
-      }
-    };
-
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById('loginBtn')?.addEventListener('click', async () => {
-        try { await signInWithPopup(auth, provider); } 
-        catch (err) { alert("로그인 오류: " + err.message); }
-      });
-
-      document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
-      document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
-      document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
-
-      document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
-        currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-        renderDashboardView();
-      });
-      document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
-        currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-        renderDashboardView();
-      });
-
-      document.getElementById('closeModalBtn')?.addEventListener('click', () => {
-        document.getElementById('dayModal')?.classList.add('hidden');
-      });
-
-      // 원스톱 자동 파싱
-      document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
-        const url = document.getElementById('quickUrlInput').value.trim();
-        if (!url) return alert("캠페인 URL을 입력해주세요.");
-        
-        document.getElementById('campaignUrl').value = url;
-        
-        let platform = "";
-        if (url.includes("revu.net")) platform = "레뷰";
-        else if (url.includes("reviewnote.co.kr")) platform = "리뷰노트";
-        else if (url.includes("dinnerqueen.net")) platform = "디너퀸";
-        else if (url.includes("chvu.co.kr")) platform = "체험단";
-        else if (url.includes("mables.kr")) platform = "마블";
-        else if (url.includes("ringble.co.kr")) platform = "링블";
-
-        if (platform) document.getElementById('platformName').value = platform;
-
-        const parseBtn = document.getElementById('parseUrlBtn');
-        parseBtn.innerText = "분석 중...";
-        parseBtn.disabled = true;
-
-        try {
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-          const res = await fetch(proxyUrl);
-          const data = await res.json();
-
-          if (data.contents) {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(data.contents, 'text/html');
-
-            const ogTitle = htmlDoc.querySelector('meta[property="og:title"]')?.content || 
-                            htmlDoc.querySelector('meta[name="title"]')?.content || 
-                            htmlDoc.querySelector('title')?.innerText || "";
-
-            const ogDesc = htmlDoc.querySelector('meta[property="og:description"]')?.content || 
-                           htmlDoc.querySelector('meta[name="description"]')?.content || "";
-
-            if (ogTitle) {
-              let cleanTitle = ogTitle
-                .replace(/\[.*?\]|\(.*?\)|<.*?>/g, '')
-                .replace(/레뷰|리뷰노트|디너퀸|체험단|모집|캠페인/g, '')
-                .split('-')[0]
-                .split('|')[0]
-                .split(':')[0]
-                .trim();
-
-              if (cleanTitle) document.getElementById('storeName').value = cleanTitle;
-            }
-
-            const fullText = ogTitle + " " + ogDesc + " " + htmlDoc.body.innerText;
-            const priceMatch = fullText.match(/([0-9,]+)\s*원/);
-            if (priceMatch && priceMatch[1]) {
-              const price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
-              if (!isNaN(price) && price >= 1000) {
-                document.getElementById('sponsoredAmount').value = price;
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("보안 제한으로 기본 정보만 추출되었습니다.", e);
-        } finally {
-          parseBtn.innerText = "URL 연결하기";
-          parseBtn.disabled = false;
-        }
-
-        alert("자동 정보 불러오기가 완료되었습니다.");
-      });
-    });
-
-    onAuthStateChanged(auth, async (user) => {
-      const authSec = document.getElementById('authSection');
-      const appSec = document.getElementById('appSection');
-
-      if (user) {
-        currentUser = user;
-        targetUserId = user.uid;
-        isReadOnly = false;
-
-        authSec.classList.add('hidden');
-        appSec.classList.remove('hidden');
-        appSec.classList.add('flex');
-        
-        document.getElementById('userName').innerText = user.displayName || user.email;
-
-        await fetchUserCustomCode();
-        updateFormVisibility();
-        loadCampaigns();
-        switchTab('dashboard');
-      } else {
-        currentUser = null;
-        targetUserId = null;
-        authSec.classList.remove('hidden');
-        appSec.classList.add('hidden');
-        appSec.classList.remove('flex');
-      }
-    });
-
-    async function fetchUserCustomCode() {
-      if (!currentUser) return;
+  // ----- 페이지 가져오기 (브라우저 보안 때문에 중간 서버를 거칩니다) -----
+  var PROXIES = [
+    function (u) { return { url: "https://api.allorigins.win/get?url=" + encodeURIComponent(u), json: true }; },
+    function (u) { return { url: "https://corsproxy.io/?" + encodeURIComponent(u), json: false }; }
+  ];
+  async function fetchHtml(url) {
+    for (var i = 0; i < PROXIES.length; i++) {
+      var p = PROXIES[i](url), ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 8000);
       try {
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userDocRef);
+        var res = await fetch(p.url, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+        var html = p.json ? ((await res.json()).contents || "") : await res.text();
+        if (html && html.length > 200) return html;
+      } catch (e) { clearTimeout(timer); }
+    }
+    return "";
+  }
 
-        if (userSnap.exists() && userSnap.data().customCode) {
-          myCustomCode = userSnap.data().customCode;
+  // ----- 정보 뽑기 -----
+  function meta(doc, sel) { var el = doc.querySelector(sel); return el ? (el.getAttribute("content") || "").trim() : ""; }
+
+  function cleanTitle(raw) {
+    var t = (raw || "").replace(/\s+/g, " ").trim();
+    t = t.replace(/\[[^\]]*\]|\([^)]*\)|【[^】]*】|<[^>]*>/g, " ");
+    t = t.split(/\s[-|:·–—]\s/)[0];
+    t = t.replace(/레뷰|리뷰노트|디너의여왕|디너퀸|체험단|모집|캠페인|리뷰어/g, " ").replace(/\s+/g, " ").trim();
+    if (t.length < 2 || GENERIC.test(t)) return "";
+    return t.slice(0, 40);
+  }
+
+  function findAmount(text) {
+    var re = /(\d{1,3}(?:,\d{3})+|\d{4,7})\s*원|(\d{1,3})\s*만\s*원/g, m, best = null;
+    while ((m = re.exec(text))) {
+      var value = m[2] ? Number(m[2]) * 10000 : Number(m[1].replace(/,/g, ""));
+      var before = text.slice(Math.max(0, m.index - 25), m.index);
+      var after = text.slice(re.lastIndex, re.lastIndex + 8);
+      if (value < 1000 || value > 2000000) continue;
+      if (/포인트|원고료|적립|할인|배송비|리워드|캐시/.test(before + after)) continue;
+      var strong = /^\s*(상당|상품권|이용권|체험권)/.test(after) || /제공|내역|상당|체험권|이용권/.test(before);
+      if (strong) return value;          // 확실한 후보는 바로 사용
+      if (!best) best = null;            // 애매한 금액은 사용하지 않음(잘못 채우는 것 방지)
+    }
+    return best;
+  }
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function findDeadline(text) {
+    var kw = /(리뷰|포스팅|후기|콘텐츠)[^\n]{0,10}(등록|작성|제출)?\s*(기간|마감)/;
+    var m = kw.exec(text); if (!m) return "";
+    var seg = text.slice(m.index, m.index + 90);
+    var re = /(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/g, d, last = null;
+    while ((d = re.exec(seg))) last = d;          // 기간(시작~끝)이면 마지막 날짜 사용
+    if (!last) return "";
+    var iso = last[1] + "-" + pad(last[2]) + "-" + pad(last[3]);
+    var t = new Date(iso).getTime(), now = Date.now();
+    if (isNaN(t) || t < now - 30 * 864e5 || t > now + 400 * 864e5) return "";
+    return iso;
+  }
+
+  function parseInfo(html, url) {
+    var doc = new DOMParser().parseFromString(html, "text/html");
+    var ld = ""; doc.querySelectorAll('script[type="application/ld+json"]').forEach(function (s) { ld += " " + s.textContent; });
+    var title = meta(doc, 'meta[property="og:title"]') || meta(doc, 'meta[name="twitter:title"]') ||
+                (doc.querySelector("title") ? doc.querySelector("title").textContent : "");
+    var desc = meta(doc, 'meta[property="og:description"]') || meta(doc, 'meta[name="description"]');
+    doc.querySelectorAll("script,style,noscript").forEach(function (n) { n.remove(); });
+    var body = (doc.body ? doc.body.textContent : "").replace(/\s+/g, " ");
+    var all = title + " " + desc + " " + body;
+    return { storeName: cleanTitle(title), amount: findAmount(all), deadline: findDeadline(all), ldHint: ld.length > 0 };
+  }
+
+  // ----- 입력칸 채우기 -----
+  function setField(id, value) {
+    var el = $(id); if (!el || value === "" || value === null || value === undefined) return false;
+    if (el.value && !el.classList.contains("auto-filled")) return false; // 직접 쓴 값은 덮어쓰지 않음
+    el.value = value; el.classList.add("auto-filled");
+    el.addEventListener("input", function () { el.classList.remove("auto-filled"); }, { once: true });
+    return true;
+  }
+
+  function init() {
+    if (window.__urlAutofillInit) return;      // 두 번 실행되는 것을 막음
+    var input = $("quickUrlInput"), btn = $("parseUrlBtn");
+    if (!input || !btn) return;
+    window.__urlAutofillInit = true;
+    var style = document.createElement("style");
+    style.textContent = ".auto-filled{box-shadow:0 0 0 2px var(--primary) !important;background:var(--primary-light) !important}";
+    document.head.appendChild(style);
+
+    // 예전 버튼 동작(알림창 방식)을 없애고 새 버튼으로 교체
+    var fresh = btn.cloneNode(true); btn.replaceWith(fresh); btn = fresh; btn.textContent = "다시 불러오기";
+
+    var status = document.createElement("p");
+    status.id = "urlStatus"; status.className = "text-xs text-gray-500"; status.style.minHeight = "1rem";
+    status.setAttribute("role", "status");
+    input.parentElement.insertAdjacentElement("afterend", status);
+
+    var last = "", running = false, timer = null;
+
+    async function run(force) {
+      var url = input.value.trim();
+      if (!/^https?:\/\/\S+\.\S+/.test(url)) { status.textContent = ""; return; }
+      if (url === last && !force) return;
+      if (running) return;
+      last = url; running = true;
+      btn.disabled = true;
+      var filled = [];
+      if ($("campaignUrl") && setField("campaignUrl", url)) filled.push("링크");
+      var platform = detectPlatform(url);
+      if (platform && setField("platformName", platform)) filled.push("사이트명");
+      status.textContent = "페이지를 읽는 중…";
+      try {
+        var html = await fetchHtml(url);
+        if (html) {
+          var info = parseInfo(html, url);
+          if (setField("storeName", info.storeName)) filled.push("업체명");
+          if (setField("sponsoredAmount", info.amount)) filled.push("제공금액");
+          if (setField("deadlineDate", info.deadline)) filled.push("마감일");
+          status.textContent = filled.length > 2 || (filled.length && info.storeName)
+            ? "자동 입력: " + filled.join(", ") + " — 색으로 표시된 칸은 꼭 맞는지 확인해 주세요."
+            : "일부만 읽었어요 (" + (filled.join(", ") || "없음") + "). 나머지는 직접 입력해 주세요.";
         } else {
-          myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
-          await setDoc(userDocRef, { customCode: myCustomCode, uid: currentUser.uid }, { merge: true });
-          await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid });
+          status.textContent = "이 페이지는 자동으로 읽지 못했어요 (사이트 보안 또는 앱 방식 페이지). " +
+            (filled.length ? filled.join(", ") + "만 채웠어요. " : "") + "나머지는 직접 입력해 주세요.";
         }
-        document.getElementById('myShareCode').innerText = myCustomCode;
       } catch (e) {
-        console.error("공유코드 로드 에러:", e);
-        document.getElementById('myShareCode').innerText = currentUser.uid.substring(0, 6);
+        status.textContent = "불러오는 중 문제가 생겼어요. 직접 입력해 주세요.";
       }
+      running = false; btn.disabled = false;
     }
 
-    document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
-      const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리 숫자/영문):", myCustomCode);
-      if (!newCode) return;
-
-      const trimmed = newCode.trim();
-      if (trimmed.length !== 4 && trimmed.length !== 6) {
-        return alert("공유 코드는 정확히 4자리 또는 6자리여야 합니다.");
-      }
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", trimmed));
-        if (codeSnap.exists() && codeSnap.data().uid !== currentUser.uid) {
-          return alert("이미 사용 중인 코드입니다.");
-        }
-
-        if (myCustomCode) {
-          await deleteDoc(doc(db, "userCodes", myCustomCode));
-        }
-
-        await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid });
-        await setDoc(doc(db, "users", currentUser.uid), { customCode: trimmed }, { merge: true });
-
-        myCustomCode = trimmed;
-        document.getElementById('myShareCode').innerText = myCustomCode;
-        alert("공유 코드가 변경되었습니다!");
-      } catch (e) {
-        alert("코드 변경 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
-      const partnerCode = document.getElementById('partnerCodeInput').value.trim();
-      if (!partnerCode) return alert("동반자의 공유 코드를 입력해주세요.");
-
-      let realUid = partnerCode;
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", partnerCode));
-        if (codeSnap.exists()) {
-          realUid = codeSnap.data().uid;
-        }
-
-        if (currentUser && realUid === currentUser.uid) {
-          targetUserId = currentUser.uid;
-          isReadOnly = false;
-          alert("본인 모드로 전환되었습니다.");
-        } else {
-          targetUserId = realUid;
-          isReadOnly = true;
-          alert("동반자 읽기 전용 모드로 전환되었습니다.");
-        }
-
-        updateFormVisibility();
-        loadCampaigns();
-        switchTab('dashboard');
-      } catch (e) {
-        alert("조회 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
-      if (!currentUser) return;
-      targetUserId = currentUser.uid;
-      isReadOnly = false;
-      document.getElementById('partnerCodeInput').value = '';
-      updateFormVisibility();
-      loadCampaigns();
-    });
-
-    function updateFormVisibility() {
-      const readOnlyBadge = document.getElementById('readOnlyBadge');
-      const resetBtn = document.getElementById('resetToMyDataBtn');
-
-      if (isReadOnly) {
-        readOnlyBadge.classList.remove('hidden');
-        resetBtn.classList.remove('hidden');
-      } else {
-        readOnlyBadge.classList.add('hidden');
-        resetBtn.classList.add('hidden');
-      }
-    }
-
-    async function loadCampaigns() {
-      if (!db || !targetUserId) return;
-
-      try {
-        const q = query(
-          collection(db, "campaigns"), 
-          where("userId", "==", targetUserId),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        
-        rawCampaignList = [];
-        querySnapshot.forEach((docSnap) => {
-          const d = docSnap.data();
-          rawCampaignList.push({ 
-            id: docSnap.id, 
-            ...d,
-            applyDate: formatCleanDate(d.applyDate || ''),
-            visitDate: formatCleanDate(d.visitDate || ''),
-            deadlineDate: formatCleanDate(d.deadlineDate || '')
-          });
-        });
-
-        filterAndRender();
-        renderDashboardView();
-      } catch (e) {
-        console.error("데이터 로드 실패:", e);
-      }
-    }
-
-    function renderDashboardView() {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
-
-      let cntApply = 0, cntSelect = 0, cntVisit = 0, cntSubmit = 0;
-
-      rawCampaignList.forEach(item => {
-        if (item.status === '신청') cntApply++;
-        else if (item.status === '선정') cntSelect++;
-        else if (item.status === '방문') cntVisit++;
-        else if (item.status === '제출') cntSubmit++;
-      });
-
-      document.getElementById('cntApply').innerText = cntApply + '건';
-      document.getElementById('cntSelect').innerText = cntSelect + '건';
-      document.getElementById('cntVisit').innerText = cntVisit + '건';
-      document.getElementById('cntSubmit').innerText = cntSubmit + '건';
-
-      renderCalendar(year, month);
-      renderUpcomingDeadlines();
-      renderWeeklyAndUnscheduledVisits();
-    }
-
-    function renderCalendar(year, month) {
-      const calGrid = document.getElementById('calendarGrid');
-      if (!calGrid) return;
-      calGrid.innerHTML = '';
-
-      const firstDay = new Date(year, month - 1, 1).getDay();
-      const lastDate = new Date(year, month, 0).getDate();
-
-      const days = ['일', '월', '화', '수', '목', '금', '토'];
-      days.forEach((d, idx) => {
-        const dh = document.createElement('div');
-        dh.className = `text-center text-xs font-bold py-1 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
-        dh.innerText = d;
-        calGrid.appendChild(dh);
-      });
-
-      for (let i = 0; i < firstDay; i++) {
-        const empty = document.createElement('div');
-        empty.className = 'bg-gray-50/50 rounded-xl min-h-[50px]';
-        calGrid.appendChild(empty);
-      }
-
-      const todayStr = new Date().toISOString().slice(0, 10);
-      for (let date = 1; date <= lastDate; date++) {
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
-        const dayCell = document.createElement('div');
-        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[60px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
-        
-        let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
-        
-        const matched = rawCampaignList.filter(c => c.visitDate === dateStr || c.deadlineDate === dateStr);
-
-        matched.forEach(c => {
-          if (c.visitDate === dateStr) {
-            html += `<div class="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded truncate font-medium mb-0.5">[방문] ${c.storeName}</div>`;
-          }
-          if (c.deadlineDate === dateStr) {
-            html += `<div class="text-[9px] bg-rose-100 text-rose-800 px-1 py-0.5 rounded truncate font-bold mb-0.5">[마감] ${c.storeName}</div>`;
-          }
-        });
-
-        dayCell.innerHTML = html;
-        dayCell.onclick = () => openDayModal(dateStr, matched);
-        calGrid.appendChild(dayCell);
-      }
-    }
-
-    window.openDayModal = function(dateStr, items) {
-      document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
-      const modalList = document.getElementById('modalItemList');
-      modalList.innerHTML = '';
-
-      if (items.length === 0) {
-        modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">등록된 일정이 없습니다.</div>';
-      } else {
-        items.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 space-y-1 text-xs';
-          div.innerHTML = `
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-sm text-theme">${item.storeName}</span>
-              <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${item.status}</span>
-            </div>
-            <div class="text-gray-500">사이트: ${item.platformName || '-'}</div>
-            <div class="text-gray-500">방문일: ${item.visitDate || '미정'} | 마감일: ${item.deadlineDate || '미정'}</div>
-            ${item.memo ? `<div class="bg-white p-2 rounded text-gray-600 mt-1">메모: ${item.memo}</div>` : ''}
-            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="inline-block text-theme underline font-bold mt-1">캠페인 링크 이동</a>` : ''}
-          `;
-          modalList.appendChild(div);
-        });
-      }
-
-      document.getElementById('dayModal')?.classList.remove('hidden');
-    };
-
-    function renderUpcomingDeadlines() {
-      const container = document.getElementById('upcomingList');
-      if (!container) return;
-      container.innerHTML = '';
-
-      const today = new Date();
-      today.setHours(0,0,0,0);
-
-      let deadlineList = rawCampaignList.filter(c => c.deadlineDate && c.status !== '제출').map(c => {
-        const dDate = new Date(c.deadlineDate);
-        dDate.setHours(0,0,0,0);
-        const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
-        return { ...c, diffDays };
-      }).sort((a, b) => a.diffDays - b.diffDays);
-
-      if (deadlineList.length === 0) {
-        container.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">마감 임박 일정이 없습니다.</div>';
-        return;
-      }
-
-      deadlineList.slice(0, 5).forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 flex items-center justify-between text-xs';
-        
-        let badgeClass = 'bg-gray-200 text-gray-700';
-        let dText = `D-${item.diffDays}`;
-        if (item.diffDays < 0) { badgeClass = 'bg-rose-500 text-white'; dText = `지연 (D+${Math.abs(item.diffDays)})`; }
-        else if (item.diffDays === 0) { badgeClass = 'bg-rose-600 text-white font-bold'; dText = '오늘 마감'; }
-        else if (item.diffDays <= 3) { badgeClass = 'bg-amber-500 text-white font-bold'; }
-
-        card.innerHTML = `
-          <div>
-            <div class="font-bold text-gray-800">${item.storeName}</div>
-            <div class="text-[10px] text-gray-400">마감일: ${item.deadlineDate}</div>
-          </div>
-          <span class="px-2 py-1 rounded-lg text-[10px] ${badgeClass}">${dText}</span>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function renderWeeklyAndUnscheduledVisits() {
-      const weeklyContainer = document.getElementById('weeklyVisitList');
-      const unscheduledContainer = document.getElementById('unscheduledVisitList');
-      
-      if (!weeklyContainer || !unscheduledContainer) return;
-
-      weeklyContainer.innerHTML = '';
-      unscheduledContainer.innerHTML = '';
-
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
-
-      const weeklyItems = rawCampaignList.filter(c => {
-        if (!c.visitDate) return false;
-        const vDate = new Date(c.visitDate);
-        vDate.setHours(0,0,0,0);
-        return vDate >= today && vDate <= nextWeek;
-      });
-
-      if (weeklyItems.length === 0) {
-        weeklyContainer.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">이번 주 예정된 방문이 없습니다.</div>';
-      } else {
-        weeklyItems.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'p-2.5 bg-amber-50/60 rounded-xl border border-amber-100 flex justify-between items-center text-xs';
-          div.innerHTML = `
-            <div>
-              <span class="font-bold text-gray-800">${item.storeName}</span>
-              <span class="text-[10px] text-gray-400 block">${item.platformName || ''}</span>
-            </div>
-            <span class="text-amber-700 font-bold text-[11px]">${item.visitDate}</span>
-          `;
-          weeklyContainer.appendChild(div);
-        });
-      }
-
-      const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
-
-      if (unscheduledItems.length === 0) {
-        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">일정 미지정 항목이 없습니다.</div>';
-      } else {
-        unscheduledItems.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'p-2.5 bg-rose-50/60 rounded-xl border border-rose-100 flex justify-between items-center text-xs';
-          div.innerHTML = `
-            <div>
-              <span class="font-bold text-gray-800">${item.storeName}</span>
-              <span class="text-[10px] text-gray-400 block">마감일: ${item.deadlineDate || '미정'}</span>
-            </div>
-            <button onclick="editCampaign('${item.id}')" class="text-[10px] bg-rose-600 text-white px-2 py-1 rounded-lg font-bold">일정 잡기</button>
-          `;
-          unscheduledContainer.appendChild(div);
-        });
-      }
-    }
-
-    function filterAndRender() {
-      const tableBody = document.getElementById('campaignTableBody');
-      const cardList = document.getElementById('campaignCardList');
-      const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
-      const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
-
-      let filteredList = rawCampaignList.filter(item => {
-        const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
-                            (item.platformName || '').toLowerCase().includes(searchText);
-        const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
-        return matchesName && matchesStatus;
-      });
-
-      tableBody.innerHTML = '';
-      cardList.innerHTML = '';
-
-      filteredList.forEach((item) => {
-        const row = document.createElement('tr');
-        row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm';
-        row.innerHTML = `
-          <td class="p-3 font-semibold text-theme">${item.storeName}</td>
-          <td class="p-3">${item.platformName || '-'}</td>
-          <td class="p-3"><span class="px-2 py-1 rounded text-xs text-white ${getStatusBg(item.status)}">${item.status}</span></td>
-          <td class="p-3">${item.visitDate || '-'}</td>
-          <td class="p-3 text-rose-500 font-medium">${item.deadlineDate || '-'}</td>
-          <td class="p-3">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
-          <td class="p-3 text-rose-500">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
-          <td class="p-3 font-bold text-emerald-600">+${Number(item.revenue || 0).toLocaleString()}원</td>
-          <td class="p-3">
-            <div class="flex items-center gap-2">
-              ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="text-theme underline text-xs font-bold">링크</a>` : '-'}
-              ${!isReadOnly ? `
-                <button onclick="editCampaign('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-600 font-medium">수정</button>
-                <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2 py-1 rounded font-medium">삭제</button>
-              ` : ''}
-            </div>
-          </td>
-        `;
-        tableBody.appendChild(row);
-
-        const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-sm';
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <span class="text-xs px-2 py-0.5 rounded text-white ${getStatusBg(item.status)} mr-1">${item.status}</span>
-              <span class="text-xs text-gray-400">${item.platformName || ''}</span>
-              <h3 class="font-bold text-base text-gray-800 mt-1">${item.storeName}</h3>
-            </div>
-            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">+${Number(item.revenue || 0).toLocaleString()}원</span>
-          </div>
-          <div class="text-xs text-gray-500 space-y-0.5">
-            <div>방문일: ${item.visitDate || '-'} | 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
-            <div>제공: ${Number(item.sponsoredAmount || 0).toLocaleString()}원 | 지출: ${Number(item.paidAmount || 0).toLocaleString()}원</div>
-            ${item.memo ? `<div class="bg-theme-light p-2 rounded-lg mt-1 text-gray-600">메모: ${item.memo}</div>` : ''}
-          </div>
-          <div class="flex gap-2 mt-2">
-            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="flex-1 text-center bg-theme-light text-theme text-xs py-2 rounded-xl font-bold">링크</a>` : ''}
-            ${!isReadOnly ? `
-              <button onclick="editCampaign('${item.id}')" class="bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
-              <button onclick="deleteCampaign('${item.id}')" class="bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-xl font-bold">삭제</button>
-            ` : ''}
-          </div>
-        `;
-        cardList.appendChild(card);
-      });
-
-      if (filteredList.length === 0) {
-        const emptyMsg = '<div class="p-6 text-center text-gray-400 text-sm">조건에 해당하는 체험단이 없습니다.</div>';
-        tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
-        cardList.innerHTML = emptyMsg;
-      }
-    }
-
-    function getStatusBg(status) {
-      switch(status) {
-        case '신청': return 'bg-gray-400';
-        case '선정': return 'bg-theme';
-        case '방문': return 'bg-amber-500';
-        case '제출': return 'bg-emerald-500';
-        default: return 'bg-gray-400';
-      }
-    }
-
-    window.editCampaign = function(id) {
-      const item = rawCampaignList.find(c => c.id === id);
-      if (!item) return;
-
-      editingId = id;
-      document.getElementById('storeName').value = item.storeName || '';
-      document.getElementById('platformName').value = item.platformName || '';
-      
-      setStatusBtn(item.status || '신청');
-
-      document.getElementById('applyDate').value = formatCleanDate(item.applyDate || '');
-      document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
-      document.getElementById('deadlineDate').value = formatCleanDate(item.deadlineDate || '');
-      document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
-      document.getElementById('paidAmount').value = item.paidAmount || 0;
-      document.getElementById('revenue').value = item.revenue || 0;
-      document.getElementById('contact').value = item.contact || '';
-      document.getElementById('campaignUrl').value = item.campaignUrl || '';
-      document.getElementById('memo').value = item.memo || '';
-
-      document.getElementById('formTitle').innerText = '체험 정보 수정';
-      document.getElementById('submitBtn').innerText = '수정 완료';
-      document.getElementById('cancelEditBtn').classList.remove('hidden');
-
-      switchTab('form');
-    };
-
-    window.cancelEdit = function() {
-      editingId = null;
-      document.getElementById('campaignForm').reset();
-      setStatusBtn('신청');
-      document.getElementById('formTitle').innerText = '체험 등록';
-      document.getElementById('submitBtn').innerText = '등록하기';
-      document.getElementById('cancelEditBtn').classList.add('hidden');
-    };
-
-    document.getElementById('cancelEditBtn')?.addEventListener('click', cancelEdit);
-
-    window.deleteCampaign = async function(id) {
-      if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
-      try {
-        await deleteDoc(doc(db, "campaigns", id));
-        alert("삭제되었습니다.");
-        loadCampaigns();
-      } catch (err) {
-        alert("삭제 실패: " + err.message);
-      }
-    };
-
-    document.getElementById('campaignForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (isReadOnly || !currentUser) return;
-      
-      const payload = {
-        userId: currentUser.uid,
-        storeName: document.getElementById('storeName').value,
-        platformName: document.getElementById('platformName').value,
-        status: selectedStatus,
-        applyDate: formatCleanDate(document.getElementById('applyDate').value),
-        visitDate: formatCleanDate(document.getElementById('visitDate').value),
-        deadlineDate: formatCleanDate(document.getElementById('deadlineDate').value),
-        sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
-        paidAmount: Number(document.getElementById('paidAmount').value || 0),
-        revenue: Number(document.getElementById('revenue').value || 0),
-        contact: document.getElementById('contact').value,
-        campaignUrl: document.getElementById('campaignUrl').value,
-        memo: document.getElementById('memo').value,
-      };
-
-      try {
-        if (editingId) {
-          await updateDoc(doc(db, "campaigns", editingId), payload);
-          alert('수정되었습니다!');
-          cancelEdit();
-        } else {
-          payload.createdAt = serverTimestamp();
-          await addDoc(collection(db, "campaigns"), payload);
-          alert('성공적으로 등록되었습니다!');
-          document.getElementById('campaignForm').reset();
-          setStatusBtn('신청');
-        }
-        loadCampaigns();
-        switchTab('dashboard');
-      } catch (err) {
-        alert('저장 실패: ' + err.message);
-      }
-    });
-
-    document.getElementById('downloadExcelBtn')?.addEventListener('click', () => {
-      if (rawCampaignList.length === 0) return alert('다운로드할 데이터가 없습니다.');
-      
-      const excelData = rawCampaignList.map(item => ({
-        '매장명': item.storeName,
-        '사이트명': item.platformName,
-        '진행상황': item.status,
-        '신청일': item.applyDate,
-        '방문일': item.visitDate,
-        '마감일': item.deadlineDate,
-        '제공금액': item.sponsoredAmount,
-        '결제금액': item.paidAmount,
-        '실수익·원고료': item.revenue,
-        '연락처': item.contact,
-        '캠페인링크': item.campaignUrl,
-        '메모': item.memo
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "온리뷰_대시보드");
-      XLSX.writeFile(workbook, `온리뷰_리포트_${new Date().toISOString().slice(0,10)}.xlsx`);
-    });
-  </script>
-
-  <!-- 로그인 전 화면 -->
-  <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
-    <div class="text-center space-y-3 mb-16">
-      <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
-      <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
-      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-medium">
-        체험단 방문 · 마감 · 정산을<br>한곳에서
-      </p>
-    </div>
-
-    <div class="w-full space-y-4 mb-6">
-      <input type="text" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
-      
-      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">
-        Google로 계속하기
-      </button>
-
-      <p class="text-[11px] text-center text-gray-400 mt-3">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
-      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-2">
-        <span>이용약관</span> · <span>개인정보 처리방침</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 로그인 후 대시보드 -->
-  <div id="appSection" class="hidden min-h-screen w-full flex-col md:flex-row">
-    
-    <!-- 좌측 사이드바 메뉴 -->
-    <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-5 flex flex-col justify-between shrink-0">
-      <div class="space-y-6">
-        <div>
-          <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
-          <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
-          <div class="mt-3 p-2.5 bg-theme-light rounded-xl flex items-center justify-between">
-            <span id="userName" class="text-xs font-bold text-theme truncate"></span>
-          </div>
-        </div>
-
-        <!-- 메뉴 목록 -->
-        <nav class="space-y-1.5 text-sm font-bold">
-          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-left bg-theme text-white">
-            대시보드
-          </button>
-          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            체험 등록
-          </button>
-          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            체험단 목록
-          </button>
-          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            설정 및 공유
-          </button>
-        </nav>
-      </div>
-
-      <div class="pt-4 border-t border-gray-100 space-y-2 mt-6 md:mt-0">
-        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2.5 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
-        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
-        <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 font-semibold text-center">로그아웃</button>
-      </div>
-    </aside>
-
-    <!-- 우측 메인 콘텐츠 영역 -->
-    <main class="flex-1 px-6 md:px-12 py-6 space-y-6 overflow-y-auto">
-
-      <!-- 동반자 읽기 전용 알림 -->
-      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
-        현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
-      </div>
-
-      <!-- 1. 대시보드 탭 -->
-      <div id="sectionDashboard" class="space-y-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition">
-              + 체험 등록
-            </button>
-            <div class="flex gap-1">
-              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">◀ 이전달</button>
-              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달 ▶</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-500 font-bold">신청 현황</div>
-            <div id="cntApply" class="text-xl font-black text-gray-500 mt-1">0건</div>
-          </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-900 font-bold">선정 현황</div>
-            <div id="cntSelect" class="text-xl font-black text-gray-900 mt-1">0건</div>
-          </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-orange-500 font-bold">방문 예정</div>
-            <div id="cntVisit" class="text-xl font-black text-orange-500 mt-1">0건</div>
-          </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-emerald-600 font-bold">제출 대기</div>
-            <div id="cntSubmit" class="text-xl font-black text-emerald-600 mt-1">0건</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <div class="flex justify-between items-center">
-              <h3 class="font-bold text-gray-800 text-sm">월별 일정 달력</h3>
-              <span class="text-[10px] text-gray-400">날짜를 클릭하면 상세 일정을 확인할 수 있습니다.</span>
-            </div>
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
-              <span>마감 임박 일정</span>
-              <span class="text-[10px] text-rose-500 font-semibold">포스팅 마감 D-Day</span>
-            </h3>
-            <div id="upcomingList" class="space-y-2"></div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm">이번 주 방문 예정</h3>
-            <div id="weeklyVisitList" class="space-y-2"></div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm">방문 미정</h3>
-            <div id="unscheduledVisitList" class="space-y-2"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. 체험 등록 탭 -->
-      <div id="sectionForm" class="hidden space-y-6">
-        
-        <!-- URL 원스톱 연결 -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-          <h3 class="font-bold text-gray-800 text-sm">URL로 빠른 등록하기</h3>
-          <p class="text-xs text-gray-400">체험단 모집 사이트(레뷰, 리뷰노트 등)의 주소를 붙여넣고 버튼을 누르면 정보를 자동으로 가져옵니다.</p>
-          
-          <div class="flex gap-2">
-            <input type="url" id="quickUrlInput" placeholder="https://..." class="border p-2.5 rounded-xl text-xs flex-1 outline-none focus:ring-2 ring-theme">
-            <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-5 py-2.5 rounded-xl font-bold shrink-0 transition">
-              URL 연결하기
-            </button>
-          </div>
-        </div>
-
-        <!-- 상세 입력 폼 -->
-        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-          <div class="flex justify-between items-center border-b pb-3">
-            <h2 id="formTitle" class="text-base font-bold text-gray-800">체험 등록</h2>
-            <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
-          </div>
-          
-          <form id="campaignForm" class="space-y-5 text-sm">
-            
-            <!-- 클릭 형태 상태 선택 (신청 / 선정) -->
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-2">진행 상태 선택 *</label>
-              <div class="flex gap-2 max-w-xs">
-                <button type="button" id="btnStatusApply" onclick="setStatusBtn('신청')" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition">
-                  신청
-                </button>
-                <button type="button" id="btnStatusSelect" onclick="setStatusBtn('선정')" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
-                  선정
-                </button>
-              </div>
-            </div>
-
-            <!-- 매장명 / 사이트명 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
-                <input type="text" id="storeName" placeholder="예: 강남 파스타" required class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">사이트명</label>
-                <input type="text" id="platformName" placeholder="예: 레뷰, 리뷰노트" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              </div>
-            </div>
-
-            <!-- 날짜 지정 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-              <div>
-                <label class="block text-xs text-gray-600 font-bold mb-1">신청일</label>
-                <input type="date" id="applyDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-              <div>
-                <label class="block text-xs text-amber-700 font-bold mb-1">방문예정일</label>
-                <input type="date" id="visitDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-              <div>
-                <label class="block text-xs text-rose-600 font-bold mb-1">포스팅마감일</label>
-                <input type="date" id="deadlineDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-            </div>
-
-            <!-- 금액 관리 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
-                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (원)</label>
-                <input type="number" id="paidAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-emerald-600 mb-1">실수익·원고료 (원)</label>
-                <input type="number" id="revenue" placeholder="0" class="w-full border p-2.5 rounded-xl">
-              </div>
-            </div>
-
-            <!-- 연락처 및 캠페인 URL -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
-                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border p-2.5 rounded-xl">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">캠페인 URL</label>
-                <input type="url" id="campaignUrl" placeholder="https://..." class="w-full border p-2.5 rounded-xl">
-              </div>
-            </div>
-
-            <!-- 메모 사항 -->
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-700">기타 메모 사항</label>
-              <textarea id="memo" rows="2" placeholder="가이드라인 및 참고사항 입력..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme"></textarea>
-            </div>
-
-            <div class="flex justify-end">
-              <button id="submitBtn" type="submit" class="w-full md:w-auto bg-theme bg-theme-hover text-white font-bold py-3 px-8 rounded-xl transition shadow-sm">
-                등록하기
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- 3. 체험단 목록 탭 -->
-      <div id="sectionList" class="hidden space-y-4">
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
-          <h3 class="font-bold text-gray-800 text-sm shrink-0">체험단 목록</h3>
-          <div class="flex items-center gap-2 w-full md:w-auto">
-            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
-            <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
-              <option value="ALL">상태 전체</option>
-              <option value="신청">신청</option>
-              <option value="선정">선정</option>
-              <option value="방문">방문</option>
-              <option value="제출">제출 (완료)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
-              <tr>
-                <th class="p-3">매장명</th>
-                <th class="p-3">사이트</th>
-                <th class="p-3">상태</th>
-                <th class="p-3">방문일</th>
-                <th class="p-3">마감일</th>
-                <th class="p-3">제공금액</th>
-                <th class="p-3">결제금액</th>
-                <th class="p-3">실수익</th>
-                <th class="p-3">관리</th>
-              </tr>
-            </thead>
-            <tbody id="campaignTableBody"></tbody>
-          </table>
-        </div>
-
-        <div id="campaignCardList" class="block md:hidden space-y-3"></div>
-      </div>
-
-      <!-- 4. 설정 및 공유 탭 -->
-      <div id="sectionSettings" class="hidden space-y-6">
-        <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
-          <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between">
-            <div>
-              <div class="text-xs text-gray-500 font-semibold">동반자에게 알려줄 코드</div>
-              <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
-            </div>
-            <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
-          <div class="flex gap-2">
-            <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
-            <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
-          <div class="flex items-center gap-3">
-            <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
-            <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
-            <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
-            <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
-            <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
-            <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
-            <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
-          </div>
-        </div>
-      </div>
-
-    </main>
-  </div>
-
-  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
-  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
-        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
-      </div>
-      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+    // 주소를 붙여넣거나 입력이 멈추면 바로 실행 (버튼 없이도 동작)
+    input.addEventListener("paste", function () { setTimeout(function () { run(false); }, 50); });
+    input.addEventListener("change", function () { run(false); });
+    input.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(function () { run(false); }, 800); });
+    btn.addEventListener("click", function () { run(true); });
+  }
+
+  // 기존 코드가 모두 준비된 뒤에 실행
+  window.addEventListener("load", init);
+})();
+</script>
