@@ -934,7 +934,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (옆으로 정렬된 진행상태 및 +사이트 커스텀) -->
+      <!-- 2. 체험 등록 탭 (회색 박스 없는 깔끔 독립 행 구조) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
           <div class="flex justify-between items-center border-b pb-3">
@@ -944,10 +944,10 @@
           
           <form id="campaignForm" class="space-y-5 text-sm">
             
-            <!-- 진행 상태 (옆으로 라벨과 버튼 가로 배치) -->
-            <div class="flex items-center gap-3 bg-gray-50/70 p-3 rounded-xl border border-gray-100">
-              <span class="text-xs font-bold text-gray-700 shrink-0">진행 상태</span>
-              <div class="flex gap-1.5 flex-1">
+            <!-- 진행 상태 (회색 배경 없이 독립 행 선택) -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-gray-700">진행 상태</label>
+              <div class="flex gap-1.5">
                 <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
                   신청
                 </button>
@@ -963,9 +963,9 @@
               </div>
             </div>
 
-            <!-- 사이트명 선택 (원클릭 칩 + 커스텀 추가) -->
+            <!-- 체험단 사이트 (라벨명 변경 & 원클릭 칩 + 커스텀) -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-bold text-gray-700">사이트명 선택</label>
+              <label class="block text-xs font-bold text-gray-700">체험단 사이트</label>
               <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
               <input type="hidden" id="platformName" value="개별">
             </div>
