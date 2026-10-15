@@ -65,6 +65,9 @@
     let currentCalDate = new Date();
     let selectedStatus = "신청";
 
+    // 사이트 목록 관리
+    let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
+
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const clean = dateVal.trim();
@@ -131,7 +134,7 @@
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
-    // 상단 4개 상태 토글 (신청, 선정, 택배, 취소)
+    // 상태 토글
     window.setStatusBtn = function(status) {
       selectedStatus = status;
       const statuses = ['신청', '선정', '택배', '취소'];
@@ -140,32 +143,59 @@
         const btn = document.getElementById(`btnStatus_${s}`);
         if (btn) {
           if (s === status) {
-            btn.className = "py-2 px-4 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
           } else {
-            btn.className = "py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
           }
         }
       });
-
-      // 신청 모드일 때와 아닐 때의 UI 전환
-      const simpleApplyBox = document.getElementById('simpleApplyFields');
-      if (status === '신청') {
-        simpleApplyBox?.classList.remove('hidden');
-      } else {
-        simpleApplyBox?.classList.add('hidden');
-      }
     };
 
-    // 사이트 원클릭 칩 선택
+    // 사이트 칩 UI 렌더링
+    function renderPlatformChips() {
+      const container = document.getElementById('platformChipsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const currentVal = document.getElementById('platformName').value || platformList[0];
+
+      platformList.forEach(name => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerText = name;
+        if (name === currentVal) {
+          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition";
+        } else {
+          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition";
+        }
+        btn.onclick = () => selectPlatformChip(name);
+        container.appendChild(btn);
+      });
+
+      // '+' 사이트 추가 버튼
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.innerText = '+ 추가';
+      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-bold text-xs hover:bg-gray-100 transition";
+      addBtn.onclick = addCustomPlatform;
+      container.appendChild(addBtn);
+    }
+
     window.selectPlatformChip = function(name) {
       document.getElementById('platformName').value = name;
-      document.querySelectorAll('.platform-chip').forEach(chip => {
-        if (chip.innerText === name) {
-          chip.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition";
-        } else {
-          chip.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition";
-        }
-      });
+      renderPlatformChips();
+    };
+
+    window.addCustomPlatform = function() {
+      const newSite = prompt("추가할 사이트명을 입력하세요:");
+      if (!newSite || !newSite.trim()) return;
+
+      const trimmed = newSite.trim();
+      if (!platformList.includes(trimmed)) {
+        platformList.push(trimmed);
+        localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
+        selectPlatformChip(trimmed);
+      }
     };
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -190,6 +220,8 @@
       document.getElementById('closeModalBtn')?.addEventListener('click', () => {
         document.getElementById('dayModal')?.classList.add('hidden');
       });
+
+      renderPlatformChips();
     });
 
     onAuthStateChanged(auth, async (user) => {
@@ -352,7 +384,6 @@
       }
     }
 
-    // 대시보드 5개 현황 카운터 및 렌더링
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -367,8 +398,8 @@
       rawCampaignList.forEach(item => {
         if (item.status === '선정') {
           cntSelect++;
-          if (!item.visitDate) cntVisitWait++; // 방문일이 없으면 방문 대기
-          else cntVisitPlan++; // 방문일이 지정되었으면 방문 예정
+          if (!item.visitDate) cntVisitWait++;
+          else cntVisitPlan++;
         }
         else if (item.status === '방문') cntSubmitWait++;
         else if (item.status === '제출' || item.status === '완료') cntSubmitDone++;
@@ -432,7 +463,6 @@
       }
     }
 
-    // 달력 모달: 시간, 매장명, 동반인원(멤버이름) 시간 순 정렬
     window.openDayModal = function(dateStr, items) {
       document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
       const modalList = document.getElementById('modalItemList');
@@ -441,7 +471,6 @@
       if (items.length === 0) {
         modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">등록된 일정이 없습니다.</div>';
       } else {
-        // 방문 시간 오름차순 정렬 (미지정 시간은 뒤로)
         const sortedItems = [...items].sort((a, b) => {
           const timeA = a.visitTime || '23:59';
           const timeB = b.visitTime || '23:59';
@@ -665,21 +694,12 @@
       editingId = id;
       document.getElementById('storeName').value = item.storeName || '';
       document.getElementById('platformName').value = item.platformName || '';
-      selectPlatformChip(item.platformName || '기타');
+      selectPlatformChip(item.platformName || '개별');
       
       setStatusBtn(item.status || '선정');
 
       document.getElementById('applyDate').value = formatCleanDate(item.applyDate || '');
-      document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
-      document.getElementById('visitTime').value = item.visitTime || '';
-      document.getElementById('companions').value = item.companions || '';
-      document.getElementById('deadlineDate').value = formatCleanDate(item.deadlineDate || '');
       document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
-      document.getElementById('paidAmount').value = item.paidAmount || 0;
-      document.getElementById('revenue').value = item.revenue || 0;
-      document.getElementById('contact').value = item.contact || '';
-      document.getElementById('campaignUrl').value = item.campaignUrl || '';
-      document.getElementById('memo').value = item.memo || '';
 
       document.getElementById('formTitle').innerText = '체험 정보 수정';
       document.getElementById('submitBtn').innerText = '수정 완료';
@@ -692,7 +712,7 @@
       editingId = null;
       document.getElementById('campaignForm').reset();
       setStatusBtn('신청');
-      selectPlatformChip('기타');
+      selectPlatformChip('개별');
       document.getElementById('formTitle').innerText = '체험 등록';
       document.getElementById('submitBtn').innerText = '등록하기';
       document.getElementById('cancelEditBtn').classList.add('hidden');
@@ -721,16 +741,7 @@
         platformName: document.getElementById('platformName').value,
         status: selectedStatus,
         applyDate: formatCleanDate(document.getElementById('applyDate').value),
-        visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''),
-        visitTime: document.getElementById('visitTime')?.value || '',
-        companions: document.getElementById('companions')?.value || '',
-        deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
-        paidAmount: Number(document.getElementById('paidAmount')?.value || 0),
-        revenue: Number(document.getElementById('revenue')?.value || 0),
-        contact: document.getElementById('contact')?.value || '',
-        campaignUrl: document.getElementById('campaignUrl')?.value || '',
-        memo: document.getElementById('memo')?.value || '',
       };
 
       try {
@@ -744,7 +755,7 @@
           alert('성공적으로 등록되었습니다!');
           document.getElementById('campaignForm').reset();
           setStatusBtn('신청');
-          selectPlatformChip('기타');
+          selectPlatformChip('개별');
         }
         loadCampaigns();
         switchTab('dashboard');
@@ -851,7 +862,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 (5개 지정 상태 카드) -->
+      <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-6">
         <div class="flex items-center justify-between">
           <div>
@@ -923,7 +934,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (심플 모던 레이아웃) -->
+      <!-- 2. 체험 등록 탭 (옆으로 정렬된 진행상태 및 +사이트 커스텀) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
           <div class="flex justify-between items-center border-b pb-3">
@@ -931,74 +942,51 @@
             <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
           </div>
           
-          <form id="campaignForm" class="space-y-6 text-sm">
+          <form id="campaignForm" class="space-y-5 text-sm">
             
-            <!-- 상단 상태 탭 선택 (신청, 선정, 택배, 취소) -->
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-500">진행 상태</label>
-              <div class="flex gap-2">
-                <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-2 px-4 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
+            <!-- 진행 상태 (옆으로 라벨과 버튼 가로 배치) -->
+            <div class="flex items-center gap-3 bg-gray-50/70 p-3 rounded-xl border border-gray-100">
+              <span class="text-xs font-bold text-gray-700 shrink-0">진행 상태</span>
+              <div class="flex gap-1.5 flex-1">
+                <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
                   신청
                 </button>
-                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
                   선정
                 </button>
-                <button type="button" id="btnStatus_택배" onclick="setStatusBtn('택배')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_택배" onclick="setStatusBtn('택배')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
                   택배
                 </button>
-                <button type="button" id="btnStatus_취소" onclick="setStatusBtn('취소')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_취소" onclick="setStatusBtn('취소')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
                   취소
                 </button>
               </div>
             </div>
 
-            <!-- 신청 모드 심플 필드 영역 -->
-            <div id="simpleApplyFields" class="space-y-4">
-              
-              <!-- 사이트명 원클릭 칩 선택 -->
-              <div class="space-y-2">
-                <label class="block text-xs font-bold text-gray-700">사이트명 선택</label>
-                <div class="flex flex-wrap gap-1.5">
-                  <button type="button" onclick="selectPlatformChip('레뷰')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">레뷰</button>
-                  <button type="button" onclick="selectPlatformChip('리뷰노트')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">리뷰노트</button>
-                  <button type="button" onclick="selectPlatformChip('디너퀸')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">디너퀸</button>
-                  <button type="button" onclick="selectPlatformChip('체험단')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">체험단</button>
-                  <button type="button" onclick="selectPlatformChip('마블')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">마블</button>
-                  <button type="button" onclick="selectPlatformChip('링블')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">링블</button>
-                  <button type="button" onclick="selectPlatformChip('기타')" class="platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition">기타</button>
-                </div>
-                <input type="hidden" id="platformName" value="기타">
-              </div>
-
-              <!-- 매장명 -->
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
-                <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-              </div>
-
-              <!-- 하단: 제공금액 / 신청일(자동) -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
-                  <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 mb-1">신청일 (자동 세팅)</label>
-                  <input type="date" id="applyDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
-                </div>
-              </div>
+            <!-- 사이트명 선택 (원클릭 칩 + 커스텀 추가) -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-gray-700">사이트명 선택</label>
+              <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
+              <input type="hidden" id="platformName" value="개별">
             </div>
 
-            <!-- 숨겨진 보완 데이터 영역 (수정 시 / 추후 확장) -->
-            <input type="hidden" id="deadlineDate">
-            <input type="hidden" id="visitDate">
-            <input type="hidden" id="visitTime">
-            <input type="hidden" id="companions">
-            <input type="hidden" id="paidAmount">
-            <input type="hidden" id="revenue">
-            <input type="hidden" id="contact">
-            <input type="hidden" id="campaignUrl">
-            <input type="hidden" id="memo">
+            <!-- 매장명 -->
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
+              <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            </div>
+
+            <!-- 하단: 제공금액 / 신청일(자동) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
+                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">신청일 (자동 세팅)</label>
+                <input type="date" id="applyDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
+              </div>
+            </div>
 
             <div class="flex justify-end pt-4 border-t border-gray-100">
               <button id="submitBtn" type="submit" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-8 rounded-xl transition shadow-sm text-sm">
@@ -1089,7 +1077,7 @@
     </main>
   </div>
 
-  <!-- 캘린더 날짜 클릭 시 나오는 시간 순 모달 팝업 -->
+  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
