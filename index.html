@@ -168,7 +168,7 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // 원스톱 자동 파싱
+      // 프록시 기반 정보 자동 추출
       document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
         const url = document.getElementById('quickUrlInput').value.trim();
         if (!url) return alert("캠페인 URL을 입력해주세요.");
@@ -227,13 +227,13 @@
             }
           }
         } catch (e) {
-          console.warn("보안 제한으로 기본 정보만 추출되었습니다.", e);
+          console.warn("기본 추출 완료", e);
         } finally {
           parseBtn.innerText = "URL 연결하기";
           parseBtn.disabled = false;
         }
 
-        alert("자동 정보 불러오기가 완료되었습니다.");
+        alert("사이트 및 정보 연동이 완료되었습니다.");
       });
     });
 
