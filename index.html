@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- 엑셀 내보내기 (SheetJS) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- 브라우저 단 OCR 엔진 (Tesseract.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   
   <style>
     :root {
@@ -137,13 +139,70 @@
       const selectBtn = document.getElementById('btnStatusSelect');
 
       if (status === '신청') {
-        applyBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition";
-        selectBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+        applyBtn.className = "flex-1 py-2 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition";
+        selectBtn.className = "flex-1 py-2 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
       } else {
-        applyBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
-        selectBtn.className = "flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition";
+        applyBtn.className = "flex-1 py-2 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+        selectBtn.className = "flex-1 py-2 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition";
       }
     };
+
+    // 이미지 OCR 스캔 처리 함수
+    async function processImageOCR(imageSource) {
+      const ocrStatus = document.getElementById('ocrStatus');
+      ocrStatus.innerText = "텍스트 스캔 중... (약 2~3초 소요)";
+      ocrStatus.classList.remove('hidden');
+
+      try {
+        const worker = await Tesseract.createWorker('kor+eng');
+        const ret = await worker.recognize(imageSource);
+        await worker.terminate();
+
+        const text = ret.data.text;
+        parseOCRTextToForm(text);
+        ocrStatus.innerText = "스캔 완료! 정보가 자동 입력되었습니다.";
+        setTimeout(() => ocrStatus.classList.add('hidden'), 3000);
+      } catch (err) {
+        console.error("OCR 분석 에러:", err);
+        alert("이미지에서 텍스트를 읽어오는 데 실패했습니다.");
+        ocrStatus.classList.add('hidden');
+      }
+    }
+
+    function parseOCRTextToForm(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      let storeName = "";
+      let sponsoredAmount = 0;
+      let deadlineDate = "";
+
+      if (lines.length > 0) {
+        let candidate = lines[0];
+        candidate = candidate.replace(/\[.*?\]|\(.*?\)/g, '').replace(/리뷰노트|디너퀸|레뷰|체험단|모집|캠페인/g, '').trim();
+        if (candidate) storeName = candidate;
+      }
+
+      const manMatch = text.match(/([0-9]+)\s*만\s*원/);
+      if (manMatch) {
+        sponsoredAmount = parseInt(manMatch[1], 10) * 10000;
+      } else {
+        const priceMatch = text.match(/([0-9,]+)\s*원/);
+        if (priceMatch) {
+          const val = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+          if (val >= 1000) sponsoredAmount = val;
+        }
+      }
+
+      const dateMatch = text.match(/(?:마감|제출|포스팅)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/) ||
+                        text.match(/202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9]/);
+      if (dateMatch) {
+        deadlineDate = (dateMatch[1] || dateMatch[0]).replace(/[\.\/]/g, '-');
+      }
+
+      if (storeName && !document.getElementById('storeName').value) document.getElementById('storeName').value = storeName;
+      if (sponsoredAmount > 0) document.getElementById('sponsoredAmount').value = sponsoredAmount;
+      if (deadlineDate) document.getElementById('deadlineDate').value = formatCleanDate(deadlineDate);
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
@@ -168,131 +227,19 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // 통합 원스톱 파싱 연동
-      document.getElementById('parseUrlBtn')?.addEventListener('click', async () => {
-        const url = document.getElementById('quickUrlInput').value.trim();
-        if (!url) return alert("캠페인 URL을 입력해주세요.");
-        
-        document.getElementById('campaignUrl').value = url;
-        
-        let platform = "";
-        if (url.includes("revu.net")) platform = "레뷰";
-        else if (url.includes("reviewnote.co.kr")) platform = "리뷰노트";
-        else if (url.includes("dinnerqueen.net")) platform = "디너퀸";
-        else if (url.includes("chvu.co.kr")) platform = "체험단";
-        else if (url.includes("mables.kr")) platform = "마블";
-        else if (url.includes("ringble.co.kr")) platform = "링블";
+      document.getElementById('ocrFileInput')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) processImageOCR(file);
+      });
 
-        if (platform) document.getElementById('platformName').value = platform;
-
-        const parseBtn = document.getElementById('parseUrlBtn');
-        parseBtn.innerText = "분석 중...";
-        parseBtn.disabled = true;
-
-        try {
-          let storeName = "";
-          let sponsoredAmount = 0;
-          let deadlineDate = "";
-
-          // 1. 리뷰노트 직통 API
-          if (url.includes("reviewnote.co.kr")) {
-            const cidMatch = url.match(/campaigns\/([0-9a-zA-Z]+)/);
-            if (cidMatch) {
-              const cid = cidMatch[1];
-              try {
-                const apiRes = await fetch(`https://www.reviewnote.co.kr/api/v1/campaigns/${cid}`);
-                if (apiRes.ok) {
-                  const resJson = await apiRes.json();
-                  const data = resJson.data || resJson;
-
-                  storeName = data.title || data.storeName || data.name || "";
-                  storeName = storeName.replace(/\[.*?\]|\(.*?\)/g, '').replace(/리뷰노트|모집|캠페인/g, '').split('-')[0].trim();
-
-                  const offer = data.benefit || data.offer || data.providedService || "";
-                  const manM = String(offer).match(/([0-9]+)\s*만\s*원/);
-                  if (manM) {
-                    sponsoredAmount = parseInt(manM[1], 10) * 10000;
-                  } else {
-                    const priceM = String(offer).match(/([0-9,]+)\s*원/);
-                    if (priceM) sponsoredAmount = parseInt(priceM[1].replace(/,/g, ''), 10);
-                  }
-
-                  const rawEnd = data.reviewEndDate || data.endDate || data.closedAt || "";
-                  if (rawEnd) deadlineDate = String(rawEnd).slice(0, 10);
-                }
-              } catch (err) {
-                console.warn("리뷰노트 API 응답 대기 실패", err);
-              }
-            }
+      window.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let item of items) {
+          if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const blob = item.getAsFile();
+            processImageOCR(blob);
+            break;
           }
-
-          // 2. 레뷰 / 디너퀸 및 기타 사이트 다중 프록시 안전 호출
-          if (!storeName) {
-            let html = "";
-            
-            try {
-              const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`);
-              if (res.ok) html = await res.text();
-            } catch (e1) {
-              try {
-                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-                if (res.ok) {
-                  const proxyData = await res.json();
-                  html = proxyData.contents || "";
-                }
-              } catch (e2) {}
-            }
-
-            if (html) {
-              // og:title 파싱
-              const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
-                              html.match(/<title[^>]*>([^<]+)<\/title>/i);
-
-              if (ogTitle && ogTitle[1]) {
-                storeName = ogTitle[1]
-                  .replace(/\[.*?\]|\(.*?\)/g, '')
-                  .replace(/디너의여왕|디너퀸|레뷰|리뷰노트|체험단|모집|캠페인/g, '')
-                  .split('-')[0]
-                  .split('|')[0]
-                  .trim();
-              }
-
-              // 금액 추출 (만원 단위 및 원 단위)
-              const manM = html.match(/([0-9]+)\s*만\s*원/);
-              if (manM) {
-                sponsoredAmount = parseInt(manM[1], 10) * 10000;
-              } else {
-                const priceM = html.match(/([0-9,]+)\s*원/);
-                if (priceM && priceM[1]) {
-                  const pVal = parseInt(priceM[1].replace(/,/g, ''), 10);
-                  if (pVal >= 1000) sponsoredAmount = pVal;
-                }
-              }
-
-              // 마감일 추출
-              const dateM = html.match(/(?:마감|제출|포스팅)[^0-9]*?(202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9])/i) ||
-                            html.match(/202[0-9][-.\/][0-1]?[0-9][-.\/][0-3]?[0-9]/);
-              if (dateM) deadlineDate = (dateM[1] || dateM[0]).replace(/[\.\/]/g, '-');
-            }
-          }
-
-          // 폼 자동 채우기
-          if (storeName) document.getElementById('storeName').value = storeName;
-          if (sponsoredAmount > 0) document.getElementById('sponsoredAmount').value = sponsoredAmount;
-          if (deadlineDate) document.getElementById('deadlineDate').value = formatCleanDate(deadlineDate);
-
-          if (storeName || sponsoredAmount > 0 || deadlineDate) {
-            alert("URL 정보가 성공적으로 추출되었습니다!");
-          } else {
-            alert("URL 정보를 자동으로 파싱하지 못했습니다. 매장명 및 정보를 수동으로 입력해 주세요.");
-          }
-
-        } catch (e) {
-          console.error("파싱 오류:", e);
-          alert("URL 정보를 불러오는 중 오류가 발생했습니다.");
-        } finally {
-          parseBtn.innerText = "URL 연결하기";
-          parseBtn.disabled = false;
         }
       });
     });
@@ -763,6 +710,9 @@
       document.getElementById('submitBtn').innerText = '수정 완료';
       document.getElementById('cancelEditBtn').classList.remove('hidden');
 
+      // 수정 창에서는 방문일 및 정산금액 영역 노출
+      document.getElementById('detailFinancialBox')?.classList.remove('hidden');
+
       switchTab('form');
     };
 
@@ -773,6 +723,7 @@
       document.getElementById('formTitle').innerText = '체험 등록';
       document.getElementById('submitBtn').innerText = '등록하기';
       document.getElementById('cancelEditBtn').classList.add('hidden');
+      document.getElementById('detailFinancialBox')?.classList.add('hidden');
     };
 
     document.getElementById('cancelEditBtn')?.addEventListener('click', cancelEdit);
@@ -798,11 +749,11 @@
         platformName: document.getElementById('platformName').value,
         status: selectedStatus,
         applyDate: formatCleanDate(document.getElementById('applyDate').value),
-        visitDate: formatCleanDate(document.getElementById('visitDate').value),
+        visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''),
         deadlineDate: formatCleanDate(document.getElementById('deadlineDate').value),
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
-        paidAmount: Number(document.getElementById('paidAmount').value || 0),
-        revenue: Number(document.getElementById('revenue').value || 0),
+        paidAmount: Number(document.getElementById('paidAmount')?.value || 0),
+        revenue: Number(document.getElementById('revenue')?.value || 0),
         contact: document.getElementById('contact').value,
         campaignUrl: document.getElementById('campaignUrl').value,
         memo: document.getElementById('memo').value,
@@ -990,107 +941,109 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 -->
+      <!-- 2. 체험 등록 탭 (개편된 3단 깔끔 레이아웃) -->
       <div id="sectionForm" class="hidden space-y-6">
         
-        <!-- URL 원스톱 연결 -->
+        <!-- 캡처 이미지 OCR 스캔 영역 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-          <h3 class="font-bold text-gray-800 text-sm">URL로 빠른 등록하기</h3>
-          <p class="text-xs text-gray-400">체험단 모집 사이트(레뷰, 리뷰노트 등)의 주소를 붙여넣고 버튼을 누르면 정보를 자동으로 가져옵니다.</p>
+          <h3 class="font-bold text-gray-800 text-sm">화면 캡처로 스마트 자동 입력하기</h3>
+          <p class="text-xs text-gray-400">
+            리뷰노트/레뷰 화면을 캡처한 후, 이 화면에서 <kbd class="bg-gray-100 px-1.5 py-0.5 rounded border text-gray-700 font-mono">Ctrl + V</kbd>로 붙여넣거나 파일로 선택해 주세요. (이미지는 서버에 저장되지 않고 즉시 제거됩니다)
+          </p>
           
-          <div class="flex gap-2">
-            <input type="url" id="quickUrlInput" placeholder="https://..." class="border p-2.5 rounded-xl text-xs flex-1 outline-none focus:ring-2 ring-theme">
-            <button id="parseUrlBtn" type="button" class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-5 py-2.5 rounded-xl font-bold shrink-0 transition">
-              URL 연결하기
-            </button>
+          <div class="flex flex-col sm:flex-row gap-2 items-center">
+            <label class="w-full sm:w-auto text-center bg-gray-800 hover:bg-gray-900 text-white text-xs px-5 py-3 rounded-xl font-bold cursor-pointer transition">
+              📷 캡처 이미지 선택
+              <input type="file" id="ocrFileInput" accept="image/*" class="hidden">
+            </label>
+            <span class="text-xs text-gray-400">또는 바로 <span class="font-bold text-theme">Ctrl + V</span> 붙여넣기 가능</span>
           </div>
+          <div id="ocrStatus" class="hidden text-xs font-bold text-amber-600 bg-amber-50 p-2.5 rounded-xl border border-amber-200"></div>
         </div>
 
-        <!-- 상세 입력 폼 -->
+        <!-- 슬림 개편된 입력 폼 -->
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="flex justify-between items-center border-b pb-3">
             <h2 id="formTitle" class="text-base font-bold text-gray-800">체험 등록</h2>
             <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
           </div>
           
-          <form id="campaignForm" class="space-y-5 text-sm">
+          <form id="campaignForm" class="space-y-4 text-sm">
             
-            <!-- 클릭 형태 상태 선택 (신청 / 선정) -->
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-2">진행 상태 선택 *</label>
-              <div class="flex gap-2 max-w-xs">
-                <button type="button" id="btnStatusApply" onclick="setStatusBtn('신청')" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-theme bg-theme text-white text-xs transition">
-                  신청
-                </button>
-                <button type="button" id="btnStatusSelect" onclick="setStatusBtn('선정')" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
-                  선정
-                </button>
-              </div>
-            </div>
-
-            <!-- 매장명 / 사이트명 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- 1줄: 매장명 / 사이트명 / 제공금액 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
-                <input type="text" id="storeName" placeholder="예: 강남 파스타" required class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+                <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
               </div>
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">사이트명</label>
                 <input type="text" id="platformName" placeholder="예: 레뷰, 리뷰노트" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
               </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
+                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              </div>
             </div>
 
-            <!-- 날짜 지정 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+            <!-- 2줄: 신청일 / 포스팅마감일 / 업체 연락처 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs text-gray-600 font-bold mb-1">신청일</label>
-                <input type="date" id="applyDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
+                <label class="block text-xs font-bold text-gray-600 mb-1">신청일</label>
+                <input type="date" id="applyDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
               </div>
               <div>
-                <label class="block text-xs text-amber-700 font-bold mb-1">방문예정일</label>
+                <label class="block text-xs font-bold text-rose-600 mb-1">포스팅마감일</label>
+                <input type="date" id="deadlineDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
+                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              </div>
+            </div>
+
+            <!-- 3줄: 진행 상태 토글 + 캠페인 URL -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">진행 상태 선택 *</label>
+                <div class="flex gap-1.5 p-1 bg-gray-50 rounded-xl border border-gray-200">
+                  <button type="button" id="btnStatusApply" onclick="setStatusBtn('신청')" class="flex-1 py-2 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition">
+                    신청
+                  </button>
+                  <button type="button" id="btnStatusSelect" onclick="setStatusBtn('선정')" class="flex-1 py-2 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                    선정
+                  </button>
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-700 mb-1">캠페인 URL</label>
+                <input type="url" id="campaignUrl" placeholder="https://..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+              </div>
+            </div>
+
+            <!-- 수정 모드 전용 상세 영역 (기본은 숨김 처리) -->
+            <div id="detailFinancialBox" class="hidden grid-cols-1 md:grid-cols-3 gap-3 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+              <div>
+                <label class="block text-xs font-bold text-amber-700 mb-1">방문예정일</label>
                 <input type="date" id="visitDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
               <div>
-                <label class="block text-xs text-rose-600 font-bold mb-1">포스팅마감일</label>
-                <input type="date" id="deadlineDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-            </div>
-
-            <!-- 금액 관리 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
-                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (원)</label>
-                <input type="number" id="paidAmount" placeholder="0" class="w-full border p-2.5 rounded-xl">
+                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (지출 원)</label>
+                <input type="number" id="paidAmount" placeholder="0" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
               <div>
                 <label class="block text-xs font-bold text-emerald-600 mb-1">실수익·원고료 (원)</label>
-                <input type="number" id="revenue" placeholder="0" class="w-full border p-2.5 rounded-xl">
+                <input type="number" id="revenue" placeholder="0" class="w-full border p-2 rounded-xl text-xs bg-white">
               </div>
             </div>
 
-            <!-- 연락처 및 캠페인 URL -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
-                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border p-2.5 rounded-xl">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">캠페인 URL</label>
-                <input type="url" id="campaignUrl" placeholder="https://..." class="w-full border p-2.5 rounded-xl">
-              </div>
-            </div>
-
-            <!-- 메모 사항 -->
-            <div class="space-y-2">
+            <!-- 4줄: 기타 메모 사항 -->
+            <div class="space-y-1">
               <label class="block text-xs font-bold text-gray-700">기타 메모 사항</label>
               <textarea id="memo" rows="2" placeholder="가이드라인 및 참고사항 입력..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme"></textarea>
             </div>
 
-            <div class="flex justify-end">
+            <div class="flex justify-end pt-2">
               <button id="submitBtn" type="submit" class="w-full md:w-auto bg-theme bg-theme-hover text-white font-bold py-3 px-8 rounded-xl transition shadow-sm">
                 등록하기
               </button>
