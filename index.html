@@ -131,21 +131,41 @@
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
+    // 상단 4개 상태 토글 (신청, 선정, 택배, 취소)
     window.setStatusBtn = function(status) {
       selectedStatus = status;
-      const applyBtn = document.getElementById('btnStatusApply');
-      const selectBtn = document.getElementById('btnStatusSelect');
-      const detailBox = document.getElementById('detailFinancialBox');
+      const statuses = ['신청', '선정', '택배', '취소'];
+      
+      statuses.forEach(s => {
+        const btn = document.getElementById(`btnStatus_${s}`);
+        if (btn) {
+          if (s === status) {
+            btn.className = "py-2 px-4 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+          } else {
+            btn.className = "py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+          }
+        }
+      });
 
+      // 신청 모드일 때와 아닐 때의 UI 전환
+      const simpleApplyBox = document.getElementById('simpleApplyFields');
       if (status === '신청') {
-        applyBtn.className = "flex-1 py-2 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition";
-        selectBtn.className = "flex-1 py-2 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
-        if (!editingId) detailBox?.classList.add('hidden');
+        simpleApplyBox?.classList.remove('hidden');
       } else {
-        applyBtn.className = "flex-1 py-2 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
-        selectBtn.className = "flex-1 py-2 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition";
-        detailBox?.classList.remove('hidden');
+        simpleApplyBox?.classList.add('hidden');
       }
+    };
+
+    // 사이트 원클릭 칩 선택
+    window.selectPlatformChip = function(name) {
+      document.getElementById('platformName').value = name;
+      document.querySelectorAll('.platform-chip').forEach(chip => {
+        if (chip.innerText === name) {
+          chip.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition";
+        } else {
+          chip.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition";
+        }
+      });
     };
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -332,24 +352,33 @@
       }
     }
 
+    // 대시보드 5개 현황 카운터 및 렌더링
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
       document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
 
-      let cntApply = 0, cntSelect = 0, cntVisit = 0, cntSubmit = 0;
+      let cntSelect = 0;     // 선정 현황 (검정)
+      let cntVisitWait = 0;  // 방문 대기 (회색)
+      let cntVisitPlan = 0;  // 방문 예정 (주황)
+      let cntSubmitWait = 0; // 제출 대기 (회색)
+      let cntSubmitDone = 0; // 제출 완료 (초록)
 
       rawCampaignList.forEach(item => {
-        if (item.status === '신청') cntApply++;
-        else if (item.status === '선정') cntSelect++;
-        else if (item.status === '방문') cntVisit++;
-        else if (item.status === '제출') cntSubmit++;
+        if (item.status === '선정') {
+          cntSelect++;
+          if (!item.visitDate) cntVisitWait++; // 방문일이 없으면 방문 대기
+          else cntVisitPlan++; // 방문일이 지정되었으면 방문 예정
+        }
+        else if (item.status === '방문') cntSubmitWait++;
+        else if (item.status === '제출' || item.status === '완료') cntSubmitDone++;
       });
 
-      document.getElementById('cntApply').innerText = cntApply + '건';
       document.getElementById('cntSelect').innerText = cntSelect + '건';
-      document.getElementById('cntVisit').innerText = cntVisit + '건';
-      document.getElementById('cntSubmit').innerText = cntSubmit + '건';
+      document.getElementById('cntVisitWait').innerText = cntVisitWait + '건';
+      document.getElementById('cntVisitPlan').innerText = cntVisitPlan + '건';
+      document.getElementById('cntSubmitWait').innerText = cntSubmitWait + '건';
+      document.getElementById('cntSubmitDone').innerText = cntSubmitDone + '건';
 
       renderCalendar(year, month);
       renderUpcomingDeadlines();
@@ -403,6 +432,7 @@
       }
     }
 
+    // 달력 모달: 시간, 매장명, 동반인원(멤버이름) 시간 순 정렬
     window.openDayModal = function(dateStr, items) {
       document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
       const modalList = document.getElementById('modalItemList');
@@ -411,18 +441,29 @@
       if (items.length === 0) {
         modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">등록된 일정이 없습니다.</div>';
       } else {
-        items.forEach(item => {
+        // 방문 시간 오름차순 정렬 (미지정 시간은 뒤로)
+        const sortedItems = [...items].sort((a, b) => {
+          const timeA = a.visitTime || '23:59';
+          const timeB = b.visitTime || '23:59';
+          return timeA.localeCompare(timeB);
+        });
+
+        sortedItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 space-y-1 text-xs';
+          div.className = 'p-3.5 bg-[#FAF8F5] rounded-2xl border border-gray-100 space-y-1.5 text-xs';
           div.innerHTML = `
             <div class="flex justify-between items-center">
-              <span class="font-bold text-sm text-theme">${item.storeName}</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-xs bg-gray-800 text-white px-2 py-0.5 rounded-md">${item.visitTime || '시간 미지정'}</span>
+                <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+              </div>
               <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${item.status}</span>
             </div>
-            <div class="text-gray-500">사이트: ${item.platformName || '-'}</div>
-            <div class="text-gray-500">방문일: ${item.visitDate || '미정'} | 마감일: ${item.deadlineDate || '미정'}</div>
-            ${item.memo ? `<div class="bg-white p-2 rounded text-gray-600 mt-1">메모: ${item.memo}</div>` : ''}
-            ${item.campaignUrl ? `<a href="${item.campaignUrl}" target="_blank" class="inline-block text-theme underline font-bold mt-1">캠페인 링크 이동</a>` : ''}
+            <div class="flex justify-between items-center pt-1 text-gray-500 border-t border-gray-200/50">
+              <div>동반인원: <span class="font-bold text-theme">${item.companions || '없음'}</span></div>
+              <div class="text-[11px]">사이트: ${item.platformName || '-'}</div>
+            </div>
+            ${item.memo ? `<div class="bg-white p-2 rounded-xl text-gray-600 text-[11px] mt-1 border border-gray-100">메모: ${item.memo}</div>` : ''}
           `;
           modalList.appendChild(div);
         });
@@ -439,7 +480,7 @@
       const today = new Date();
       today.setHours(0,0,0,0);
 
-      let deadlineList = rawCampaignList.filter(c => c.deadlineDate && c.status !== '제출').map(c => {
+      let deadlineList = rawCampaignList.filter(c => c.deadlineDate && c.status !== '제출' && c.status !== '완료').map(c => {
         const dDate = new Date(c.deadlineDate);
         dDate.setHours(0,0,0,0);
         const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
@@ -504,7 +545,7 @@
               <span class="font-bold text-gray-800">${item.storeName}</span>
               <span class="text-[10px] text-gray-400 block">${item.platformName || ''}</span>
             </div>
-            <span class="text-amber-700 font-bold text-[11px]">${item.visitDate}</span>
+            <span class="text-amber-700 font-bold text-[11px]">${item.visitDate} ${item.visitTime || ''}</span>
           `;
           weeklyContainer.appendChild(div);
         });
@@ -553,7 +594,7 @@
           <td class="p-3 font-semibold text-theme">${item.storeName}</td>
           <td class="p-3">${item.platformName || '-'}</td>
           <td class="p-3"><span class="px-2 py-1 rounded text-xs text-white ${getStatusBg(item.status)}">${item.status}</span></td>
-          <td class="p-3">${item.visitDate || '-'}</td>
+          <td class="p-3">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
           <td class="p-3 text-rose-500 font-medium">${item.deadlineDate || '-'}</td>
           <td class="p-3">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
           <td class="p-3 text-rose-500">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
@@ -582,8 +623,8 @@
             <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">+${Number(item.revenue || 0).toLocaleString()}원</span>
           </div>
           <div class="text-xs text-gray-500 space-y-0.5">
-            <div>방문일: ${item.visitDate || '-'} | 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
-            <div>제공: ${Number(item.sponsoredAmount || 0).toLocaleString()}원 | 지출: ${Number(item.paidAmount || 0).toLocaleString()}원</div>
+            <div>방문일: ${item.visitDate || '-'} (${item.visitTime || ''}) | 마감일: <span class="text-rose-500 font-semibold">${item.deadlineDate || '-'}</span></div>
+            <div>동반인원: <span class="font-bold text-theme">${item.companions || '없음'}</span></div>
             ${item.memo ? `<div class="bg-theme-light p-2 rounded-lg mt-1 text-gray-600">메모: ${item.memo}</div>` : ''}
           </div>
           <div class="flex gap-2 mt-2">
@@ -607,9 +648,12 @@
     function getStatusBg(status) {
       switch(status) {
         case '신청': return 'bg-gray-400';
-        case '선정': return 'bg-theme';
+        case '선정': return 'bg-gray-900';
+        case '택배': return 'bg-blue-600';
         case '방문': return 'bg-amber-500';
-        case '제출': return 'bg-emerald-500';
+        case '제출':
+        case '완료': return 'bg-emerald-600';
+        case '취소': return 'bg-rose-500';
         default: return 'bg-gray-400';
       }
     }
@@ -621,11 +665,14 @@
       editingId = id;
       document.getElementById('storeName').value = item.storeName || '';
       document.getElementById('platformName').value = item.platformName || '';
+      selectPlatformChip(item.platformName || '기타');
       
       setStatusBtn(item.status || '선정');
 
       document.getElementById('applyDate').value = formatCleanDate(item.applyDate || '');
       document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
+      document.getElementById('visitTime').value = item.visitTime || '';
+      document.getElementById('companions').value = item.companions || '';
       document.getElementById('deadlineDate').value = formatCleanDate(item.deadlineDate || '');
       document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
       document.getElementById('paidAmount').value = item.paidAmount || 0;
@@ -638,8 +685,6 @@
       document.getElementById('submitBtn').innerText = '수정 완료';
       document.getElementById('cancelEditBtn').classList.remove('hidden');
 
-      document.getElementById('detailFinancialBox')?.classList.remove('hidden');
-
       switchTab('form');
     };
 
@@ -647,10 +692,10 @@
       editingId = null;
       document.getElementById('campaignForm').reset();
       setStatusBtn('신청');
+      selectPlatformChip('기타');
       document.getElementById('formTitle').innerText = '체험 등록';
       document.getElementById('submitBtn').innerText = '등록하기';
       document.getElementById('cancelEditBtn').classList.add('hidden');
-      document.getElementById('detailFinancialBox')?.classList.add('hidden');
     };
 
     document.getElementById('cancelEditBtn')?.addEventListener('click', cancelEdit);
@@ -677,13 +722,15 @@
         status: selectedStatus,
         applyDate: formatCleanDate(document.getElementById('applyDate').value),
         visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''),
-        deadlineDate: formatCleanDate(document.getElementById('deadlineDate').value),
+        visitTime: document.getElementById('visitTime')?.value || '',
+        companions: document.getElementById('companions')?.value || '',
+        deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
         sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
         paidAmount: Number(document.getElementById('paidAmount')?.value || 0),
         revenue: Number(document.getElementById('revenue')?.value || 0),
-        contact: document.getElementById('contact').value,
-        campaignUrl: document.getElementById('campaignUrl').value,
-        memo: document.getElementById('memo').value,
+        contact: document.getElementById('contact')?.value || '',
+        campaignUrl: document.getElementById('campaignUrl')?.value || '',
+        memo: document.getElementById('memo')?.value || '',
       };
 
       try {
@@ -697,6 +744,7 @@
           alert('성공적으로 등록되었습니다!');
           document.getElementById('campaignForm').reset();
           setStatusBtn('신청');
+          selectPlatformChip('기타');
         }
         loadCampaigns();
         switchTab('dashboard');
@@ -714,6 +762,8 @@
         '진행상황': item.status,
         '신청일': item.applyDate,
         '방문일': item.visitDate,
+        '방문시간': item.visitTime,
+        '동반인원': item.companions,
         '마감일': item.deadlineDate,
         '제공금액': item.sponsoredAmount,
         '결제금액': item.paidAmount,
@@ -801,7 +851,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 -->
+      <!-- 1. 대시보드 탭 (5개 지정 상태 카드) -->
       <div id="sectionDashboard" class="space-y-6">
         <div class="flex items-center justify-between">
           <div>
@@ -818,22 +868,27 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-500 font-bold">신청 현황</div>
-            <div id="cntApply" class="text-xl font-black text-gray-500 mt-1">0건</div>
-          </div>
+        <!-- 5개 카운터 카드 -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <div class="text-xs text-gray-900 font-bold">선정 현황</div>
             <div id="cntSelect" class="text-xl font-black text-gray-900 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-orange-500 font-bold">방문 예정</div>
-            <div id="cntVisit" class="text-xl font-black text-orange-500 mt-1">0건</div>
+            <div class="text-xs text-gray-500 font-bold">방문 대기</div>
+            <div id="cntVisitWait" class="text-xl font-black text-gray-500 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-emerald-600 font-bold">제출 대기</div>
-            <div id="cntSubmit" class="text-xl font-black text-emerald-600 mt-1">0건</div>
+            <div class="text-xs text-orange-500 font-bold">방문 예정</div>
+            <div id="cntVisitPlan" class="text-xl font-black text-orange-500 mt-1">0건</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-xs text-gray-500 font-bold">제출 대기</div>
+            <div id="cntSubmitWait" class="text-xl font-black text-gray-500 mt-1">0건</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1">
+            <div class="text-xs text-emerald-600 font-bold">제출 완료</div>
+            <div id="cntSubmitDone" class="text-xl font-black text-emerald-600 mt-1">0건</div>
           </div>
         </div>
 
@@ -868,91 +923,85 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (수동 수집 최적화 깔끔 폼) -->
-      <div id="sectionForm" class="hidden space-y-6 max-w-3xl">
-        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+      <!-- 2. 체험 등록 탭 (심플 모던 레이아웃) -->
+      <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
+        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
           <div class="flex justify-between items-center border-b pb-3">
             <h2 id="formTitle" class="text-base font-bold text-gray-800">체험 등록</h2>
             <button id="cancelEditBtn" class="hidden text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold">수정 취소</button>
           </div>
           
-          <form id="campaignForm" class="space-y-5 text-sm">
+          <form id="campaignForm" class="space-y-6 text-sm">
             
-            <!-- 진행 상태 선택 -->
-            <div class="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-2">
-              <label class="block text-xs font-bold text-gray-700">진행 상태 선택 *</label>
-              <div class="flex gap-2 max-w-xs">
-                <button type="button" id="btnStatusApply" onclick="setStatusBtn('신청')" class="flex-1 py-2 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition">
+            <!-- 상단 상태 탭 선택 (신청, 선정, 택배, 취소) -->
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-500">진행 상태</label>
+              <div class="flex gap-2">
+                <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-2 px-4 rounded-xl font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
                   신청
                 </button>
-                <button type="button" id="btnStatusSelect" onclick="setStatusBtn('선정')" class="flex-1 py-2 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
                   선정
+                </button>
+                <button type="button" id="btnStatus_택배" onclick="setStatusBtn('택배')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                  택배
+                </button>
+                <button type="button" id="btnStatus_취소" onclick="setStatusBtn('취소')" class="py-2 px-4 rounded-xl font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                  취소
                 </button>
               </div>
             </div>
 
-            <!-- 1줄: 매장명 / 사이트명 / 제공금액 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- 신청 모드 심플 필드 영역 -->
+            <div id="simpleApplyFields" class="space-y-4">
+              
+              <!-- 사이트명 원클릭 칩 선택 -->
+              <div class="space-y-2">
+                <label class="block text-xs font-bold text-gray-700">사이트명 선택</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" onclick="selectPlatformChip('레뷰')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">레뷰</button>
+                  <button type="button" onclick="selectPlatformChip('리뷰노트')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">리뷰노트</button>
+                  <button type="button" onclick="selectPlatformChip('디너퀸')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">디너퀸</button>
+                  <button type="button" onclick="selectPlatformChip('체험단')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">체험단</button>
+                  <button type="button" onclick="selectPlatformChip('마블')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">마블</button>
+                  <button type="button" onclick="selectPlatformChip('링블')" class="platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition">링블</button>
+                  <button type="button" onclick="selectPlatformChip('기타')" class="platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition">기타</button>
+                </div>
+                <input type="hidden" id="platformName" value="기타">
+              </div>
+
+              <!-- 매장명 -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">매장명 (업체명) *</label>
-                <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+                <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">사이트명</label>
-                <input type="text" id="platformName" placeholder="예: 레뷰, 리뷰노트" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
-                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
+
+              <!-- 하단: 제공금액 / 신청일(자동) -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">제공금액 (원)</label>
+                  <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-3 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 mb-1">신청일 (자동 세팅)</label>
+                  <input type="date" id="applyDate" class="w-full border border-gray-200 p-3 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
+                </div>
               </div>
             </div>
 
-            <!-- 2줄: 신청일 / 포스팅마감일 / 업체 연락처 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">신청일</label>
-                <input type="date" id="applyDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">포스팅마감일</label>
-                <input type="date" id="deadlineDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">업체 연락처</label>
-                <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-              </div>
-            </div>
+            <!-- 숨겨진 보완 데이터 영역 (수정 시 / 추후 확장) -->
+            <input type="hidden" id="deadlineDate">
+            <input type="hidden" id="visitDate">
+            <input type="hidden" id="visitTime">
+            <input type="hidden" id="companions">
+            <input type="hidden" id="paidAmount">
+            <input type="hidden" id="revenue">
+            <input type="hidden" id="contact">
+            <input type="hidden" id="campaignUrl">
+            <input type="hidden" id="memo">
 
-            <!-- 3줄: 캠페인 URL -->
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">캠페인 URL</label>
-              <input type="url" id="campaignUrl" placeholder="https://..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme">
-            </div>
-
-            <!-- 선정 / 수정 시에만 노출되는 상세 정산 영역 -->
-            <div id="detailFinancialBox" class="hidden grid-cols-1 md:grid-cols-3 gap-3 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
-              <div>
-                <label class="block text-xs font-bold text-amber-700 mb-1">방문예정일</label>
-                <input type="date" id="visitDate" min="2020-01-01" max="2099-12-31" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (지출 원)</label>
-                <input type="number" id="paidAmount" placeholder="0" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-emerald-600 mb-1">실수익, 원고료 (원)</label>
-                <input type="number" id="revenue" placeholder="0" class="w-full border p-2 rounded-xl text-xs bg-white">
-              </div>
-            </div>
-
-            <!-- 4줄: 기타 메모 사항 -->
-            <div class="space-y-1">
-              <label class="block text-xs font-bold text-gray-700">기타 메모 사항</label>
-              <textarea id="memo" rows="2" placeholder="가이드라인 및 참고사항 입력..." class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-theme"></textarea>
-            </div>
-
-            <div class="flex justify-end pt-2">
-              <button id="submitBtn" type="submit" class="w-full md:w-auto bg-theme bg-theme-hover text-white font-bold py-3 px-8 rounded-xl transition shadow-sm">
+            <div class="flex justify-end pt-4 border-t border-gray-100">
+              <button id="submitBtn" type="submit" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-8 rounded-xl transition shadow-sm text-sm">
                 등록하기
               </button>
             </div>
@@ -970,8 +1019,10 @@
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
               <option value="선정">선정</option>
+              <option value="택배">택배</option>
               <option value="방문">방문</option>
-              <option value="제출">제출 (완료)</option>
+              <option value="제출">제출/완료</option>
+              <option value="취소">취소</option>
             </select>
           </div>
         </div>
@@ -983,7 +1034,7 @@
                 <th class="p-3">매장명</th>
                 <th class="p-3">사이트</th>
                 <th class="p-3">상태</th>
-                <th class="p-3">방문일</th>
+                <th class="p-3">방문일/시간</th>
                 <th class="p-3">마감일</th>
                 <th class="p-3">제공금액</th>
                 <th class="p-3">결제금액</th>
@@ -1038,9 +1089,9 @@
     </main>
   </div>
 
-  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
+  <!-- 캘린더 날짜 클릭 시 나오는 시간 순 모달 팝업 -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
         <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
         <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
