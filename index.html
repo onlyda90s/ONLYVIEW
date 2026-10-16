@@ -1798,11 +1798,11 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (정돈된 3줄 레이아웃) -->
-      <div id="sectionList" class="hidden space-y-3 overflow-y-auto max-h-screen py-2">
+      <!-- 3. 체험단 목록 탭 (요청된 1줄 컨트롤 라인업 정돈) -->
+      <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
-        <!-- 1줄: 제목 + 진행중인 체험/완료된 체험 서브탭 -->
-        <div class="flex items-center justify-between h-10 shrink-0">
+        <!-- 1줄: 제목 (독단 배치) -->
+        <div class="flex items-center h-10 shrink-0">
           <div class="flex items-center gap-1.5">
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
             
@@ -1821,16 +1821,17 @@
               </div>
             </div>
           </div>
-
-          <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
-            <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
-            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">완료된 체험</button>
-          </div>
         </div>
 
-        <!-- 2줄: (좌) 연도/월/검색창/상태필터 / (우) 수정 버튼 -->
-        <div class="flex items-center justify-between gap-2 shrink-0">
-          <div class="flex items-center gap-1.5 flex-wrap">
+        <!-- 2줄: [진행중/완료 탭] -> [업체명/사이트 검색] -> [년도] -> [월] -> [상태] -> [수정] -->
+        <div class="flex items-center justify-between gap-2 shrink-0 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
+              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">완료된 체험</button>
+            </div>
+
+            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-48 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
             <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm"></select>
             <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
               <option value="ALL">월 전체</option>
@@ -1847,7 +1848,6 @@
               <option value="11">11월</option>
               <option value="12">12월</option>
             </select>
-            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-48 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
             <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
