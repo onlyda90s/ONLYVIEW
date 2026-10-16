@@ -84,6 +84,8 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
+    let sortColumn = 'createdAt'; 
+    let sortAsc = false; 
     let myCustomCode = "";
     let currentCalDate = new Date();
     let selectedStatus = "신청";
@@ -530,6 +532,8 @@
 
       document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
       document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
+      document.getElementById('filterYear')?.addEventListener('change', filterAndRender);
+      document.getElementById('filterMonth')?.addEventListener('change', filterAndRender);
 
       document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
         currentCalDate.setMonth(currentCalDate.getMonth() - 1);
@@ -566,7 +570,21 @@
 
       renderPlatformChips();
       updateDeadlineButtons();
+      populateYearFilter();
     });
+
+    function populateYearFilter() {
+      const yearSelect = document.getElementById('filterYear');
+      if (!yearSelect) return;
+      const currentYear = new Date().getFullYear();
+      yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
+      for (let y = currentYear; y >= currentYear - 3; y--) {
+        const opt = document.createElement('option');
+        opt.value = y.toString();
+        opt.innerText = `${y}년`;
+        yearSelect.appendChild(opt);
+      }
+    }
 
     onAuthStateChanged(auth, async (user) => {
       const authSec = document.getElementById('authSection');
@@ -767,12 +785,6 @@
         if (autoVisitPromises.length > 0) {
           await Promise.all(autoVisitPromises);
         }
-
-        rawCampaignList.sort((a, b) => {
-          const tA = a.createdAt ? a.createdAt.seconds || 0 : 0;
-          const tB = b.createdAt ? b.createdAt.seconds || 0 : 0;
-          return tB - tA;
-        });
 
         filterAndRender();
         renderDashboardView();
@@ -1117,7 +1129,7 @@
             <div>실수익·원고료: <span class="font-bold text-gray-800">${Number(item.revenue || 0).toLocaleString()}원</span></div>
           </div>
           ${item.contact ? `<div class="pt-2 border-t text-gray-600">업체 연락처: <span class="font-bold text-gray-800">${item.contact}</span></div>` : ''}
-          ${item.memo ? `<div class="bg-gray-50 p-2.5 rounded-xl text-gray-600 mt-2 border">메모: ${item.memo}</div>` : ''}
+          ${item.memo ? `<div class="bg-gray-50 p-2.5 rounded-xl text-gray-600 mt-2 border">비고: ${item.memo}</div>` : ''}
           
           ${!isReadOnly ? `
             <div class="flex gap-2 pt-2">
@@ -1241,12 +1253,30 @@
       }
     });
 
-    // 테이블 렌더링 (매장명 -> 상태 -> 사이트 -> 방문일 -> 마감일 -> 제공금액 -> 결제금액 -> 실수익 -> 비고)
+    // 헤더 클릭 정렬 기능
+    window.handleSort = function(colName) {
+      if (sortColumn === colName) {
+        sortAsc = !sortAsc;
+      } else {
+        sortColumn = colName;
+        sortAsc = true;
+      }
+      filterAndRender();
+    };
+
+    function getSortIndicator(colName) {
+      if (sortColumn !== colName) return '<span class="text-gray-300 ml-0.5">↕</span>';
+      return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
+    }
+
+    // 테이블 필터링 및 오름차순/내림차순 정렬
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
       const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
       const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
+      const filterYear = document.getElementById('filterYear')?.value || 'ALL';
+      const filterMonth = document.getElementById('filterMonth')?.value || 'ALL';
       const batchBtn = document.getElementById('batchEditBtn');
 
       if (batchBtn) {
@@ -1269,8 +1299,54 @@
         const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
                             (item.platformName || '').toLowerCase().includes(searchText);
         const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
-        return matchesName && matchesStatus;
+
+        // 연도 및 월 기간 정밀 필터링
+        const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
+        let matchesYear = true;
+        let matchesMonth = true;
+
+        if (refDate && refDate.length >= 7) {
+          const y = refDate.slice(0, 4);
+          const m = String(Number(refDate.slice(5, 7)));
+          if (filterYear !== 'ALL' && y !== filterYear) matchesYear = false;
+          if (filterMonth !== 'ALL' && m !== filterMonth) matchesMonth = false;
+        } else if (filterYear !== 'ALL' || filterMonth !== 'ALL') {
+          matchesYear = false;
+        }
+
+        return matchesName && matchesStatus && matchesYear && matchesMonth;
       });
+
+      // 헤더 정렬 로직 적용
+      filteredList.sort((a, b) => {
+        let valA = a[sortColumn] || '';
+        let valB = b[sortColumn] || '';
+
+        if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) {
+          valA = Number(valA) || 0;
+          valB = Number(valB) || 0;
+        }
+
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+      });
+
+      // 테이블 헤더 인디케이터 업데이트
+      const thead = document.querySelector('#sectionList table thead tr');
+      if (thead) {
+        thead.innerHTML = `
+          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">매장명 ${getSortIndicator('storeName')}</th>
+          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">상태 ${getSortIndicator('status')}</th>
+          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">사이트 ${getSortIndicator('platformName')}</th>
+          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">방문일/시간 ${getSortIndicator('visitDate')}</th>
+          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">마감일 ${getSortIndicator('deadlineDate')}</th>
+          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">결제금액 ${getSortIndicator('paidAmount')}</th>
+          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">실수익 ${getSortIndicator('revenue')}</th>
+          <th class="p-3">비고</th>
+        `;
+      }
 
       tableBody.innerHTML = '';
       cardList.innerHTML = '';
@@ -1322,7 +1398,7 @@
           `;
           tableBody.appendChild(row);
         } else {
-          // 일반 조회 모드 (매장명 -> 상태 -> 사이트 -> 방문일 -> 마감일 -> 제공금액 -> 결제금액 -> 실수익 -> 비고)
+          // 일반 조회 모드
           const row = document.createElement('tr');
           row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
           row.innerHTML = `
@@ -1728,7 +1804,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (새로운 3줄 헤더 레이아웃) -->
+      <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-3 overflow-y-auto max-h-screen py-2">
         
         <!-- 1줄: 제목 + 진행중인 체험/완료된 체험 서브탭 -->
@@ -1758,10 +1834,26 @@
           </div>
         </div>
 
-        <!-- 2줄: (좌) 검색창 & 상태필터 / (우) 수정(일괄수정) 버튼 -->
+        <!-- 2줄: (좌) 연도/월/검색창/상태필터 / (우) 수정 버튼 -->
         <div class="flex items-center justify-between gap-2 shrink-0">
-          <div class="flex items-center gap-2">
-            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-60 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm"></select>
+            <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
+              <option value="ALL">월 전체</option>
+              <option value="1">1월</option>
+              <option value="2">2월</option>
+              <option value="3">3월</option>
+              <option value="4">4월</option>
+              <option value="5">5월</option>
+              <option value="6">6월</option>
+              <option value="7">7월</option>
+              <option value="8">8월</option>
+              <option value="9">9월</option>
+              <option value="10">10월</option>
+              <option value="11">11월</option>
+              <option value="12">12월</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-48 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
             <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
@@ -1774,27 +1866,25 @@
             </select>
           </div>
 
-          ${!isReadOnly ? `
-            <div class="flex gap-2">
-              <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700">전체 저장</button>
-              <button id="batchEditBtn" onclick="toggleBatchEdit()" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-gray-800 text-white shadow-sm transition hover:bg-gray-900">수정</button>
-            </div>
-          ` : ''}
+          <div class="flex gap-2">
+            <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700">전체 저장</button>
+            <button id="batchEditBtn" onclick="toggleBatchEdit()" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-gray-800 text-white shadow-sm transition hover:bg-gray-900">수정</button>
+          </div>
         </div>
 
-        <!-- 3줄: 테이블 (매장명 -> 상태 -> 사이트 -> 방문일 -> 마감일 -> 제공금액 -> 결제금액 -> 실수익 -> 비고) -->
+        <!-- 3줄: 테이블 (헤더 정렬 지원) -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th class="p-3">매장명</th>
-                <th class="p-3">상태</th>
-                <th class="p-3">사이트</th>
-                <th class="p-3">방문일/시간</th>
-                <th class="p-3">마감일</th>
-                <th class="p-3">제공금액</th>
-                <th class="p-3">결제금액</th>
-                <th class="p-3">실수익</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">매장명</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">상태</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">사이트</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">방문일/시간</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">마감일</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">제공금액</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">결제금액</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">실수익</th>
                 <th class="p-3">비고</th>
               </tr>
             </thead>
