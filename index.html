@@ -17,9 +17,11 @@
 
       --color-status-apply: #6B7280;
       --color-status-select: #111827;
+      --color-status-visit: #F4A261;
+      --color-status-unsubmitted: #E63946;
+      --color-status-submit: #059669;
       --color-status-delivery: #2563EB;
       --color-status-fee: #9333EA;
-      --color-status-submit: #059669;
     }
 
     body { background-color: var(--bg-color) !important; transition: background-color 0.3s ease; }
@@ -39,11 +41,14 @@
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
+    /* 텍스트 배징 전용 동적 CSS */
     .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
     .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
+    .status-text-visit { color: var(--color-status-visit) !important; font-weight: 700; }
+    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 700; }
+    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
-    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
   </style>
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden">
@@ -97,17 +102,21 @@
     const customStatusColors = JSON.parse(localStorage.getItem('onlyview_status_colors')) || {
       apply: '#6B7280',
       select: '#111827',
+      visit: '#F4A261',
+      unsubmitted: '#E63946',
+      submit: '#059669',
       delivery: '#2563EB',
-      fee: '#9333EA',
-      submit: '#059669'
+      fee: '#9333EA'
     };
 
     function applyStatusCSSColors() {
       document.documentElement.style.setProperty('--color-status-apply', customStatusColors.apply);
       document.documentElement.style.setProperty('--color-status-select', customStatusColors.select);
+      document.documentElement.style.setProperty('--color-status-visit', customStatusColors.visit || '#F4A261');
+      document.documentElement.style.setProperty('--color-status-unsubmitted', customStatusColors.unsubmitted || '#E63946');
+      document.documentElement.style.setProperty('--color-status-submit', customStatusColors.submit);
       document.documentElement.style.setProperty('--color-status-delivery', customStatusColors.delivery);
       document.documentElement.style.setProperty('--color-status-fee', customStatusColors.fee);
-      document.documentElement.style.setProperty('--color-status-submit', customStatusColors.submit);
     }
     applyStatusCSSColors();
 
@@ -123,10 +132,12 @@
     function renderStatusColorPickers() {
       const keys = [
         { id: 'apply', label: '신청' },
-        { id: 'select', label: '선정 (방문체험)' },
+        { id: 'select', label: '선정' },
+        { id: 'visit', label: '방문' },
+        { id: 'unsubmitted', label: '미제출' },
+        { id: 'submit', label: '제출 (완료)' },
         { id: 'delivery', label: '배송' },
-        { id: 'fee', label: '원고료' },
-        { id: 'submit', label: '제출 (완료)' }
+        { id: 'fee', label: '원고료' }
       ];
 
       keys.forEach(item => {
@@ -171,18 +182,19 @@
     }
 
     function displayStatusName(status) {
-      return status === '선정' ? '방문' : status;
+      return status;
     }
 
     function getStatusTextClass(status) {
       switch(status) {
         case '신청': return 'status-text-apply';
-        case '선정':
-        case '방문': return 'status-text-select';
-        case '배송': return 'status-text-delivery';
-        case '원고료': return 'status-text-fee';
+        case '선정': return 'status-text-select';
+        case '방문': return 'status-text-visit';
+        case '미제출': return 'status-text-unsubmitted';
         case '제출':
         case '완료': return 'status-text-submit';
+        case '배송': return 'status-text-delivery';
+        case '원고료': return 'status-text-fee';
         default: return 'status-text-apply';
       }
     }
@@ -387,7 +399,7 @@
 
     window.setEditStatusBtn = function(status) {
       editSelectedStatus = status;
-      const statuses = ['신청', '선정', '배송', '원고료', '방문', '제출'];
+      const statuses = ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'];
       
       statuses.forEach(s => {
         const btn = document.getElementById(`btnEditStatus_${s}`);
@@ -721,7 +733,7 @@
       }
     }
 
-    // 상단 5개 카운터 (선정 현황 / 예약 대기 / 방문 예정 / 미제출 / 제출 완료)
+    // 선정 현황 중복 집계 차단 (방문일 미지정 pure 선정건만 집계)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -747,18 +759,17 @@
       monthlyCampaigns.forEach(item => {
         const st = item.status;
         if (st === '선정' || st === '배송' || st === '원고료') {
-          cntSelect++;
-          if (st === '선정') {
-            if (!item.visitDate) {
-              cntVisitWait++;
+          // 방문예정일이 없는 pure 선정건만 선정 현황 집계
+          if (!item.visitDate) {
+            cntSelect++;
+            cntVisitWait++;
+          } else {
+            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
+            const vTime = new Date(visitDateTimeStr);
+            if (vTime >= now) {
+              cntVisitPlan++;
             } else {
-              const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-              const vTime = new Date(visitDateTimeStr);
-              if (vTime >= now) {
-                cntVisitPlan++;
-              } else {
-                cntVisitWait++;
-              }
+              cntVisitWait++;
             }
           }
         }
@@ -777,7 +788,7 @@
       renderAllScheduledVisits();
     }
 
-    // 상단 N건 카운터 클릭 시 해당 상태 데이터 목록 모달 팝업 표출
+    // 상단 N건 카운터 클릭 시 팝업 정밀 필터링
     window.openCounterListModal = function(counterType, titleName) {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -794,7 +805,8 @@
       let matchedItems = [];
 
       if (counterType === 'select') {
-        matchedItems = monthlyCampaigns.filter(c => c.status === '선정' || c.status === '배송' || c.status === '원고료');
+        // pure 선정건 (방문일 미지정)
+        matchedItems = monthlyCampaigns.filter(c => (c.status === '선정' || c.status === '배송' || c.status === '원고료') && !c.visitDate);
       } else if (counterType === 'visitWait') {
         matchedItems = monthlyCampaigns.filter(c => {
           if (c.status !== '선정') return false;
@@ -1041,6 +1053,7 @@
       }
     }
 
+    // 상세 정보 모달 팝업 상태 뱃지 교정
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1422,7 +1435,7 @@
           </div>
         </div>
 
-        <!-- 클릭 시 목록 팝업 연결된 5개 카운터 (선정 현황 / 예약 대기 / 방문 예정 / 미제출 / 제출 완료) -->
+        <!-- 클릭 시 팝업 분리 연동된 상단 카운터 (선정 현황 / 예약 대기 / 방문 예정 / 미제출 / 제출 완료) -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
           <div onclick="openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
             <div class="text-[11px] text-gray-900 font-bold">선정 현황</div>
@@ -1446,7 +1459,6 @@
           </div>
         </div>
 
-        <!-- 달력 및 방문 일정 (여백 정밀 밀착) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
             <div class="flex justify-between items-center mb-1 shrink-0">
@@ -1465,7 +1477,6 @@
           </div>
         </div>
 
-        <!-- 하단 위젯: 제출 마감 임박 / 예약 대기 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 shrink-0">
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">제출 마감 임박</h3>
@@ -1480,12 +1491,9 @@
       </div>
 
       <!-- 2. 체험단 등록 탭 -->
-      <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto overflow-y-auto max-h-screen py-4">
+      <div id="sectionForm" class="hidden space-y-6 w-full overflow-y-auto max-h-screen py-2">
+        <h2 class="text-2xl font-black text-theme">체험단 등록</h2>
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-          <div class="border-b pb-3">
-            <h2 id="formTitle" class="text-base font-bold text-gray-800">체험단 등록</h2>
-          </div>
-          
           <form id="campaignForm" class="space-y-4 text-sm">
             <div class="space-y-1.5">
               <label class="block text-xs font-bold text-gray-900">진행 상태</label>
@@ -1577,20 +1585,42 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (타이틀 옆 소형 ? 도움말 팝업 추가) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
-          <h3 class="font-bold text-gray-800 text-sm shrink-0">체험단 목록</h3>
-          <div class="flex items-center gap-2 w-full md:w-auto">
-            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full md:w-60 outline-none focus:ring-2 ring-theme">
-            <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white shrink-0 outline-none focus:ring-2 ring-theme">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
+            
+            <!-- 소형 ? 도움말 팝업 -->
+            <div class="relative group cursor-pointer">
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-sm">?</span>
+              
+              <div class="absolute left-0 top-7 hidden group-hover:block z-30 w-72 p-3.5 bg-white border border-gray-100 rounded-2xl shadow-xl space-y-2 text-xs">
+                <div class="font-bold text-gray-800 border-b pb-1.5 flex items-center gap-1">
+                  <span>💡</span> 체험단 진행 상태 가이드
+                </div>
+                <div class="space-y-1.5 text-gray-600 text-[11px] leading-relaxed">
+                  <div>• <b class="text-gray-900">선정</b>: 방문 날짜를 정하기 전을 포함한 전체 당첨 내역이에요.</div>
+                  <div>• <b class="text-gray-900">방문</b>: 방문 일정을 예약했거나 이미 방문을 마친 상태예요.</div>
+                  <div>• <b class="text-gray-900">미제출</b>: 방문을 다녀왔거나 일시가 지났는데 아직 리뷰를 작성하지 않은 상태예요.</div>
+                  <div>• <b class="text-gray-900">제출</b>: 포스팅 작성과 리뷰 제출까지 모두 끝난 마감 상태예요.</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-60 outline-none focus:ring-2 ring-theme bg-white">
+            <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
-              <option value="선정">방문</option>
+              <option value="선정">선정</option>
+              <option value="방문">방문</option>
+              <option value="미제출">미제출</option>
+              <option value="제출">제출/완료</option>
               <option value="배송">배송</option>
               <option value="원고료">원고료</option>
-              <option value="방문">방문완료</option>
-              <option value="제출">제출/완료</option>
             </select>
           </div>
         </div>
@@ -1619,7 +1649,7 @@
 
       <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-6">
-        <h2 class="text-xl font-bold text-gray-800">체험단 정산</h2>
+        <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
         <div class="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-3">
           <div class="text-3xl">💰</div>
           <h3 class="text-base font-bold text-gray-800">정산 시스템 준비 중</h3>
@@ -1629,7 +1659,7 @@
 
       <!-- 5. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
-        <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
+        <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           
