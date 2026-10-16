@@ -131,7 +131,8 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
 
-    window.switchTab = function(tabName) {
+    // 탭 전환 및 히스토리 제어 (뒤로가기 버그 완치)
+    window.switchTab = function(tabName, pushState = true) {
       const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettings'];
       sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
 
@@ -144,6 +145,10 @@
       if (activeBtn) {
         activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
         activeBtn.classList.add('bg-theme', 'text-white');
+      }
+
+      if (pushState && window.location.hash !== `#${tabName}`) {
+        history.pushState({ tab: tabName }, '', `#${tabName}`);
       }
 
       if (tabName === 'dashboard') {
@@ -162,6 +167,17 @@
       }
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
+
+    // 브라우저 뒤로가기 / 앞으로가기 감지 이벤트
+    window.addEventListener('popstate', (e) => {
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['dashboard', 'form', 'list', 'settings'];
+      if (validTabs.includes(hash)) {
+        switchTab(hash, false);
+      } else {
+        switchTab('dashboard', false);
+      }
+    });
 
     window.setStatusBtn = function(status) {
       selectedStatus = status;
@@ -326,8 +342,14 @@
 
         await fetchUserCustomCode();
         updateFormVisibility();
-        loadCampaigns();
-        switchTab('dashboard');
+        await loadCampaigns();
+
+        const initialHash = window.location.hash.replace('#', '');
+        if (['dashboard', 'form', 'list', 'settings'].includes(initialHash)) {
+          switchTab(initialHash, false);
+        } else {
+          switchTab('dashboard', false);
+        }
       } else {
         currentUser = null;
         targetUserId = null;
@@ -439,7 +461,6 @@
       }
     }
 
-    // 100% 로드 보장용 단순화 쿼리
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -462,7 +483,6 @@
           });
         });
 
-        // 최신 생성순 클라이언트 정렬
         rawCampaignList.sort((a, b) => {
           const tA = a.createdAt ? a.createdAt.seconds || 0 : 0;
           const tB = b.createdAt ? b.createdAt.seconds || 0 : 0;
@@ -637,7 +657,6 @@
       });
     }
 
-    // 방문 일정을 잡은 모든 기록 표출 위젯
     function renderAllScheduledVisits() {
       const visitContainer = document.getElementById('scheduledVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
@@ -647,7 +666,6 @@
       visitContainer.innerHTML = '';
       unscheduledContainer.innerHTML = '';
 
-      // 방문일이 있는 모든 항목 (날짜 오름차순 정렬)
       const scheduledItems = rawCampaignList.filter(c => c.visitDate).sort((a, b) => {
         const keyA = `${a.visitDate} ${a.visitTime || '00:00'}`;
         const keyB = `${b.visitDate} ${b.visitTime || '00:00'}`;
@@ -674,7 +692,6 @@
         });
       }
 
-      // 방문 미정 항목
       const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
