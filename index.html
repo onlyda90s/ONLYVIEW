@@ -30,12 +30,11 @@
     .border-theme { border-color: var(--primary) !important; }
     .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
 
-    /* 카드 3개 기준 최적 높이(약 220px) + 스크롤바 */
+    /* 위젯 내부 전용 미세 스크롤바 */
     .widget-scroll {
       overflow-y: auto !important;
-      max-height: 220px !important;
     }
-    .widget-scroll::-webkit-scrollbar { width: 5px; }
+    .widget-scroll::-webkit-scrollbar { width: 4px; }
     .widget-scroll::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
@@ -47,7 +46,7 @@
     .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
   </style>
 </head>
-<body class="text-[#333333] min-h-screen">
+<body class="text-[#333333] min-h-screen h-screen overflow-hidden">
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -722,7 +721,6 @@
       }
     }
 
-    // 선택된 YYYY년 MM월 기준으로 카운터 및 위젯 전체 동기화 렌더링
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -730,7 +728,6 @@
 
       const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
-      // 선택한 월 기준 데이터 동기화 필터링
       const monthlyCampaigns = rawCampaignList.filter(item => {
         const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
         const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
@@ -790,14 +787,14 @@
       const days = ['일', '월', '화', '수', '목', '금', '토'];
       days.forEach((d, idx) => {
         const dh = document.createElement('div');
-        dh.className = `text-center text-xs font-bold py-1 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
+        dh.className = `text-center text-[11px] font-bold py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
         dh.innerText = d;
         calGrid.appendChild(dh);
       });
 
       for (let i = 0; i < firstDay; i++) {
         const empty = document.createElement('div');
-        empty.className = 'bg-gray-50/50 rounded-xl min-h-[50px]';
+        empty.className = 'bg-gray-50/50 rounded-xl min-h-[42px]';
         calGrid.appendChild(empty);
       }
 
@@ -805,7 +802,7 @@
       for (let date = 1; date <= lastDate; date++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
         const dayCell = document.createElement('div');
-        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[60px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
+        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[44px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
         
         let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
         
@@ -813,10 +810,10 @@
         const deadlineMatches = rawCampaignList.filter(c => c.deadlineDate === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
-          html += `<div class="text-[10px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
         }
         if (deadlineMatches.length > 0) {
-          html += `<div class="text-[10px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
         }
 
         const allMatched = rawCampaignList.filter(c => c.visitDate === dateStr || (c.deadlineDate === dateStr && c.status !== '신청'));
@@ -886,13 +883,13 @@
       }).filter(c => c.diffDays <= deadlineAlertDays).sort((a, b) => a.diffDays - b.diffDays);
 
       if (deadlineList.length === 0) {
-        container.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center">마감 임박 (${deadlineAlertDays}일 이내) 일정이 없습니다.</div>`;
+        container.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">마감 임박 (${deadlineAlertDays}일 이내) 일정이 없습니다.</div>`;
         return;
       }
 
       deadlineList.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'p-3 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition';
+        card.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition';
         card.onclick = () => openDetailItemModal(item.id);
 
         let dText = `D-${item.diffDays}`;
@@ -904,7 +901,7 @@
             <span class="font-bold text-gray-900">${item.storeName}</span>
             <span class="text-[11px] text-gray-400 ml-1.5">(${formatShortDate(item.deadlineDate)})</span>
           </div>
-          <span class="px-2 py-1 rounded-lg text-[10px] bg-rose-500 text-white font-bold">${dText}</span>
+          <span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-bold">${dText}</span>
         `;
         container.appendChild(card);
       });
@@ -933,11 +930,11 @@
       });
 
       if (scheduledItems.length === 0) {
-        visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">예정된 방문 일정이 없습니다.</div>';
+        visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">예정된 방문 일정이 없습니다.</div>';
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-3 bg-theme-light rounded-xl border border-theme/10 space-y-1 text-xs cursor-pointer hover:border-theme transition';
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 space-y-0.5 text-xs cursor-pointer hover:border-theme transition';
           div.onclick = () => openDetailItemModal(item.id);
 
           const timeText = item.visitTime ? ` (${item.visitTime})` : '';
@@ -958,11 +955,11 @@
       const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
-        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">일정 미지정 항목이 없습니다.</div>';
+        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">일정 미지정 항목이 없습니다.</div>';
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-3 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition';
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition';
           div.onclick = () => openDetailItemModal(item.id);
 
           div.innerHTML = `
@@ -970,7 +967,7 @@
               <span class="font-bold text-gray-900">${item.storeName}</span>
               <span class="text-[11px] text-gray-400 ml-1">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
-            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}', 'dashboard')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}', 'dashboard')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
           `;
           unscheduledContainer.appendChild(div);
         });
@@ -1296,128 +1293,130 @@
     </div>
   </div>
 
-  <!-- 로그인 후 대시보드 -->
-  <div id="appSection" class="hidden min-h-screen w-full flex-col md:flex-row">
+  <!-- 로그인 후 대시보드 (한 화면 고정 100vh 레이아웃) -->
+  <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
-    <!-- 좌측 사이드바 메뉴 (하단 고정 정렬) -->
-    <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-5 flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0">
-      <div class="space-y-6">
+    <!-- 좌측 사이드바 메뉴 (하단 버튼 스크롤 없이 고정) -->
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-4 flex flex-col justify-between shrink-0 h-screen">
+      <div class="space-y-5">
         <div>
           <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
           <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
-          <div class="mt-3 p-2.5 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
+          <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
             <span id="userName" class="text-xs font-bold text-theme truncate"></span>
           </div>
         </div>
 
-        <nav class="space-y-1.5 text-sm font-bold">
-          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-left bg-theme text-white">
+        <nav class="space-y-1 text-sm font-bold">
+          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition text-left bg-theme text-white">
             대시보드
           </button>
-          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
             체험단 등록
           </button>
-          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
             체험단 목록
           </button>
-          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
             체험단 정산
           </button>
-          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
             설정 및 공유
           </button>
         </nav>
       </div>
 
-      <!-- 하단 버튼 고정 영역 -->
-      <div class="pt-4 border-t border-gray-100 space-y-2 mt-6 md:mt-0 shrink-0">
-        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2.5 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
-        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
-        <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 font-semibold text-center">로그아웃</button>
+      <!-- 하단 고정 버튼 영역 -->
+      <div class="pt-3 border-t border-gray-100 space-y-1.5 shrink-0">
+        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
+        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
+        <button id="logoutBtn" class="w-full text-xs text-gray-400 hover:text-gray-600 py-1 font-semibold text-center">로그아웃</button>
       </div>
     </aside>
 
-    <!-- 우측 메인 콘텐츠 영역 -->
-    <main class="flex-1 px-6 md:px-12 py-6 space-y-6 overflow-y-auto">
+    <!-- 우측 메인 콘텐츠 영역 (스크롤 차단 100vh 고정) -->
+    <main class="flex-1 px-6 md:px-8 py-4 space-y-4 h-screen overflow-hidden flex flex-col justify-between">
 
-      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-2xl font-medium">
+      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-medium shrink-0">
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 -->
-      <div id="sectionDashboard" class="space-y-6">
-        <div class="flex items-center justify-between">
+      <!-- 1. 대시보드 탭 (한 화면 피팅) -->
+      <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden">
+        <div class="flex items-center justify-between shrink-0">
           <div>
-            <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
+            <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
           <div class="flex items-center gap-2">
-            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition">
+            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition">
               + 체험 등록
             </button>
             <div class="flex gap-1">
-              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">이전달</button>
-              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달</button>
+              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-bold hover:bg-gray-50">이전달</button>
+              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달</button>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-900 font-bold">선정 현황</div>
-            <div id="cntSelect" class="text-xl font-black text-gray-900 mt-1">0건</div>
+        <!-- 5개 카운터 카드 -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-[11px] text-gray-900 font-bold">선정 현황</div>
+            <div id="cntSelect" class="text-lg font-black text-gray-900 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-500 font-bold">방문 대기</div>
-            <div id="cntVisitWait" class="text-xl font-black text-gray-500 mt-1">0건</div>
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-[11px] text-gray-500 font-bold">방문 대기</div>
+            <div id="cntVisitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-orange-500 font-bold">방문 예정</div>
-            <div id="cntVisitPlan" class="text-xl font-black text-orange-500 mt-1">0건</div>
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-[11px] text-orange-500 font-bold">방문 예정</div>
+            <div id="cntVisitPlan" class="text-lg font-black text-orange-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-500 font-bold">제출 대기</div>
-            <div id="cntSubmitWait" class="text-xl font-black text-gray-500 mt-1">0건</div>
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+            <div class="text-[11px] text-gray-500 font-bold">제출 대기</div>
+            <div id="cntSubmitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1">
-            <div class="text-xs text-emerald-600 font-bold">제출 완료</div>
-            <div id="cntSubmitDone" class="text-xl font-black text-emerald-600 mt-1">0건</div>
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1">
+            <div class="text-[11px] text-emerald-600 font-bold">제출 완료</div>
+            <div id="cntSubmitDone" class="text-lg font-black text-emerald-600 mt-0.5">0건</div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <div class="flex justify-between items-center">
-              <h3 class="font-bold text-gray-800 text-sm">월별 일정 달력</h3>
-              <div class="flex items-center gap-3 text-xs font-semibold">
-                <span class="flex items-center gap-1 text-emerald-600"><span class="text-[10px]">🟢</span> 방문</span>
-                <span class="flex items-center gap-1 text-rose-500"><span class="text-[10px]">🔴</span> 마감</span>
+        <!-- 달력 및 방문 일정 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
+          <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
+            <div class="flex justify-between items-center mb-1 shrink-0">
+              <h3 class="font-bold text-gray-800 text-xs">월별 일정 달력</h3>
+              <div class="flex items-center gap-3 text-[11px] font-semibold">
+                <span class="flex items-center gap-1 text-emerald-600"><span class="text-[9px]">🟢</span> 방문</span>
+                <span class="flex items-center gap-1 text-rose-500"><span class="text-[9px]">🔴</span> 마감</span>
               </div>
             </div>
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm">방문 일정</h3>
-            <div id="scheduledVisitList" class="space-y-2 widget-scroll pr-1"></div>
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+            <h3 class="font-bold text-gray-800 text-xs mb-2 shrink-0">방문 일정</h3>
+            <div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
           </div>
         </div>
 
-        <!-- 카드 3개 기준 완벽 보정 (max-h-[220px]) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm">마감 임박 일정</h3>
-            <div id="upcomingList" class="space-y-2 widget-scroll pr-1"></div>
+        <!-- 마감 임박 / 방문 미정 (카드 3개 시원한 높이 유지) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 shrink-0">
+          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+            <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">마감 임박 일정</h3>
+            <div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm">방문 미정</h3>
-            <div id="unscheduledVisitList" class="space-y-2 widget-scroll pr-1"></div>
+          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+            <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">방문 미정</h3>
+            <div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
           </div>
         </div>
       </div>
 
       <!-- 2. 체험단 등록 탭 -->
-      <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
+      <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto overflow-y-auto max-h-screen py-4">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="border-b pb-3">
             <h2 id="formTitle" class="text-base font-bold text-gray-800">체험단 등록</h2>
@@ -1515,7 +1514,7 @@
       </div>
 
       <!-- 3. 체험단 목록 탭 -->
-      <div id="sectionList" class="hidden space-y-4">
+      <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
           <h3 class="font-bold text-gray-800 text-sm shrink-0">체험단 목록</h3>
           <div class="flex items-center gap-2 w-full md:w-auto">
@@ -1565,7 +1564,7 @@
       </div>
 
       <!-- 5. 설정 및 공유 탭 -->
-      <div id="sectionSettings" class="hidden space-y-6">
+      <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
         <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
