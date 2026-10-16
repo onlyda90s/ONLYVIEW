@@ -65,21 +65,55 @@
     let currentCalDate = new Date();
     let selectedStatus = "신청";
 
-    // 사이트 목록 관리
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
+    // 날짜 연도 4자리 강제 정제 (202622-02-22 등의 버그 원천 차단)
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
-      const clean = dateVal.trim();
-      const parts = clean.split("-");
+      const numbersOnly = dateVal.replace(/[^0-9]/g, '');
+      if (numbersOnly.length >= 8) {
+        const year = numbersOnly.substring(0, 4);
+        const month = numbersOnly.substring(4, 6);
+        const day = numbersOnly.substring(6, 8);
+        return `${year}-${month}-${day}`;
+      }
+      const parts = dateVal.trim().split("-");
       if (parts.length === 3) {
-        let year = parts[0];
-        if (year.length > 4) year = year.slice(0, 4);
+        const year = parts[0].slice(-4);
         const month = String(parts[1]).padStart(2, '0');
         const day = String(parts[2]).padStart(2, '0');
         return `${year}-${month}-${day}`;
       }
-      return clean;
+      return dateVal;
+    }
+
+    // 금액 천 단위 쉼표 포맷
+    function formatCurrencyInput(value) {
+      if (!value) return "";
+      const num = String(value).replace(/[^0-9]/g, '');
+      return num ? Number(num).toLocaleString() : "";
+    }
+
+    function parseCurrencyValue(value) {
+      if (!value) return 0;
+      return Number(String(value).replace(/[^0-9]/g, '')) || 0;
+    }
+
+    // 전화번호 하이픈(-) 자동 변환 (휴대폰 및 지역번호 지원)
+    function formatPhoneNumber(value) {
+      if (!value) return "";
+      const num = value.replace(/[^0-9]/g, '');
+      if (num.length < 3) return num;
+
+      if (num.startsWith("02")) {
+        if (num.length <= 5) return `${num.slice(0, 2)}-${num.slice(2)}`;
+        if (num.length <= 9) return `${num.slice(0, 2)}-${num.slice(2, 5)}-${num.slice(5)}`;
+        return `${num.slice(0, 2)}-${num.slice(2, 6)}-${num.slice(6, 10)}`;
+      } else {
+        if (num.length <= 6) return `${num.slice(0, 3)}-${num.slice(3)}`;
+        if (num.length <= 10) return `${num.slice(0, 3)}-${num.slice(3, 6)}-${num.slice(6)}`;
+        return `${num.slice(0, 3)}-${num.slice(3, 7)}-${num.slice(7, 11)}`;
+      }
     }
 
     const themeColors = {
@@ -87,7 +121,7 @@
       red:    { primary: '#E63946', hover: '#D62828', text: '#D62828', light: '#FFEAEB', bg: '#FFF5F5' },
       yellow: { primary: '#E9C46A', hover: '#F4A261', text: '#B5820F', light: '#FFFBEA', bg: '#FCFBF7' },
       green:  { primary: '#2A9D8F', hover: '#218380', text: '#1B6A60', light: '#E8F6F4', bg: '#F4FBF9' },
-      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8', bg: '#F4F8FB' },
+      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8', bg: '#F4FFB' },
       purple: { primary: '#9D4EDD', hover: '#7B2CBF', text: '#5A189A', light: '#F5EBFB', bg: '#FAF5FC' },
       black:  { primary: '#2B2D42', hover: '#111111', text: '#111111', light: '#EAEAEA', bg: '#F2F2F4' }
     };
@@ -150,7 +184,6 @@
         }
       });
 
-      // 동적 필드 제어
       const storeLabel = document.getElementById('storeNameLabel');
       const amountLabel = document.getElementById('sponsoredAmountLabel');
       const rowApplyDate = document.getElementById('rowApplyDate');
@@ -180,6 +213,14 @@
           if (amountLabel) amountLabel.innerText = "제공금액 (원)";
           rowVisit?.classList.remove('hidden');
           rowFinancial?.classList.remove('hidden');
+
+          // 방문시간 기본값 자동 세팅 (현재 시간)
+          if (!document.getElementById('visitTime').value) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('visitTime').value = `${hh}:${mm}`;
+          }
         } else if (status === '배송') {
           if (storeLabel) storeLabel.innerText = "매장명 (제품명) *";
           if (amountLabel) amountLabel.innerText = "제공금액 (원)";
@@ -194,7 +235,6 @@
       }
     };
 
-    // 사이트 칩 UI 렌더링
     function renderPlatformChips() {
       const container = document.getElementById('platformChipsContainer');
       if (!container) return;
@@ -261,6 +301,18 @@
 
       document.getElementById('closeModalBtn')?.addEventListener('click', () => {
         document.getElementById('dayModal')?.classList.add('hidden');
+      });
+
+      // 금액 실시간 콤마 포맷팅
+      ['sponsoredAmount', 'paidAmount', 'revenue'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', (e) => {
+          e.target.value = formatCurrencyInput(e.target.value);
+        });
+      });
+
+      // 연락처 실시간 하이픈 포맷팅
+      document.getElementById('contact')?.addEventListener('input', (e) => {
+        e.target.value = formatPhoneNumber(e.target.value);
       });
 
       renderPlatformChips();
@@ -743,10 +795,10 @@
       document.getElementById('visitDate').value = formatCleanDate(item.visitDate || '');
       document.getElementById('visitTime').value = item.visitTime || '';
       document.getElementById('companions').value = item.companions || '';
-      document.getElementById('sponsoredAmount').value = item.sponsoredAmount || 0;
-      document.getElementById('paidAmount').value = item.paidAmount || 0;
-      document.getElementById('revenue').value = item.revenue || 0;
-      document.getElementById('contact').value = item.contact || '';
+      document.getElementById('sponsoredAmount').value = formatCurrencyInput(item.sponsoredAmount || 0);
+      document.getElementById('paidAmount').value = formatCurrencyInput(item.paidAmount || 0);
+      document.getElementById('revenue').value = formatCurrencyInput(item.revenue || 0);
+      document.getElementById('contact').value = formatPhoneNumber(item.contact || '');
       document.getElementById('memo').value = item.memo || '';
 
       document.getElementById('formTitle').innerText = '체험 정보 수정';
@@ -793,9 +845,9 @@
         visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''),
         visitTime: document.getElementById('visitTime')?.value || '',
         companions: document.getElementById('companions')?.value || '',
-        sponsoredAmount: Number(document.getElementById('sponsoredAmount').value || 0),
-        paidAmount: Number(document.getElementById('paidAmount')?.value || 0),
-        revenue: Number(document.getElementById('revenue')?.value || 0),
+        sponsoredAmount: parseCurrencyValue(document.getElementById('sponsoredAmount')?.value),
+        paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value),
+        revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
         contact: document.getElementById('contact')?.value || '',
         memo: document.getElementById('memo')?.value || '',
       };
@@ -827,7 +879,6 @@
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
       
-      // 시트 1: 월별 캘린더 뷰 ([사이트명] 매장명)
       const calHeader = ['일', '월', '화', '수', '목', '금', '토'];
       const calRows = [calHeader];
 
@@ -859,7 +910,6 @@
 
       const wsCal = XLSX.utils.aoa_to_sheet(calRows);
 
-      // 시트 3: 마스터 전체 목록
       const masterData = rawCampaignList.map(item => ({
         '매장명': item.storeName,
         '사이트명': item.platformName,
@@ -1075,7 +1125,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label id="sponsoredAmountLabel" class="block text-xs font-bold text-gray-900 mb-1">제공금액 (원)</label>
-                <input type="number" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
 
               <div id="rowApplyDate">
@@ -1107,12 +1157,12 @@
             <!-- 5줄: 결제금액 | 실수익 (선정/배송 전용) -->
             <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-rose-600 mb-1">결제금액 (원)</label>
-                <input type="number" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
+                <input type="text" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
               <div>
                 <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
-                <input type="number" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <input type="text" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
               </div>
             </div>
 
