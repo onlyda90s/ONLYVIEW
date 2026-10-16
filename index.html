@@ -67,7 +67,6 @@
 
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
-    // 날짜 연도 4자리 엄격 제한 함수 (202622 -> 2026 자르기)
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const str = String(dateVal).trim();
@@ -467,25 +466,29 @@
       }
     }
 
+    // 대시보드 5개 현황 집계 (모든 신규 상태 반영)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
       document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
 
-      let cntSelect = 0;     
-      let cntVisitWait = 0;  
-      let cntVisitPlan = 0;  
-      let cntSubmitWait = 0; 
-      let cntSubmitDone = 0; 
+      let cntSelect = 0;     // 선정 현황 (선정, 배송, 원고료 상태 포함)
+      let cntVisitWait = 0;  // 방문 대기 (선정 상태 중 방문일 미지정)
+      let cntVisitPlan = 0;  // 방문 예정 (선정 상태 중 방문일 지정)
+      let cntSubmitWait = 0; // 제출 대기 (방문 완료)
+      let cntSubmitDone = 0; // 제출 완료 (제출/완료)
 
       rawCampaignList.forEach(item => {
-        if (item.status === '선정' || item.status === '배송' || item.status === '원고료') {
+        const st = item.status;
+        if (st === '선정' || st === '배송' || st === '원고료') {
           cntSelect++;
-          if (!item.visitDate) cntVisitWait++;
-          else cntVisitPlan++;
+          if (st === '선정') {
+            if (!item.visitDate) cntVisitWait++;
+            else cntVisitPlan++;
+          }
         }
-        else if (item.status === '방문') cntSubmitWait++;
-        else if (item.status === '제출' || item.status === '완료') cntSubmitDone++;
+        else if (st === '방문') cntSubmitWait++;
+        else if (st === '제출' || st === '완료') cntSubmitDone++;
       });
 
       document.getElementById('cntSelect').innerText = cntSelect + '건';
@@ -820,6 +823,7 @@
       }
     };
 
+    // 등록 시 자동 이동 제거 (등록 완료 후 등록 페이지 유지)
     document.getElementById('campaignForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isReadOnly || !currentUser) return;
@@ -854,8 +858,8 @@
           setStatusBtn('신청');
           selectPlatformChip('개별');
         }
+        // 백그라운드 데이터 갱신 (탭 이동은 하지 않음)
         loadCampaigns();
-        switchTab('dashboard');
       } catch (err) {
         alert('저장 실패: ' + err.message);
       }
@@ -1067,7 +1071,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (연도 4자리 강제 & 날짜 max 설정) -->
+      <!-- 2. 체험 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="flex justify-between items-center border-b pb-3">
