@@ -3,32 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>온리뷰 (onlyview) - 대시보드</title>
+  <title>온리뷰 (ONLYVIEW)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden">
 
-  <!-- 로그인 전 화면 -->
+  <!-- 1. 로그인 전 화면 -->
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
-    <!-- 기존 로그인 HTML 그대로 유지 -->
+    <!-- 기존 로그인 HTML 코드 -->
   </div>
 
-  <!-- 로그인 후 메인 대시보드 프레임 -->
+  <!-- 2. 로그인 후 대시보드 메인 레이아웃 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
-    <!-- 사이드바 -->
+    <!-- 사이드바 바 영역 -->
     <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-4 flex flex-col justify-between shrink-0 h-screen">
-      <!-- 기존 사이드바 메뉴 버튼 그대로 유지 -->
+      <!-- 기존 사이드바 HTML 그대로 유지 -->
     </aside>
 
-    <!-- 5개 기능별 모듈이 로드되는 컨테이너 -->
+    <!-- 메인 탭 영역 (각 메뉴별 모듈이 로드되는 컨테이너) -->
     <main class="flex-1 px-6 md:px-8 py-4 space-y-4 h-screen overflow-hidden flex flex-col justify-between">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-medium shrink-0">
         현재 동반자 읽기 전용 모드입니다.
       </div>
 
-      <!-- 동적 컴포넌트 주입 영역 -->
+      <!-- 메뉴별 섹션 분리 -->
       <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden"></div>
       <div id="sectionForm" class="hidden space-y-4 w-full overflow-y-auto max-h-screen py-2"></div>
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2"></div>
@@ -37,12 +37,12 @@
     </main>
   </div>
 
-  <!-- 공통 팝업 모달 레이어 -->
+  <!-- 팝업 모달 레이어 (공통 사용) -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
   <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
   <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
 
-  <!-- 메인 모듈 로더 -->
+  <!-- JavaScript 모듈 로드 -->
   <script type="module" src="src/js/app.js"></script>
 </body>
 </html>
