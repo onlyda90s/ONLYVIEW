@@ -721,7 +721,7 @@
       }
     }
 
-    // 정확히 고정된 상단 명칭 카운터 (선정 현황 / 방문 대기 / 방문 예정 / 미제출 / 제출 완료)
+    // 상단 5개 카운터 (선정 현황 / 예약 대기 / 방문 예정 / 미제출 / 제출 완료)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -777,7 +777,72 @@
       renderAllScheduledVisits();
     }
 
-    // 1줄: 달력일정/범례 -> 2줄: 일~토 -> 3줄: 캘린더 밀착 구조
+    // 상단 N건 카운터 클릭 시 해당 상태 데이터 목록 모달 팝업 표출
+    window.openCounterListModal = function(counterType, titleName) {
+      const year = currentCalDate.getFullYear();
+      const month = currentCalDate.getMonth() + 1;
+      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+      const now = new Date();
+
+      const monthlyCampaigns = rawCampaignList.filter(item => {
+        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
+        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
+        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
+        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+      });
+
+      let matchedItems = [];
+
+      if (counterType === 'select') {
+        matchedItems = monthlyCampaigns.filter(c => c.status === '선정' || c.status === '배송' || c.status === '원고료');
+      } else if (counterType === 'visitWait') {
+        matchedItems = monthlyCampaigns.filter(c => {
+          if (c.status !== '선정') return false;
+          if (!c.visitDate) return true;
+          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
+          return new Date(visitDateTimeStr) < now;
+        });
+      } else if (counterType === 'visitPlan') {
+        matchedItems = monthlyCampaigns.filter(c => {
+          if (c.status !== '선정' || !c.visitDate) return false;
+          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
+          return new Date(visitDateTimeStr) >= now;
+        });
+      } else if (counterType === 'submitWait') {
+        matchedItems = monthlyCampaigns.filter(c => c.status === '방문');
+      } else if (counterType === 'submitDone') {
+        matchedItems = monthlyCampaigns.filter(c => c.status === '제출' || c.status === '완료');
+      }
+
+      document.getElementById('modalDateTitle').innerText = `${year}년 ${month}월 [${titleName}] 목록 (${matchedItems.length}건)`;
+      const modalList = document.getElementById('modalItemList');
+      modalList.innerHTML = '';
+
+      if (matchedItems.length === 0) {
+        modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center">${titleName} 항목이 없습니다.</div>`;
+      } else {
+        matchedItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
+          div.onclick = () => openDetailItemModal(item.id);
+
+          div.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+              <span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span>
+            </div>
+            <div class="flex justify-between text-gray-500 text-[11px]">
+              <span>사이트: ${item.platformName || '개별'}</span>
+              <span>${item.visitDate ? `방문일: ${item.visitDate}` : (item.deadlineDate ? `마감일: ${item.deadlineDate}` : '')}</span>
+            </div>
+          `;
+          modalList.appendChild(div);
+        });
+      }
+
+      document.getElementById('dayModal')?.classList.remove('hidden');
+    };
+
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1295,7 +1360,7 @@
     </div>
   </div>
 
-  <!-- 로그인 후 대시보드 (100vh 스크롤 차단 레이아웃) -->
+  <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
     <aside class="w-full md:w-64 bg-white border-r border-gray-200 p-4 flex flex-col justify-between shrink-0 h-screen">
@@ -1357,31 +1422,31 @@
           </div>
         </div>
 
-        <!-- 요청하신 정확한 상단 명칭 카운터 5개 -->
+        <!-- 클릭 시 목록 팝업 연결된 5개 카운터 (선정 현황 / 예약 대기 / 방문 예정 / 미제출 / 제출 완료) -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
-          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <div onclick="openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
             <div class="text-[11px] text-gray-900 font-bold">선정 현황</div>
             <div id="cntSelect" class="text-lg font-black text-gray-900 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-[11px] text-gray-500 font-bold">방문 대기</div>
+          <div onclick="openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
+            <div class="text-[11px] text-gray-500 font-bold">예약 대기</div>
             <div id="cntVisitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <div onclick="openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
             <div class="text-[11px] text-orange-500 font-bold">방문 예정</div>
             <div id="cntVisitPlan" class="text-lg font-black text-orange-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <div onclick="openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
             <div class="text-[11px] text-gray-500 font-bold">미제출</div>
             <div id="cntSubmitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1">
+          <div onclick="openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition">
             <div class="text-[11px] text-emerald-600 font-bold">제출 완료</div>
             <div id="cntSubmitDone" class="text-lg font-black text-emerald-600 mt-0.5">0건</div>
           </div>
         </div>
 
-        <!-- 달력 및 방문 일정 -->
+        <!-- 달력 및 방문 일정 (여백 정밀 밀착) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
             <div class="flex justify-between items-center mb-1 shrink-0">
@@ -1400,7 +1465,7 @@
           </div>
         </div>
 
-        <!-- 위젯 명칭 변경: 제출 마감 임박 / 일정 조율 필요 -->
+        <!-- 하단 위젯: 제출 마감 임박 / 예약 대기 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 shrink-0">
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">제출 마감 임박</h3>
@@ -1408,7 +1473,7 @@
           </div>
 
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-            <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">일정 조율 필요</h3>
+            <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">예약 대기</h3>
             <div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
           </div>
         </div>
