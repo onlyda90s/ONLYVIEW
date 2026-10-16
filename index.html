@@ -89,7 +89,6 @@
     let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadline_days')) || 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
-    // 추천 10가지 팔레트 색상
     const presetPalette = [
       '#6B7280', '#111827', '#E76F51', '#E63946', '#F4A261',
       '#D97706', '#2563EB', '#4F46E5', '#9333EA', '#059669'
@@ -287,6 +286,34 @@
       }
     });
 
+    // 구글 로그인 없이 초대 코드로만 대시보드 진입
+    window.enterWithInviteCode = async function() {
+      const codeInput = document.getElementById('loginInviteCodeInput').value.trim();
+      if (!codeInput) return alert("초대 코드를 입력해주세요.");
+
+      try {
+        const codeSnap = await getDoc(doc(db, "userCodes", codeInput));
+        if (!codeSnap.exists()) {
+          return alert("유효하지 않은 초대 코드입니다. 코드를 다시 확인해주세요.");
+        }
+
+        targetUserId = codeSnap.data().uid;
+        isReadOnly = true;
+
+        document.getElementById('authSection').classList.add('hidden');
+        const appSec = document.getElementById('appSection');
+        appSec.classList.remove('hidden');
+        appSec.classList.add('flex');
+
+        document.getElementById('userName').innerText = `초대 접속자 (${codeInput})`;
+        updateFormVisibility();
+        await loadCampaigns();
+        switchTab('dashboard', false);
+      } catch (err) {
+        alert("초대 코드 조회 실패: " + err.message);
+      }
+    };
+
     window.setStatusBtn = function(status) {
       selectedStatus = status;
       const statuses = ['신청', '선정', '배송', '원고료'];
@@ -439,7 +466,16 @@
         catch (err) { alert("로그인 오류: " + err.message); }
       });
 
-      document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
+      // 초대 코드 엔터키 입력 진입
+      document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') enterWithInviteCode();
+      });
+
+      document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        signOut(auth);
+        window.location.reload();
+      });
+
       document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
       document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
 
@@ -501,9 +537,8 @@
         } else {
           switchTab('dashboard', false);
         }
-      } else {
+      } else if (!targetUserId) {
         currentUser = null;
-        targetUserId = null;
         authSec.classList.remove('hidden');
         appSec.classList.add('hidden');
         appSec.classList.remove('flex');
@@ -640,7 +675,7 @@
           if (item.status === '선정' && item.visitDate) {
             const vTimeStr = item.visitTime || '23:59';
             const visitDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
-            if (visitDateTime < now) {
+            if (visitDateTime < now && currentUser) {
               item.status = '방문';
               autoVisitPromises.push(updateDoc(doc(db, "campaigns", item.id), { status: '방문' }));
             }
@@ -788,7 +823,7 @@
                 ${timeBadge}
                 <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
               </div>
-              <span class="text-xs font-normal text-gray-600">${item.companions || displayStatusName(item.status)}</span>
+              <span class="text-xs font-normal text-gray-400">${item.platformName || '개별'}</span>
             </div>
             ${item.memo ? `<div class="bg-gray-50 p-2 rounded-xl text-gray-600 text-[11px] border border-gray-100 font-normal">메모: ${item.memo}</div>` : ''}
           `;
@@ -1190,9 +1225,9 @@
     });
   </script>
 
-  <!-- 로그인 전 화면 -->
+  <!-- 로그인 전 화면 (초대 코드로 즉시 접속 가능) -->
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
-    <div class="text-center space-y-3 mb-16">
+    <div class="text-center space-y-3 mb-12">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
       <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
       <p class="text-sm text-gray-600 mt-4 leading-relaxed font-medium">
@@ -1200,9 +1235,20 @@
       </p>
     </div>
 
-    <div class="w-full space-y-4 mb-6">
-      <input type="text" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
-      
+    <div class="w-full space-y-3 mb-6">
+      <div class="space-y-2">
+        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
+        <button onclick="enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition">
+          초대 코드로 대시보드 보기
+        </button>
+      </div>
+
+      <div class="relative flex py-2 items-center">
+        <div class="flex-grow border-t border-gray-200"></div>
+        <span class="flex-shrink mx-3 text-gray-400 text-xs font-semibold">또는</span>
+        <div class="flex-grow border-t border-gray-200"></div>
+      </div>
+
       <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">
         Google로 계속하기
@@ -1279,7 +1325,6 @@
           </div>
         </div>
 
-        <!-- 5개 카운터 카드 (원복: 선정 현황) -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <div class="text-xs text-gray-900 font-bold">선정 현황</div>
@@ -1482,7 +1527,7 @@
         </div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (10가지 추천 색상 팔레트 적용) -->
+      <!-- 5. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-6">
         <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
 
@@ -1532,7 +1577,6 @@
 
         </div>
 
-        <!-- 추천 10개 색상 팔레트 선택형 디자인 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
           <h3 class="font-bold text-gray-800 text-base">상태별 글자 색상 선택 (추천 10종 팔레트)</h3>
           <div class="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
