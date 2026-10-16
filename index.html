@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>온리뷰 (onlyview) - 대시보드</title>
-  <!-- UI 스타일링 (Tailwind CSS) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 엑셀 내보내기 (SheetJS) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   
   <style>
@@ -17,8 +15,7 @@
       --primary-light: #FFFBF7;
       --bg-color: #FAF8F5;
 
-      /* 상태별 기본 텍스트 전용 색상 */
-      --color-status-apply: #9CA3AF;
+      --color-status-apply: #6B7280;
       --color-status-select: #111827;
       --color-status-delivery: #2563EB;
       --color-status-fee: #9333EA;
@@ -42,7 +39,6 @@
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-    /* 텍스트 전용 컬러 배징 클래스 */
     .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
     .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
@@ -93,9 +89,14 @@
     let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadline_days')) || 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
-    // 상태별 사용자 커스텀 글자 색상 로드
+    // 추천 10가지 팔레트 색상
+    const presetPalette = [
+      '#6B7280', '#111827', '#E76F51', '#E63946', '#F4A261',
+      '#D97706', '#2563EB', '#4F46E5', '#9333EA', '#059669'
+    ];
+
     const customStatusColors = JSON.parse(localStorage.getItem('onlyview_status_colors')) || {
-      apply: '#9CA3AF',
+      apply: '#6B7280',
       select: '#111827',
       delivery: '#2563EB',
       fee: '#9333EA',
@@ -115,8 +116,35 @@
       customStatusColors[key] = val;
       localStorage.setItem('onlyview_status_colors', JSON.stringify(customStatusColors));
       applyStatusCSSColors();
+      renderStatusColorPickers();
       filterAndRender();
     };
+
+    function renderStatusColorPickers() {
+      const keys = [
+        { id: 'apply', label: '신청' },
+        { id: 'select', label: '선정 (방문체험)' },
+        { id: 'delivery', label: '배송' },
+        { id: 'fee', label: '원고료' },
+        { id: 'submit', label: '제출 (완료)' }
+      ];
+
+      keys.forEach(item => {
+        const container = document.getElementById(`picker_${item.id}`);
+        if (!container) return;
+        container.innerHTML = '';
+
+        presetPalette.forEach(hex => {
+          const isSelected = customStatusColors[item.id] === hex;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `w-6 h-6 rounded-full border-2 transition ${isSelected ? 'border-gray-900 scale-110 ring-2 ring-gray-300' : 'border-white opacity-80 hover:opacity-100'}`;
+          btn.style.backgroundColor = hex;
+          btn.onclick = () => updateCustomStatusColor(item.id, hex);
+          container.appendChild(btn);
+        });
+      });
+    }
 
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
@@ -245,11 +273,7 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
-        document.getElementById('colorPickerApply').value = customStatusColors.apply;
-        document.getElementById('colorPickerSelect').value = customStatusColors.select;
-        document.getElementById('colorPickerDelivery').value = customStatusColors.delivery;
-        document.getElementById('colorPickerFee').value = customStatusColors.fee;
-        document.getElementById('colorPickerSubmit').value = customStatusColors.submit;
+        renderStatusColorPickers();
       }
     };
 
@@ -521,16 +545,16 @@
           return alert("이미 사용 중인 코드입니다.");
         }
 
-        if (myCustomCode) {
-          await deleteDoc(doc(db, "userCodes", myCustomCode));
+        if (myCustomCode && myCustomCode !== trimmed) {
+          try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(err){}
         }
 
-        await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid });
+        await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid }, { merge: true });
         await setDoc(doc(db, "users", currentUser.uid), { customCode: trimmed }, { merge: true });
 
         myCustomCode = trimmed;
         document.getElementById('myShareCode').innerText = myCustomCode;
-        alert("공유 코드가 변경되었습니다!");
+        alert("공유 코드가 정상적으로 변경되었습니다!");
       } catch (e) {
         alert("코드 변경 실패: " + e.message);
       }
@@ -642,7 +666,6 @@
       }
     }
 
-    // 1. 대시보드 상단 명칭 원복 [선정 현황]
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -887,7 +910,6 @@
       }
     }
 
-    // 2. 텍스트 전용 배징 적용 모달
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -926,7 +948,6 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 2. 텍스트 전용 컬러 배징 적용 (목록 탭)
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1241,7 +1262,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 (원복: 선정 현황) -->
+      <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-6">
         <div class="flex items-center justify-between">
           <div>
@@ -1258,7 +1279,7 @@
           </div>
         </div>
 
-        <!-- 상단 카운터 1번 명칭 원복: 선정 현황 -->
+        <!-- 5개 카운터 카드 (원복: 선정 현황) -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
             <div class="text-xs text-gray-900 font-bold">선정 현황</div>
@@ -1461,83 +1482,94 @@
         </div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (상태 글자색 커스텀 설정 추가) -->
+      <!-- 5. 설정 및 공유 탭 (10가지 추천 색상 팔레트 적용) -->
       <div id="sectionSettings" class="hidden space-y-6">
         <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-600 font-medium mr-2">D-Day 범위:</span>
+              <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">7일 전</button>
+              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">10일 전</button>
+              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">14일 전</button>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
+            <div class="flex items-center gap-3">
+              <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
+              <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
+              <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
+              <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
+              <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
+              <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
+              <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
+            <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
+              <div>
+                <div class="text-xs text-gray-500 font-semibold">내 초대 코드</div>
+                <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
+              </div>
+              <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
+            <div class="flex gap-2">
+              <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2.5 rounded-xl text-xs w-full outline-none focus:ring-2 ring-theme">
+              <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0">조회</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 추천 10개 색상 팔레트 선택형 디자인 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">상태 글자 색상 커스텀 (텍스트 배징)</h3>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
-            <div class="space-y-1">
-              <label class="block font-bold text-gray-700">신청</label>
-              <input type="color" id="colorPickerApply" onchange="updateCustomStatusColor('apply', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+          <h3 class="font-bold text-gray-800 text-base">상태별 글자 색상 선택 (추천 10종 팔레트)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
+            
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">신청</span>
+              <div id="picker_apply" class="flex flex-wrap gap-1.5"></div>
             </div>
-            <div class="space-y-1">
-              <label class="block font-bold text-gray-700">선정 (방문체험)</label>
-              <input type="color" id="colorPickerSelect" onchange="updateCustomStatusColor('select', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">선정 (방문)</span>
+              <div id="picker_select" class="flex flex-wrap gap-1.5"></div>
             </div>
-            <div class="space-y-1">
-              <label class="block font-bold text-gray-700">배송</label>
-              <input type="color" id="colorPickerDelivery" onchange="updateCustomStatusColor('delivery', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">배송</span>
+              <div id="picker_delivery" class="flex flex-wrap gap-1.5"></div>
             </div>
-            <div class="space-y-1">
-              <label class="block font-bold text-gray-700">원고료</label>
-              <input type="color" id="colorPickerFee" onchange="updateCustomStatusColor('fee', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">원고료</span>
+              <div id="picker_fee" class="flex flex-wrap gap-1.5"></div>
             </div>
-            <div class="space-y-1">
-              <label class="block font-bold text-gray-700">제출 (완료)</label>
-              <input type="color" id="colorPickerSubmit" onchange="updateCustomStatusColor('submit', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">제출 (완료)</span>
+              <div id="picker_submit" class="flex flex-wrap gap-1.5"></div>
             </div>
+
           </div>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-600 font-medium mr-2">D-Day 알림 범위:</span>
-            <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">7일 전</button>
-            <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">10일 전</button>
-            <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">14일 전</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
-          <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
-            <div>
-              <div class="text-xs text-gray-500 font-semibold">동반자에게 알려줄 코드</div>
-              <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
-            </div>
-            <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
-          <div class="flex gap-2">
-            <input type="text" id="partnerCodeInput" placeholder="동반자의 공유 코드를 입력하세요" class="border p-2.5 rounded-xl text-xs w-full md:w-64 outline-none focus:ring-2 ring-theme">
-            <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold">조회</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
-          <div class="flex items-center gap-3">
-            <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
-            <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
-            <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
-            <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
-            <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
-            <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
-            <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
-          </div>
-        </div>
       </div>
 
     </main>
   </div>
 
-  <!-- 대시보드 및 위젯 조회 전용 팝업 모달 -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
@@ -1548,7 +1580,6 @@
     </div>
   </div>
 
-  <!-- 체험 정보 수정 전용 팝업 모달 -->
   <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3">
