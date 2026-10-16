@@ -32,7 +32,7 @@
 
     .widget-scroll {
       overflow-y: auto !important;
-      max-height: 280px !important;
+      max-height: 220px !important;
     }
     .widget-scroll::-webkit-scrollbar { width: 6px; }
     .widget-scroll::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 4px; }
@@ -112,6 +112,7 @@
     applyStatusCSSColors();
 
     window.updateCustomStatusColor = function(key, val) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
       customStatusColors[key] = val;
       localStorage.setItem('onlyview_status_colors', JSON.stringify(customStatusColors));
       applyStatusCSSColors();
@@ -224,6 +225,7 @@
     };
 
     window.changeTheme = function(colorKey) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 테마를 변경할 수 없습니다.");
       const theme = themeColors[colorKey] || themeColors.orange;
       document.documentElement.style.setProperty('--primary', theme.primary);
       document.documentElement.style.setProperty('--primary-hover', theme.hover);
@@ -237,6 +239,11 @@
     window.changeTheme(savedTheme);
 
     window.switchTab = function(tabName, pushState = true) {
+      if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
+        alert("현재 읽기 전용 모드입니다. 해당 메뉴에 접근할 수 없습니다.");
+        return;
+      }
+
       const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'];
       sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
 
@@ -286,7 +293,6 @@
       }
     });
 
-    // 구글 로그인 없이 초대 코드로만 대시보드 진입
     window.enterWithInviteCode = async function() {
       const codeInput = document.getElementById('loginInviteCodeInput').value.trim();
       if (!codeInput) return alert("초대 코드를 입력해주세요.");
@@ -429,6 +435,7 @@
     };
 
     window.addCustomPlatform = function() {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 플랫폼을 추가할 수 없습니다.");
       const newSite = prompt("추가할 사이트명을 입력하세요:");
       if (!newSite || !newSite.trim()) return;
 
@@ -441,6 +448,7 @@
     };
 
     window.setDeadlineDays = function(days) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
       deadlineAlertDays = Number(days);
       localStorage.setItem('onlyview_deadline_days', days);
       renderDashboardView();
@@ -466,7 +474,6 @@
         catch (err) { alert("로그인 오류: " + err.message); }
       });
 
-      // 초대 코드 엔터키 입력 진입
       document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') enterWithInviteCode();
       });
@@ -566,6 +573,7 @@
     }
 
     document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 공유 코드를 변경할 수 없습니다.");
       const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리 숫자/영문):", myCustomCode);
       if (!newCode) return;
 
@@ -634,16 +642,29 @@
       loadCampaigns();
     });
 
+    // 읽기 전용 시 페이지/메뉴/버튼 완전 제거 컨트롤
     function updateFormVisibility() {
       const readOnlyBadge = document.getElementById('readOnlyBadge');
       const resetBtn = document.getElementById('resetToMyDataBtn');
+      const dashRegisterBtn = document.getElementById('dashRegisterBtn');
+      const navForm = document.getElementById('nav-form');
+      const navSettings = document.getElementById('nav-settings');
+      const downloadExcelBtn = document.getElementById('downloadExcelBtn');
 
       if (isReadOnly) {
-        readOnlyBadge.classList.remove('hidden');
-        resetBtn.classList.remove('hidden');
+        readOnlyBadge?.classList.remove('hidden');
+        resetBtn?.classList.remove('hidden');
+        dashRegisterBtn?.classList.add('hidden');
+        navForm?.classList.add('hidden'); // 체험단 등록 메뉴 완전히 숨김
+        navSettings?.classList.add('hidden'); // 설정 및 공유 메뉴 완전히 숨김
+        downloadExcelBtn?.classList.add('hidden'); // 엑셀 내보내기 버튼 완전히 숨김
       } else {
-        readOnlyBadge.classList.add('hidden');
-        resetBtn.classList.add('hidden');
+        readOnlyBadge?.classList.add('hidden');
+        resetBtn?.classList.add('hidden');
+        dashRegisterBtn?.classList.remove('hidden');
+        navForm?.classList.remove('hidden');
+        navSettings?.classList.remove('hidden');
+        downloadExcelBtn?.classList.remove('hidden');
       }
     }
 
@@ -675,7 +696,7 @@
           if (item.status === '선정' && item.visitDate) {
             const vTimeStr = item.visitTime || '23:59';
             const visitDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
-            if (visitDateTime < now && currentUser) {
+            if (visitDateTime < now && currentUser && !isReadOnly) {
               item.status = '방문';
               autoVisitPromises.push(updateDoc(doc(db, "campaigns", item.id), { status: '방문' }));
             }
@@ -938,7 +959,7 @@
               <span class="font-bold text-gray-900">${item.storeName}</span>
               <span class="text-[11px] text-gray-400 ml-1">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
-            <button onclick="event.stopPropagation(); openEditModalFromId('${item.id}', 'dashboard')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm transition">일정 잡기</button>
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}', 'dashboard')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
           `;
           unscheduledContainer.appendChild(div);
         });
@@ -1016,7 +1037,7 @@
               ${!isReadOnly ? `
                 <button onclick="openEditModalFromId('${item.id}', 'list')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-gray-800 font-bold">수정</button>
                 <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg font-bold">삭제</button>
-              ` : ''}
+              ` : '<span class="text-xs text-gray-400 font-medium">읽기전용</span>'}
             </div>
           </td>
         `;
@@ -1056,6 +1077,7 @@
     }
 
     window.openEditModalFromId = function(id, sourceLoc = 'list') {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
 
@@ -1119,7 +1141,7 @@
 
     document.getElementById('campaignForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (isReadOnly || !currentUser) return;
+      if (isReadOnly || !currentUser) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
       
       const payload = {
         userId: currentUser.uid,
@@ -1152,6 +1174,7 @@
     });
 
     window.deleteCampaign = async function(id) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
       if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
       try {
         await deleteDoc(doc(db, "campaigns", id));
@@ -1163,6 +1186,7 @@
     };
 
     document.getElementById('downloadExcelBtn')?.addEventListener('click', () => {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 엑셀 내보내기를 이용할 수 없습니다.");
       if (rawCampaignList.length === 0) return alert('다운로드할 데이터가 없습니다.');
       
       const year = currentCalDate.getFullYear();
@@ -1225,7 +1249,7 @@
     });
   </script>
 
-  <!-- 로그인 전 화면 (초대 코드로 즉시 접속 가능) -->
+  <!-- 로그인 전 화면 -->
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
     <div class="text-center space-y-3 mb-12">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
@@ -1261,7 +1285,7 @@
     </div>
   </div>
 
-  <!-- 로그인 후 대시보드 -->
+  <!-- 로그인 후 대시보드 (사이드바 5개 메뉴 교정) -->
   <div id="appSection" class="hidden min-h-screen w-full flex-col md:flex-row">
     
     <!-- 좌측 사이드바 메뉴 -->
@@ -1280,7 +1304,7 @@
             대시보드
           </button>
           <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
-            체험 등록
+            체험단 등록
           </button>
           <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
             체험단 목록
@@ -1294,6 +1318,7 @@
         </nav>
       </div>
 
+      <!-- 하단 버튼 고정 영역 (빨간 박스 위치) -->
       <div class="pt-4 border-t border-gray-100 space-y-2 mt-6 md:mt-0">
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2.5 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
         <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
@@ -1315,7 +1340,7 @@
             <h2 id="dashMonthTitle" class="text-3xl font-black text-theme">2026년 10월</h2>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition">
+            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition">
               + 체험 등록
             </button>
             <div class="flex gap-1">
@@ -1366,6 +1391,7 @@
           </div>
         </div>
 
+        <!-- 위젯 3개 높이 고정 및 스크롤 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm">마감 임박 일정</h3>
@@ -1379,11 +1405,11 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 -->
+      <!-- 2. 체험단 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="border-b pb-3">
-            <h2 id="formTitle" class="text-base font-bold text-gray-800">체험 등록</h2>
+            <h2 id="formTitle" class="text-base font-bold text-gray-800">체험단 등록</h2>
           </div>
           
           <form id="campaignForm" class="space-y-4 text-sm">
