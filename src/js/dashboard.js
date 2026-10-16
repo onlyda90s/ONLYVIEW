@@ -1,11 +1,22 @@
-import { rawCampaignList } from './campaign.js'; 
+import { rawCampaignList } from './campaign.js';
 
 export let currentCalDate = new Date();
 
 export function renderDashboardView() {
   const year = currentCalDate.getFullYear();
   const month = currentCalDate.getMonth() + 1;
-  document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
+  const titleElem = document.getElementById('dashMonthTitle');
+  if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
+
+  // 달력 이전달/다음달 버튼 이벤트 보완
+  document.getElementById('prevMonthBtn')?.onclick = () => {
+    currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+    renderDashboardView();
+  };
+  document.getElementById('nextMonthBtn')?.onclick = () => {
+    currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+    renderDashboardView();
+  };
 
   const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
   const monthlyCampaigns = rawCampaignList.filter(item => {
@@ -33,11 +44,11 @@ export function renderDashboardView() {
     else if (st === '제출' || st === '완료') cntSubmitDone++;
   });
 
-  document.getElementById('cntSelect').innerText = `${cntSelect}건`;
-  document.getElementById('cntVisitWait').innerText = `${cntVisitWait}건`;
-  document.getElementById('cntVisitPlan').innerText = `${cntVisitPlan}건`;
-  document.getElementById('cntSubmitWait').innerText = `${cntSubmitWait}건`;
-  document.getElementById('cntSubmitDone').innerText = `${cntSubmitDone}건`;
+  if (document.getElementById('cntSelect')) document.getElementById('cntSelect').innerText = `${cntSelect}건`;
+  if (document.getElementById('cntVisitWait')) document.getElementById('cntVisitWait').innerText = `${cntVisitWait}건`;
+  if (document.getElementById('cntVisitPlan')) document.getElementById('cntVisitPlan').innerText = `${cntVisitPlan}건`;
+  if (document.getElementById('cntSubmitWait')) document.getElementById('cntSubmitWait').innerText = `${cntSubmitWait}건`;
+  if (document.getElementById('cntSubmitDone')) document.getElementById('cntSubmitDone').innerText = `${cntSubmitDone}건`;
 
   renderCalendar(year, month);
 }
