@@ -16,6 +16,13 @@
       --primary-text: #C85A17;
       --primary-light: #FFFBF7;
       --bg-color: #FAF8F5;
+
+      /* 상태별 기본 텍스트 전용 색상 */
+      --color-status-apply: #9CA3AF;
+      --color-status-select: #111827;
+      --color-status-delivery: #2563EB;
+      --color-status-fee: #9333EA;
+      --color-status-submit: #059669;
     }
 
     body { background-color: var(--bg-color) !important; transition: background-color 0.3s ease; }
@@ -26,7 +33,6 @@
     .border-theme { border-color: var(--primary) !important; }
     .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
 
-    /* 스크롤바 강제 활성화 및 미세 스타일링 */
     .widget-scroll {
       overflow-y: auto !important;
       max-height: 280px !important;
@@ -35,6 +41,13 @@
     .widget-scroll::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+    /* 텍스트 전용 컬러 배징 클래스 */
+    .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
+    .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
+    .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
+    .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
+    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
   </style>
 </head>
 <body class="text-[#333333] min-h-screen">
@@ -80,6 +93,31 @@
     let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadline_days')) || 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
+    // 상태별 사용자 커스텀 글자 색상 로드
+    const customStatusColors = JSON.parse(localStorage.getItem('onlyview_status_colors')) || {
+      apply: '#9CA3AF',
+      select: '#111827',
+      delivery: '#2563EB',
+      fee: '#9333EA',
+      submit: '#059669'
+    };
+
+    function applyStatusCSSColors() {
+      document.documentElement.style.setProperty('--color-status-apply', customStatusColors.apply);
+      document.documentElement.style.setProperty('--color-status-select', customStatusColors.select);
+      document.documentElement.style.setProperty('--color-status-delivery', customStatusColors.delivery);
+      document.documentElement.style.setProperty('--color-status-fee', customStatusColors.fee);
+      document.documentElement.style.setProperty('--color-status-submit', customStatusColors.submit);
+    }
+    applyStatusCSSColors();
+
+    window.updateCustomStatusColor = function(key, val) {
+      customStatusColors[key] = val;
+      localStorage.setItem('onlyview_status_colors', JSON.stringify(customStatusColors));
+      applyStatusCSSColors();
+      filterAndRender();
+    };
+
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const str = String(dateVal).trim();
@@ -104,9 +142,21 @@
       return str;
     }
 
-    // 상태 명칭 매핑 (선정 -> 방문 표기)
     function displayStatusName(status) {
       return status === '선정' ? '방문' : status;
+    }
+
+    function getStatusTextClass(status) {
+      switch(status) {
+        case '신청': return 'status-text-apply';
+        case '선정':
+        case '방문': return 'status-text-select';
+        case '배송': return 'status-text-delivery';
+        case '원고료': return 'status-text-fee';
+        case '제출':
+        case '완료': return 'status-text-submit';
+        default: return 'status-text-apply';
+      }
     }
 
     function formatCurrencyInput(value) {
@@ -195,6 +245,11 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
+        document.getElementById('colorPickerApply').value = customStatusColors.apply;
+        document.getElementById('colorPickerSelect').value = customStatusColors.select;
+        document.getElementById('colorPickerDelivery').value = customStatusColors.delivery;
+        document.getElementById('colorPickerFee').value = customStatusColors.fee;
+        document.getElementById('colorPickerSubmit').value = customStatusColors.submit;
       }
     };
 
@@ -558,7 +613,6 @@
             deadlineDate: formatCleanDate(d.deadlineDate || '')
           };
 
-          // 서울 시간 기준 방문일시 지났으면 [방문] 상태 자동 전환
           if (item.status === '선정' && item.visitDate) {
             const vTimeStr = item.visitTime || '23:59';
             const visitDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
@@ -588,6 +642,7 @@
       }
     }
 
+    // 1. 대시보드 상단 명칭 원복 [선정 현황]
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -634,7 +689,6 @@
       renderAllScheduledVisits();
     }
 
-    // 3. 캘린더 요약 표기법 (🟢 N건 / 🔴 N건)
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -669,10 +723,10 @@
         const deadlineMatches = rawCampaignList.filter(c => c.deadlineDate === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
-          html += `<div class="text-[10px] text-emerald-600 font-bold mb-0.5 text-center">🟢 ${visitMatches.length}건</div>`;
+          html += `<div class="text-[10px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
         }
         if (deadlineMatches.length > 0) {
-          html += `<div class="text-[10px] text-rose-500 font-bold mb-0.5 text-center">🔴 ${deadlineMatches.length}건</div>`;
+          html += `<div class="text-[10px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
         }
 
         const allMatched = rawCampaignList.filter(c => c.visitDate === dateStr || (c.deadlineDate === dateStr && c.status !== '신청'));
@@ -683,7 +737,6 @@
       }
     }
 
-    // 4. 캘린더 날짜 클릭 팝업 (동반자 이름 우측 배치)
     window.openDayModal = function(dateStr, items) {
       document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
       const modalList = document.getElementById('modalItemList');
@@ -704,25 +757,17 @@
           div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
           div.onclick = () => openDetailItemModal(item.id);
 
-          const timeBadge = (isVisit && item.visitTime) ? `<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">${item.visitTime}</span>` : '';
-          
-          let detailInfo = '';
-          if (isVisit) {
-            detailInfo = item.companions ? `<div class="text-gray-500">${item.companions}</div>` : '';
-          } else {
-            detailInfo = `<div class="text-gray-500">사이트: ${item.platformName || '-'}</div>`;
-          }
+          const timeBadge = (isVisit && item.visitTime) ? `<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-normal">${item.visitTime}</span>` : '';
 
           div.innerHTML = `
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-1.5">
                 ${timeBadge}
-                <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+                <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
               </div>
-              <span class="text-xs font-bold text-gray-700">${item.companions || displayStatusName(item.status)}</span>
+              <span class="text-xs font-normal text-gray-600">${item.companions || displayStatusName(item.status)}</span>
             </div>
-            ${detailInfo ? `<div class="pt-1 border-t border-gray-100">${detailInfo}</div>` : ''}
-            ${item.memo ? `<div class="bg-gray-50 p-2 rounded-xl text-gray-600 text-[11px] border border-gray-100">메모: ${item.memo}</div>` : ''}
+            ${item.memo ? `<div class="bg-gray-50 p-2 rounded-xl text-gray-600 text-[11px] border border-gray-100 font-normal">메모: ${item.memo}</div>` : ''}
           `;
           modalList.appendChild(div);
         });
@@ -775,7 +820,6 @@
       });
     }
 
-    // 7. 방문 일정 위젯 (기본 폰트 정돈)
     function renderAllScheduledVisits() {
       const visitContainer = document.getElementById('scheduledVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
@@ -785,7 +829,14 @@
       visitContainer.innerHTML = '';
       unscheduledContainer.innerHTML = '';
 
-      const scheduledItems = rawCampaignList.filter(c => c.visitDate).sort((a, b) => {
+      const now = new Date();
+
+      const scheduledItems = rawCampaignList.filter(c => {
+        if (!c.visitDate || c.status === '방문' || c.status === '제출' || c.status === '완료') return false;
+        const vTimeStr = c.visitTime || '23:59';
+        const visitDateTime = new Date(`${c.visitDate}T${vTimeStr}:00`);
+        return visitDateTime >= now;
+      }).sort((a, b) => {
         const keyA = `${a.visitDate} ${a.visitTime || '00:00'}`;
         const keyB = `${b.visitDate} ${b.visitTime || '00:00'}`;
         return keyA.localeCompare(keyB);
@@ -836,7 +887,7 @@
       }
     }
 
-    // 5 및 8. 상세 모달 (방문일시 YYYY-MM-DD (00:00) 포맷팅 & 표기 정돈)
+    // 2. 텍스트 전용 배징 적용 모달
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -849,7 +900,7 @@
         <div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm">
           <div class="flex justify-between items-center border-b pb-2">
             <span class="text-sm font-bold text-gray-900">${item.storeName}</span>
-            <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${displayStatusName(item.status)}</span>
+            <span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span>
           </div>
           <div class="grid grid-cols-2 gap-2 text-gray-600">
             <div>체험단 사이트: <span class="font-bold text-gray-800">${item.platformName || '-'}</span></div>
@@ -875,6 +926,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
+    // 2. 텍스트 전용 컬러 배징 적용 (목록 탭)
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -897,7 +949,7 @@
         row.innerHTML = `
           <td class="p-3 font-semibold text-gray-900">${item.storeName}</td>
           <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
-          <td class="p-3"><span class="px-2 py-1 rounded text-xs text-white ${getStatusBg(item.status)}">${displayStatusName(item.status)}</span></td>
+          <td class="p-3"><span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span></td>
           <td class="p-3 text-gray-900">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
           <td class="p-3 text-gray-900 font-medium">${item.deadlineDate || '-'}</td>
           <td class="p-3 text-gray-900">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
@@ -919,7 +971,7 @@
         card.innerHTML = `
           <div class="flex justify-between items-start">
             <div>
-              <span class="text-xs px-2 py-0.5 rounded text-white ${getStatusBg(item.status)} mr-1">${displayStatusName(item.status)}</span>
+              <span class="${getStatusTextClass(item.status)} text-xs mr-1.5">${displayStatusName(item.status)}</span>
               <span class="text-xs text-gray-400">${item.platformName || ''}</span>
               <h3 class="font-bold text-base text-gray-900 mt-1">${item.storeName}</h3>
             </div>
@@ -944,19 +996,6 @@
         const emptyMsg = '<div class="p-6 text-center text-gray-400 text-sm">조건에 해당하는 체험단이 없습니다.</div>';
         tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
         cardList.innerHTML = emptyMsg;
-      }
-    }
-
-    function getStatusBg(status) {
-      switch(status) {
-        case '신청': return 'bg-gray-400';
-        case '선정':
-        case '방문': return 'bg-gray-900';
-        case '배송': return 'bg-blue-600';
-        case '원고료': return 'bg-purple-600';
-        case '제출':
-        case '완료': return 'bg-emerald-600';
-        default: return 'bg-gray-400';
       }
     }
 
@@ -1202,7 +1241,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 -->
+      <!-- 1. 대시보드 탭 (원복: 선정 현황) -->
       <div id="sectionDashboard" class="space-y-6">
         <div class="flex items-center justify-between">
           <div>
@@ -1219,9 +1258,10 @@
           </div>
         </div>
 
+        <!-- 상단 카운터 1번 명칭 원복: 선정 현황 -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div class="text-xs text-gray-900 font-bold">방문 현황</div>
+            <div class="text-xs text-gray-900 font-bold">선정 현황</div>
             <div id="cntSelect" class="text-xl font-black text-gray-900 mt-1">0건</div>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
@@ -1246,7 +1286,6 @@
           <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <div class="flex justify-between items-center">
               <h3 class="font-bold text-gray-800 text-sm">월별 일정 달력</h3>
-              <!-- 1. 범례 표기 개편 -->
               <div class="flex items-center gap-3 text-xs font-semibold">
                 <span class="flex items-center gap-1 text-emerald-600"><span class="text-[10px]">🟢</span> 방문</span>
                 <span class="flex items-center gap-1 text-rose-500"><span class="text-[10px]">🔴</span> 마감</span>
@@ -1422,9 +1461,35 @@
         </div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 -->
+      <!-- 5. 설정 및 공유 탭 (상태 글자색 커스텀 설정 추가) -->
       <div id="sectionSettings" class="hidden space-y-6">
         <h2 class="text-xl font-bold text-gray-800">시스템 설정</h2>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <h3 class="font-bold text-gray-800 text-base">상태 글자 색상 커스텀 (텍스트 배징)</h3>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+            <div class="space-y-1">
+              <label class="block font-bold text-gray-700">신청</label>
+              <input type="color" id="colorPickerApply" onchange="updateCustomStatusColor('apply', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+            </div>
+            <div class="space-y-1">
+              <label class="block font-bold text-gray-700">선정 (방문체험)</label>
+              <input type="color" id="colorPickerSelect" onchange="updateCustomStatusColor('select', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+            </div>
+            <div class="space-y-1">
+              <label class="block font-bold text-gray-700">배송</label>
+              <input type="color" id="colorPickerDelivery" onchange="updateCustomStatusColor('delivery', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+            </div>
+            <div class="space-y-1">
+              <label class="block font-bold text-gray-700">원고료</label>
+              <input type="color" id="colorPickerFee" onchange="updateCustomStatusColor('fee', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+            </div>
+            <div class="space-y-1">
+              <label class="block font-bold text-gray-700">제출 (완료)</label>
+              <input type="color" id="colorPickerSubmit" onchange="updateCustomStatusColor('submit', this.value)" class="w-full h-9 rounded-lg border p-1 cursor-pointer">
+            </div>
+          </div>
+        </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
           <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
