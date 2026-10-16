@@ -82,25 +82,24 @@
     let targetUserId = null;
     let isReadOnly = false;
     let rawCampaignList = [];
-    let inlineEditingId = null; 
-    let listSubTab = 'ongoing'; 
+    let editingId = null; 
+    let editSourceLocation = 'dashboard';
     let myCustomCode = "";
     let currentCalDate = new Date();
     let selectedStatus = "신청";
     let editSelectedStatus = "선정";
     let activeColorPickerKey = null;
 
-    let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadline_days')) || 7;
+    let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
-    // 세련되고 직관적인 12가지 엄선 추천 컬러 팔레트
     const presetPalette = [
       '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
       '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706',
       '#EC4899', '#0891B2'
     ];
 
-    const customStatusColors = JSON.parse(localStorage.getItem('onlyview_status_colors')) || {
+    const customStatusColors = {
       apply: '#6B7280',
       select: '#111827',
       visit: '#F4A261',
@@ -121,14 +120,22 @@
     }
     applyStatusCSSColors();
 
-    window.updateCustomStatusColor = function(key, val) {
+    // 색상 변경 시 구글 계정 DB(Firestore)에 실시간 동기화 저장
+    window.updateCustomStatusColor = async function(key, val) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
       customStatusColors[key] = val;
-      localStorage.setItem('onlyview_status_colors', JSON.stringify(customStatusColors));
       applyStatusCSSColors();
       renderStatusColorPickers();
       filterAndRender();
       document.getElementById('colorPickerModal')?.classList.add('hidden');
+
+      if (currentUser && !isReadOnly) {
+        try {
+          await setDoc(doc(db, "users", currentUser.uid), {
+            statusColors: customStatusColors
+          }, { merge: true });
+        } catch(e) { console.error("색상 DB 저장 실패:", e); }
+      }
     };
 
     window.openColorPickerModal = function(key, label) {
@@ -417,6 +424,22 @@
       }
     };
 
+    window.setEditStatusBtn = function(status) {
+      editSelectedStatus = status;
+      const statuses = ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'];
+      
+      statuses.forEach(s => {
+        const btn = document.getElementById(`btnEditStatus_${s}`);
+        if (btn) {
+          if (s === status) {
+            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+          } else {
+            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+          }
+        }
+      });
+    };
+
     function renderPlatformChips() {
       const container = document.getElementById('platformChipsContainer');
       if (!container) return;
@@ -463,12 +486,20 @@
       }
     };
 
-    window.setDeadlineDays = function(days) {
+    // 마감 기한 설정 DB 저장
+    window.setDeadlineDays = async function(days) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
       deadlineAlertDays = Number(days);
-      localStorage.setItem('onlyview_deadline_days', days);
       renderDashboardView();
       updateDeadlineButtons();
+
+      if (currentUser && !isReadOnly) {
+        try {
+          await setDoc(doc(db, "users", currentUser.uid), {
+            deadlineAlertDays: deadlineAlertDays
+          }, { merge: true });
+        } catch(e) { console.error("마감일 DB 저장 실패:", e); }
+      }
     };
 
     function updateDeadlineButtons() {
@@ -515,18 +546,24 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
+      document.getElementById('closeEditModalBtn')?.addEventListener('click', () => {
+        document.getElementById('editModal')?.classList.add('hidden');
+      });
+
       document.getElementById('closeColorModalBtn')?.addEventListener('click', () => {
         document.getElementById('colorPickerModal')?.classList.add('hidden');
       });
 
-      ['sponsoredAmount', 'paidAmount', 'revenue'].forEach(id => {
+      ['sponsoredAmount', 'paidAmount', 'revenue', 'editSponsoredAmount', 'editPaidAmount', 'editRevenue'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', (e) => {
           e.target.value = formatCurrencyInput(e.target.value);
         });
       });
 
-      document.getElementById('contact')?.addEventListener('input', (e) => {
-        e.target.value = formatPhoneNumber(e.target.value);
+      ['contact', 'editContact'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', (e) => {
+          e.target.value = formatPhoneNumber(e.target.value);
+        });
       });
 
       renderPlatformChips();
@@ -566,14 +603,27 @@
       }
     });
 
+    // 구글 계정 유저 DB에서 개인 설정 불러오기
     async function fetchUserCustomCode() {
       if (!currentUser) return;
       try {
         const userDocRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userDocRef);
 
-        if (userSnap.exists() && userSnap.data().customCode) {
-          myCustomCode = userSnap.data().customCode;
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.customCode) myCustomCode = data.customCode;
+          
+          if (data.deadlineAlertDays) {
+            deadlineAlertDays = data.deadlineAlertDays;
+            updateDeadlineButtons();
+          }
+          
+          if (data.statusColors) {
+            Object.assign(customStatusColors, data.statusColors);
+            applyStatusCSSColors();
+            renderStatusColorPickers();
+          }
         } else {
           myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
           await setDoc(userDocRef, { customCode: myCustomCode, uid: currentUser.uid }, { merge: true });
@@ -581,8 +631,7 @@
         }
         document.getElementById('myShareCode').innerText = myCustomCode;
       } catch (e) {
-        console.error("공유코드 로드 에러:", e);
-        document.getElementById('myShareCode').innerText = currentUser.uid.substring(0, 6);
+        console.error("유저 설정 로드 에러:", e);
       }
     }
 
@@ -1039,13 +1088,14 @@
               <span class="font-bold text-gray-900">${item.storeName}</span>
               <span class="text-[11px] text-gray-400 ml-1">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
-            ${!isReadOnly ? `<button onclick="event.stopPropagation(); switchTab('list'); startInlineEdit('${item.id}');" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
           `;
           unscheduledContainer.appendChild(div);
         });
       }
     }
 
+    // 상세 보기 팝업 (수정하기 클릭 시 페이지 이동 없이 바로 수정 모달 팝업 오픈)
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1075,7 +1125,7 @@
           
           ${!isReadOnly ? `
             <div class="flex gap-2 pt-2">
-              <button onclick="document.getElementById('dayModal').classList.add('hidden'); switchTab('list'); startInlineEdit('${item.id}');" class="flex-1 bg-theme text-white py-2 rounded-xl font-bold">수정하기</button>
+              <button onclick="document.getElementById('dayModal').classList.add('hidden'); openEditModalFromId('${item.id}');" class="flex-1 bg-theme text-white py-2 rounded-xl font-bold">수정하기</button>
             </div>
           ` : ''}
         </div>
@@ -1084,56 +1134,62 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    window.setListSubTab = function(type) {
-      listSubTab = type;
-      const btnOngoing = document.getElementById('subTabOngoing');
-      const btnSubmitted = document.getElementById('subTabSubmitted');
-      
-      if (type === 'ongoing') {
-        btnOngoing.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
-        btnSubmitted.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
-      } else {
-        btnOngoing.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
-        btnSubmitted.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
-      }
-      filterAndRender();
-    };
-
-    window.startInlineEdit = function(id) {
+    // 기존 정보 수정 모달 팝업 열기
+    window.openEditModalFromId = function(id) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
-      inlineEditingId = id;
-      filterAndRender();
+      const item = rawCampaignList.find(c => c.id === id);
+      if (!item) return;
+
+      editingId = id;
+
+      document.getElementById('editStoreName').value = item.storeName || '';
+      document.getElementById('editPlatformName').value = item.platformName || '개별';
+      
+      setEditStatusBtn(item.status || '선정');
+
+      document.getElementById('editDeadlineDate').value = formatCleanDate(item.deadlineDate || '');
+      document.getElementById('editVisitDate').value = formatCleanDate(item.visitDate || '');
+      document.getElementById('editVisitTime').value = item.visitTime || '';
+      document.getElementById('editCompanions').value = item.companions || '';
+      document.getElementById('editSponsoredAmount').value = formatCurrencyInput(item.sponsoredAmount || 0);
+      document.getElementById('editPaidAmount').value = formatCurrencyInput(item.paidAmount || 0);
+      document.getElementById('editRevenue').value = formatCurrencyInput(item.revenue || 0);
+      document.getElementById('editContact').value = formatPhoneNumber(item.contact || '');
+      document.getElementById('editMemo').value = item.memo || '';
+
+      document.getElementById('editModal')?.classList.remove('hidden');
     };
 
-    window.cancelInlineEdit = function() {
-      inlineEditingId = null;
-      filterAndRender();
-    };
-
-    window.saveInlineEdit = async function(id) {
-      if (isReadOnly || !currentUser) return;
+    document.getElementById('editForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isReadOnly || !currentUser || !editingId) return;
 
       const payload = {
-        storeName: document.getElementById(`inline_store_${id}`)?.value || '',
-        platformName: document.getElementById(`inline_platform_${id}`)?.value || '개별',
-        status: document.getElementById(`inline_status_${id}`)?.value || '선정',
-        visitDate: formatCleanDate(document.getElementById(`inline_visitDate_${id}`)?.value || ''),
-        visitTime: document.getElementById(`inline_visitTime_${id}`)?.value || '',
-        deadlineDate: formatCleanDate(document.getElementById(`inline_deadlineDate_${id}`)?.value || ''),
-        sponsoredAmount: parseCurrencyValue(document.getElementById(`inline_sponsored_${id}`)?.value),
-        paidAmount: parseCurrencyValue(document.getElementById(`inline_paid_${id}`)?.value),
-        revenue: parseCurrencyValue(document.getElementById(`inline_revenue_${id}`)?.value)
+        storeName: document.getElementById('editStoreName').value,
+        platformName: document.getElementById('editPlatformName').value,
+        status: editSelectedStatus,
+        deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
+        visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''),
+        visitTime: document.getElementById('editVisitTime')?.value || '',
+        companions: document.getElementById('editCompanions')?.value || '',
+        sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+        paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value),
+        revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
+        contact: document.getElementById('editContact')?.value || '',
+        memo: document.getElementById('editMemo')?.value || '',
       };
 
       try {
-        await updateDoc(doc(db, "campaigns", id), payload);
-        alert('성공적으로 수정되었습니다!');
-        inlineEditingId = null;
+        await updateDoc(doc(db, "campaigns", editingId), payload);
+        alert('체험 정보가 수정되었습니다!');
+        document.getElementById('editModal')?.classList.add('hidden');
+        editingId = null;
+
         await loadCampaigns();
       } catch (err) {
         alert('수정 실패: ' + err.message);
       }
-    };
+    });
 
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
@@ -1142,10 +1198,6 @@
       const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
 
       let filteredList = rawCampaignList.filter(item => {
-        const isCompleted = (item.status === '제출' || item.status === '완료');
-        if (listSubTab === 'ongoing' && isCompleted) return false;
-        if (listSubTab === 'submitted' && !isCompleted) return false;
-
         const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
                             (item.platformName || '').toLowerCase().includes(searchText);
         const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
@@ -1156,78 +1208,27 @@
       cardList.innerHTML = '';
 
       filteredList.forEach((item) => {
-        const isEditing = (inlineEditingId === item.id);
-
-        if (isEditing) {
-          const row = document.createElement('tr');
-          row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
-          row.innerHTML = `
-            <td class="p-2">
-              <input type="text" id="inline_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs">
-            </td>
-            <td class="p-2">
-              <input type="text" id="inline_platform_${item.id}" value="${item.platformName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs">
-            </td>
-            <td class="p-2">
-              <select id="inline_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white">
-                <option value="신청" ${item.status === '신청' ? 'selected' : ''}>신청</option>
-                <option value="선정" ${item.status === '선정' ? 'selected' : ''}>선정</option>
-                <option value="방문" ${item.status === '방문' ? 'selected' : ''}>방문</option>
-                <option value="미제출" ${item.status === '미제출' ? 'selected' : ''}>미제출</option>
-                <option value="제출" ${item.status === '제출' ? 'selected' : ''}>제출</option>
-                <option value="배송" ${item.status === '배송' ? 'selected' : ''}>배송</option>
-                <option value="원고료" ${item.status === '원고료' ? 'selected' : ''}>원고료</option>
-              </select>
-            </td>
-            <td class="p-2">
-              <div class="flex gap-1">
-                <input type="date" id="inline_visitDate_${item.id}" value="${item.visitDate || ''}" class="w-24 border p-1.5 rounded-lg outline-none text-[11px] bg-white">
-                <input type="time" id="inline_visitTime_${item.id}" value="${item.visitTime || ''}" class="w-16 border p-1.5 rounded-lg outline-none text-[11px] bg-white">
-              </div>
-            </td>
-            <td class="p-2">
-              <input type="date" id="inline_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-24 border p-1.5 rounded-lg outline-none text-[11px] bg-white">
-            </td>
-            <td class="p-2">
-              <input type="text" id="inline_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs">
-            </td>
-            <td class="p-2">
-              <input type="text" id="inline_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs">
-            </td>
-            <td class="p-2">
-              <input type="text" id="inline_revenue_${item.id}" value="${formatCurrencyInput(item.revenue || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs">
-            </td>
-            <td class="p-2">
-              <div class="flex items-center gap-1">
-                <button onclick="saveInlineEdit('${item.id}')" class="text-xs bg-theme text-white px-2.5 py-1.5 rounded-lg font-bold">저장</button>
-                <button onclick="cancelInlineEdit()" class="text-xs bg-gray-200 text-gray-700 px-2 py-1.5 rounded-lg font-bold">취소</button>
-              </div>
-            </td>
-          `;
-          tableBody.appendChild(row);
-        } else {
-          const row = document.createElement('tr');
-          row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
-          row.innerHTML = `
-            <td class="p-3 font-semibold text-gray-900">${item.storeName}</td>
-            <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
-            <td class="p-3"><span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span></td>
-            <td class="p-3 text-gray-900">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
-            <td class="p-3 text-gray-900 font-medium">${item.deadlineDate || '-'}</td>
-            <td class="p-3 text-gray-900">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
-            <td class="p-3 text-gray-900">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
-            <td class="p-3 font-bold text-gray-900">+${Number(item.revenue || 0).toLocaleString()}원</td>
-            <td class="p-3">
-              <div class="flex items-center gap-2">
-                ${!isReadOnly ? `
-                  <button onclick="startInlineEdit('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-gray-800 font-bold">수정</button>
-                  <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg font-bold">삭제</button>
-                ` : '<span class="text-xs text-gray-400 font-medium">읽기전용</span>'}
-              </div>
-            </td>
-          `;
-          tableBody.appendChild(row);
-        }
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
+        row.innerHTML = `
+          <td class="p-3 font-semibold text-gray-900">${item.storeName}</td>
+          <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
+          <td class="p-3"><span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span></td>
+          <td class="p-3 text-gray-900">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
+          <td class="p-3 text-gray-900 font-medium">${item.deadlineDate || '-'}</td>
+          <td class="p-3 text-gray-900">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
+          <td class="p-3 text-gray-900">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
+          <td class="p-3 font-bold text-gray-900">+${Number(item.revenue || 0).toLocaleString()}원</td>
+          <td class="p-3">
+            <div class="flex items-center gap-2">
+              ${!isReadOnly ? `
+                <button onclick="openEditModalFromId('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-gray-800 font-bold">수정</button>
+                <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg font-bold">삭제</button>
+              ` : '<span class="text-xs text-gray-400 font-medium">읽기전용</span>'}
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(row);
 
         const card = document.createElement('div');
         card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-sm text-gray-900';
@@ -1247,7 +1248,7 @@
           </div>
           <div class="flex gap-2 mt-2">
             ${!isReadOnly ? `
-              <button onclick="startInlineEdit('${item.id}')" class="flex-1 bg-gray-100 text-gray-800 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
+              <button onclick="openEditModalFromId('${item.id}')" class="flex-1 bg-gray-100 text-gray-800 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
               <button onclick="deleteCampaign('${item.id}')" class="bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-xl font-bold">삭제</button>
             ` : ''}
           </div>
@@ -1627,11 +1628,6 @@
         <div class="flex justify-between items-center h-10 mb-4 shrink-0">
           <div class="flex items-center gap-3">
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
-            
-            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
-              <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행 중인 체험</button>
-              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">제출 완료된 체험</button>
-            </div>
 
             <div class="relative group cursor-pointer">
               <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-sm">?</span>
@@ -1808,7 +1804,92 @@
     </div>
   </div>
 
-  <!-- 직관적인 12종 세련된 컬러 팔레트 모달 (팝업) -->
+  <!-- 체험 정보 수정 팝업 -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3>
+        <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+
+      <form id="editForm" class="space-y-4 text-sm">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-900">진행 상태 변경</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
+            <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
+            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
+          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
+            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">포스팅 마감일</label>
+            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
+          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 직관적인 12종 세련된 컬러 팔레트 모달 -->
   <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
       <div class="flex justify-between items-center border-b pb-3">
