@@ -67,27 +67,21 @@
 
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
-    // 날짜 연도 4자리 강제 정제 (202622-02-22 등의 버그 원천 차단)
+    // 날짜 연도 4자리 엄격 제한 함수 (202622 -> 2026 자르기)
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
-      const numbersOnly = dateVal.replace(/[^0-9]/g, '');
-      if (numbersOnly.length >= 8) {
-        const year = numbersOnly.substring(0, 4);
-        const month = numbersOnly.substring(4, 6);
-        const day = numbersOnly.substring(6, 8);
-        return `${year}-${month}-${day}`;
-      }
-      const parts = dateVal.trim().split("-");
+      const str = String(dateVal).trim();
+      const parts = str.split("-");
       if (parts.length === 3) {
-        const year = parts[0].slice(-4);
+        let year = parts[0];
+        if (year.length > 4) year = year.substring(0, 4);
         const month = String(parts[1]).padStart(2, '0');
         const day = String(parts[2]).padStart(2, '0');
         return `${year}-${month}-${day}`;
       }
-      return dateVal;
+      return str;
     }
 
-    // 금액 천 단위 쉼표 포맷
     function formatCurrencyInput(value) {
       if (!value) return "";
       const num = String(value).replace(/[^0-9]/g, '');
@@ -99,7 +93,6 @@
       return Number(String(value).replace(/[^0-9]/g, '')) || 0;
     }
 
-    // 전화번호 하이픈(-) 자동 변환 (휴대폰 및 지역번호 지원)
     function formatPhoneNumber(value) {
       if (!value) return "";
       const num = value.replace(/[^0-9]/g, '');
@@ -121,7 +114,7 @@
       red:    { primary: '#E63946', hover: '#D62828', text: '#D62828', light: '#FFEAEB', bg: '#FFF5F5' },
       yellow: { primary: '#E9C46A', hover: '#F4A261', text: '#B5820F', light: '#FFFBEA', bg: '#FCFBF7' },
       green:  { primary: '#2A9D8F', hover: '#218380', text: '#1B6A60', light: '#E8F6F4', bg: '#F4FBF9' },
-      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8', bg: '#F4FFB' },
+      blue:   { primary: '#457B9D', hover: '#1D3557', text: '#1D3557', light: '#EDF4F8', bg: '#F4F8FB' },
       purple: { primary: '#9D4EDD', hover: '#7B2CBF', text: '#5A189A', light: '#F5EBFB', bg: '#FAF5FC' },
       black:  { primary: '#2B2D42', hover: '#111111', text: '#111111', light: '#EAEAEA', bg: '#F2F2F4' }
     };
@@ -168,7 +161,6 @@
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
-    // 상태 토글 (신청, 선정, 배송, 원고료)
     window.setStatusBtn = function(status) {
       selectedStatus = status;
       const statuses = ['신청', '선정', '배송', '원고료'];
@@ -214,7 +206,6 @@
           rowVisit?.classList.remove('hidden');
           rowFinancial?.classList.remove('hidden');
 
-          // 방문시간 기본값 자동 세팅 (현재 시간)
           if (!document.getElementById('visitTime').value) {
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
@@ -303,14 +294,12 @@
         document.getElementById('dayModal')?.classList.add('hidden');
       });
 
-      // 금액 실시간 콤마 포맷팅
       ['sponsoredAmount', 'paidAmount', 'revenue'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', (e) => {
           e.target.value = formatCurrencyInput(e.target.value);
         });
       });
 
-      // 연락처 실시간 하이픈 포맷팅
       document.getElementById('contact')?.addEventListener('input', (e) => {
         e.target.value = formatPhoneNumber(e.target.value);
       });
@@ -483,11 +472,11 @@
       const month = currentCalDate.getMonth() + 1;
       document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
 
-      let cntSelect = 0;     // 선정 현황 (검정)
-      let cntVisitWait = 0;  // 방문 대기 (회색)
-      let cntVisitPlan = 0;  // 방문 예정 (주황)
-      let cntSubmitWait = 0; // 제출 대기 (회색)
-      let cntSubmitDone = 0; // 제출 완료 (초록)
+      let cntSelect = 0;     
+      let cntVisitWait = 0;  
+      let cntVisitPlan = 0;  
+      let cntSubmitWait = 0; 
+      let cntSubmitDone = 0; 
 
       rawCampaignList.forEach(item => {
         if (item.status === '선정' || item.status === '배송' || item.status === '원고료') {
@@ -872,7 +861,6 @@
       }
     });
 
-    // 엑셀 내보내기 (시트 1: [사이트명] 매장명 포맷 적용)
     document.getElementById('downloadExcelBtn')?.addEventListener('click', () => {
       if (rawCampaignList.length === 0) return alert('다운로드할 데이터가 없습니다.');
       
@@ -1079,7 +1067,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험 등록 탭 (정확한 줄바꿈 및 검정색 라벨 통일) -->
+      <!-- 2. 체험 등록 탭 (연도 4자리 강제 & 날짜 max 설정) -->
       <div id="sectionForm" class="hidden space-y-6 max-w-2xl mx-auto">
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <div class="flex justify-between items-center border-b pb-3">
@@ -1108,14 +1096,14 @@
               </div>
             </div>
 
-            <!-- 1줄: 체험단 사이트 (독립 줄) -->
+            <!-- 1줄: 체험단 사이트 -->
             <div class="space-y-1.5">
               <label class="block text-xs font-bold text-gray-900">체험단 사이트</label>
               <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
               <input type="hidden" id="platformName" value="개별">
             </div>
 
-            <!-- 2줄: 매장명 (독립 줄) -->
+            <!-- 2줄: 매장명 -->
             <div>
               <label id="storeNameLabel" class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
               <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
@@ -1130,12 +1118,12 @@
 
               <div id="rowApplyDate">
                 <label class="block text-xs font-bold text-gray-900 mb-1">신청일 (자동 세팅)</label>
-                <input type="date" id="applyDate" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
+                <input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
               </div>
 
               <div id="rowDeadlineDate" class="hidden">
                 <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
-                <input type="date" id="deadlineDate" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                <input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
               </div>
             </div>
 
@@ -1144,7 +1132,7 @@
               <div>
                 <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
                 <div class="flex gap-1.5">
-                  <input type="date" id="visitDate" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                  <input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
                   <input type="time" id="visitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
                 </div>
               </div>
