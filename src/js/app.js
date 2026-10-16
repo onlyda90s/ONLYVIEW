@@ -8,7 +8,7 @@ export let currentUser = null;
 export let targetUserId = null;
 export let isReadOnly = false;
 
-// 상대 경로 오류 방지를 위한 정밀 템플릿 로더
+// 1. 컴포넌트 HTML 동적 로드 (완료될 때까지 대기)
 async function loadComponents() {
   const components = [
     { id: 'sectionDashboard', file: './src/components/dashboard.html' },
@@ -21,12 +21,12 @@ async function loadComponents() {
   for (const comp of components) {
     try {
       const res = await fetch(comp.file);
-      if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
-      const targetElem = document.getElementById(comp.id);
-      if (targetElem) targetElem.innerHTML = html;
+      const elem = document.getElementById(comp.id);
+      if (elem) elem.innerHTML = html;
     } catch (err) {
-      console.error(`[컴포넌트 로드 실패] ${comp.file}:`, err);
+      console.error(`[파일 로드 에러] ${comp.file}:`, err);
     }
   }
 }
@@ -63,6 +63,7 @@ export function switchTab(tabName) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // HTML 컴포넌트들을 모두 불러온 후 초기화 진행
   await loadComponents();
 
   document.getElementById('loginBtn')?.addEventListener('click', () => signInWithPopup(auth, provider));
@@ -79,12 +80,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       isReadOnly = false;
 
       document.getElementById('authSection')?.classList.add('hidden');
-      document.getElementById('appSection')?.classList.remove('hidden');
-      document.getElementById('appSection')?.classList.add('flex');
+      const appSec = document.getElementById('appSection');
+      if (appSec) {
+        appSec.classList.remove('hidden');
+        appSec.classList.add('flex');
+      }
       
       const userNameElem = document.getElementById('userName');
       if (userNameElem) userNameElem.innerText = user.displayName || user.email;
 
+      // 데이터 및 화면 렌더링
       await loadCampaigns();
       switchTab('dashboard');
     }
