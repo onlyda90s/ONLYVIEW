@@ -1,4 +1,4 @@
-import { rawCampaignList } from './campaign.js';
+import { rawCampaignList } from './campaign.js'; 
 
 export let currentCalDate = new Date();
 
