@@ -733,6 +733,7 @@
       }
     }
 
+    // 예약 대기 정밀 보정 (배송/원고료 제외, pure 선정 + visitDate 없음만 1건 집계)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -759,6 +760,7 @@
         const st = item.status;
         if (st === '선정' || st === '배송' || st === '원고료') {
           cntSelect++;
+          // 오직 방문형 '선정' 상태이면서 방문일(visitDate)이 없는 건만 '예약 대기' 집계
           if (st === '선정' && !item.visitDate) {
             cntVisitWait++;
           } else if (st === '선정' && item.visitDate) {
@@ -784,6 +786,7 @@
       renderAllScheduledVisits();
     }
 
+    // 팝업 추출 로직도 동일하게 pure 선정+방문일 없음만 정밀 추출
     window.openCounterListModal = function(counterType, titleName) {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -844,6 +847,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
+    // 달력 레이아웃 1:1:1 밀착 세로 비율 교정
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1446,10 +1450,10 @@
           </div>
         </div>
 
-        <!-- 1:1:1 비율 정밀 여백 조율 달력 -->
+        <!-- 1:1:1 세로 비율 정밀 밀착 달력 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
-            <div class="flex justify-between items-center mb-1 shrink-0">
+            <div class="flex justify-between items-center mb-0.5 shrink-0">
               <h3 class="font-bold text-gray-800 text-xs">월별 일정 달력</h3>
               <div class="flex items-center gap-3 text-[11px] font-semibold">
                 <span class="flex items-center gap-1 text-emerald-600"><span class="text-[9px]">🟢</span> 방문</span>
@@ -1478,9 +1482,12 @@
         </div>
       </div>
 
-      <!-- 2. 체험단 등록 탭 (타이틀 위치/폰트 100% 동일화) -->
+      <!-- 2. 체험단 등록 탭 (상단 타이틀 위치/크기/마진 완전 통일) -->
       <div id="sectionForm" class="hidden space-y-4 w-full overflow-y-auto max-h-screen py-2">
-        <h2 class="text-2xl font-black text-theme mb-4 shrink-0">체험단 등록</h2>
+        <div class="flex items-center h-10 mb-4 shrink-0">
+          <h2 class="text-2xl font-black text-theme">체험단 등록</h2>
+        </div>
+        
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <form id="campaignForm" class="space-y-4 text-sm">
             <div class="space-y-1.5">
@@ -1573,24 +1580,24 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (이어서 써진 한 줄 가이드 팝업 + 통일된 타이틀 위치) -->
+      <!-- 3. 체험단 목록 탭 (이어서 써진 한 줄 가이드 + 통일된 타이틀 위치) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
-        <div class="flex justify-between items-center mb-4 shrink-0">
+        <div class="flex justify-between items-center h-10 mb-4 shrink-0">
           <div class="flex items-center gap-2">
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
             
             <div class="relative group cursor-pointer">
               <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-sm">?</span>
               
-              <div class="absolute left-0 top-7 hidden group-hover:block z-30 w-80 p-3.5 bg-white border border-gray-100 rounded-2xl shadow-xl space-y-2 text-xs">
+              <div class="absolute left-0 top-7 hidden group-hover:block z-30 w-[340px] p-3.5 bg-white border border-gray-100 rounded-2xl shadow-xl space-y-2 text-xs">
                 <div class="font-bold text-gray-800 border-b pb-1.5 flex items-center gap-1">
                   <span>💡</span> 체험단 진행 상태 가이드
                 </div>
                 <div class="space-y-1.5 text-gray-600 text-[11px] leading-relaxed">
-                  <div>• <b class="text-gray-900">선정</b>: 방문 날짜를 정하기 전을 포함한 전체 당첨 내역이에요.</div>
-                  <div>• <b class="text-gray-900">방문</b>: 방문 일정을 예약했거나 이미 방문을 마친 상태예요.</div>
-                  <div>• <b class="text-gray-900">미제출</b>: 방문을 다녀왔거나 일시가 지났는데 아직 리뷰를 작성하지 않은 상태예요.</div>
-                  <div>• <b class="text-gray-900">제출</b>: 포스팅 작성과 리뷰 제출까지 모두 끝난 마감 상태예요.</div>
+                  <div class="whitespace-nowrap">• <b class="text-gray-900">선정</b>: 방문 날짜를 정하기 전을 포함한 전체 당첨 내역이에요.</div>
+                  <div class="whitespace-nowrap">• <b class="text-gray-900">방문</b>: 방문 일정을 예약했거나 이미 방문을 마친 상태예요.</div>
+                  <div class="whitespace-nowrap">• <b class="text-gray-900">미제출</b>: 방문을 다녀왔거나 일시가 지났는데 아직 리뷰를 작성하지 않은 상태예요.</div>
+                  <div class="whitespace-nowrap">• <b class="text-gray-900">제출</b>: 포스팅 작성과 리뷰 제출까지 모두 끝난 마감 상태예요.</div>
                 </div>
               </div>
             </div>
@@ -1636,7 +1643,9 @@
 
       <!-- 4. 체험단 정산 탭 (통일된 타이틀 위치) -->
       <div id="sectionSettlement" class="hidden space-y-4">
-        <h2 class="text-2xl font-black text-theme mb-4 shrink-0">체험단 정산</h2>
+        <div class="flex items-center h-10 mb-4 shrink-0">
+          <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
+        </div>
         <div class="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-3">
           <div class="text-3xl">💰</div>
           <h3 class="text-base font-bold text-gray-800">정산 시스템 준비 중</h3>
@@ -1644,9 +1653,11 @@
         </div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (통일된 타이틀 위치 & 7개 색상) -->
+      <!-- 5. 설정 및 공유 탭 (통일된 타이틀 위치 & '배송' 교정) -->
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
-        <h2 class="text-2xl font-black text-theme mb-4 shrink-0">설정 및 공유</h2>
+        <div class="flex items-center h-10 mb-4 shrink-0">
+          <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           
@@ -1704,23 +1715,8 @@
             </div>
 
             <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span class="block font-bold text-gray-700">선정</span>
+              <span class="block font-bold text-gray-700">선정 (방문)</span>
               <div id="picker_select" class="flex flex-wrap gap-1.5"></div>
-            </div>
-
-            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span class="block font-bold text-gray-700">방문</span>
-              <div id="picker_visit" class="flex flex-wrap gap-1.5"></div>
-            </div>
-
-            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span class="block font-bold text-gray-700">미제출</span>
-              <div id="picker_unsubmitted" class="flex flex-wrap gap-1.5"></div>
-            </div>
-
-            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span class="block font-bold text-gray-700">제출 (완료)</span>
-              <div id="picker_submit" class="flex flex-wrap gap-1.5"></div>
             </div>
 
             <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
@@ -1731,6 +1727,11 @@
             <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <span class="block font-bold text-gray-700">원고료</span>
               <div id="picker_fee" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <div class="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <span class="block font-bold text-gray-700">제출 (완료)</span>
+              <div id="picker_submit" class="flex flex-wrap gap-1.5"></div>
             </div>
 
           </div>
@@ -1751,7 +1752,7 @@
     </div>
   </div>
 
-  <!-- 체험 정보 수정 팝업 (7가지 정확한 카테고리 '배송' 적용) -->
+  <!-- 체험 정보 수정 팝업 ('배송' 카테고리 적용) -->
   <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3">
