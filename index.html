@@ -150,7 +150,10 @@
         document.getElementById('sectionDashboard')?.classList.remove('hidden');
         renderDashboardView();
       }
-      else if (tabName === 'list') document.getElementById('sectionList')?.classList.remove('hidden');
+      else if (tabName === 'list') {
+        document.getElementById('sectionList')?.classList.remove('hidden');
+        filterAndRender();
+      }
       else if (tabName === 'form') {
         document.getElementById('sectionForm')?.classList.remove('hidden');
         if (!editingId) {
@@ -466,17 +469,16 @@
       }
     }
 
-    // 대시보드 5개 현황 집계 (모든 신규 상태 반영)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
       document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
 
-      let cntSelect = 0;     // 선정 현황 (선정, 배송, 원고료 상태 포함)
-      let cntVisitWait = 0;  // 방문 대기 (선정 상태 중 방문일 미지정)
-      let cntVisitPlan = 0;  // 방문 예정 (선정 상태 중 방문일 지정)
-      let cntSubmitWait = 0; // 제출 대기 (방문 완료)
-      let cntSubmitDone = 0; // 제출 완료 (제출/완료)
+      let cntSelect = 0;     
+      let cntVisitWait = 0;  
+      let cntVisitPlan = 0;  
+      let cntSubmitWait = 0; 
+      let cntSubmitDone = 0; 
 
       rawCampaignList.forEach(item => {
         const st = item.status;
@@ -823,7 +825,6 @@
       }
     };
 
-    // 등록 시 자동 이동 제거 (등록 완료 후 등록 페이지 유지)
     document.getElementById('campaignForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isReadOnly || !currentUser) return;
@@ -858,7 +859,6 @@
           setStatusBtn('신청');
           selectPlatformChip('개별');
         }
-        // 백그라운드 데이터 갱신 (탭 이동은 하지 않음)
         loadCampaigns();
       } catch (err) {
         alert('저장 실패: ' + err.message);
