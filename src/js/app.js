@@ -1,4 +1,4 @@
-import { auth, db, provider } from '../config/firebase.js';
+import { auth, db, provider } from '../config/firebase.js'; 
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDoc, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { renderDashboardView } from './dashboard.js';
