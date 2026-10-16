@@ -1,37 +1,37 @@
-import { auth, db, provider } from '../config/firebase.js'; 
+import { auth, provider } from '../config/firebase.js';
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDoc, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { renderDashboardView } from './dashboard.js';
 import { loadCampaigns, filterAndRender } from './campaign.js';
-import { renderStatusColorPickers, updateDeadlineButtons } from './settings.js';
+import { renderStatusColorPickers } from './settings.js';
 
 export let currentUser = null;
 export let targetUserId = null;
 export let isReadOnly = false;
-export let myCustomCode = "";
 
+// 상대 경로 오류 방지를 위한 정밀 템플릿 로더
 async function loadComponents() {
   const components = [
-    { id: 'sectionDashboard', file: 'src/components/dashboard.html' },
-    { id: 'sectionForm', file: 'src/components/form.html' },
-    { id: 'sectionList', file: 'src/components/list.html' },
-    { id: 'sectionSettlement', file: 'src/components/settlement.html' },
-    { id: 'sectionSettings', file: 'src/components/settings.html' }
+    { id: 'sectionDashboard', file: './src/components/dashboard.html' },
+    { id: 'sectionForm', file: './src/components/form.html' },
+    { id: 'sectionList', file: './src/components/list.html' },
+    { id: 'sectionSettlement', file: './src/components/settlement.html' },
+    { id: 'sectionSettings', file: './src/components/settings.html' }
   ];
 
   for (const comp of components) {
-    const res = await fetch(comp.file);
-    const html = await res.text();
-    document.getElementById(comp.id).innerHTML = html;
+    try {
+      const res = await fetch(comp.file);
+      if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+      const html = await res.text();
+      const targetElem = document.getElementById(comp.id);
+      if (targetElem) targetElem.innerHTML = html;
+    } catch (err) {
+      console.error(`[컴포넌트 로드 실패] ${comp.file}:`, err);
+    }
   }
 }
 
-export function switchTab(tabName, pushState = true) {
-  if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
-    alert("현재 읽기 전용 모드입니다.");
-    return;
-  }
-
+export function switchTab(tabName) {
   const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'];
   sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
 
@@ -44,10 +44,6 @@ export function switchTab(tabName, pushState = true) {
   if (activeBtn) {
     activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
     activeBtn.classList.add('bg-theme', 'text-white');
-  }
-
-  if (pushState && window.location.hash !== `#${tabName}`) {
-    history.pushState({ tab: tabName }, '', `#${tabName}`);
   }
 
   if (tabName === 'dashboard') {
@@ -72,8 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('loginBtn')?.addEventListener('click', () => signInWithPopup(auth, provider));
   document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth).then(() => location.reload()));
 
-  ['nav-dashboard', 'nav-form', 'nav-list', 'nav-settlement', 'nav-settings'].forEach(id => {
-    document.getElementById(id)?.addEventListener('click', () => switchTab(id.replace('nav-', '')));
+  ['dashboard', 'form', 'list', 'settlement', 'settings'].forEach(name => {
+    document.getElementById(`nav-${name}`)?.addEventListener('click', () => switchTab(name));
   });
 
   onAuthStateChanged(auth, async (user) => {
@@ -82,12 +78,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       targetUserId = user.uid;
       isReadOnly = false;
 
-      document.getElementById('authSection').classList.add('hidden');
-      document.getElementById('appSection').classList.remove('hidden');
-      document.getElementById('userName').innerText = user.displayName || user.email;
+      document.getElementById('authSection')?.classList.add('hidden');
+      document.getElementById('appSection')?.classList.remove('hidden');
+      document.getElementById('appSection')?.classList.add('flex');
+      
+      const userNameElem = document.getElementById('userName');
+      if (userNameElem) userNameElem.innerText = user.displayName || user.email;
 
       await loadCampaigns();
-      switchTab('dashboard', false);
+      switchTab('dashboard');
     }
   });
 });
