@@ -82,7 +82,7 @@
     let targetUserId = null;
     let isReadOnly = false;
     let rawCampaignList = [];
-    let editingId = null; 
+    let isBatchEditing = false; // 일괄 수정 모드 여부
     let listSubTab = 'ongoing'; 
     let myCustomCode = "";
     let currentCalDate = new Date();
@@ -1130,7 +1130,6 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 체험단 목록 2가지 서브 탭 분리
     window.setListSubTab = function(type) {
       listSubTab = type;
       const btnOngoing = document.getElementById('subTabOngoing');
@@ -1144,6 +1143,48 @@
         btnSubmitted.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
       }
       filterAndRender();
+    };
+
+    // 일괄 수정 토글 기능
+    window.toggleBatchEdit = function() {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+      isBatchEditing = !isBatchEditing;
+      filterAndRender();
+    };
+
+    // 일괄 수정 전체 저장
+    window.saveAllBatchEdits = async function() {
+      if (isReadOnly || !currentUser) return;
+
+      const promises = [];
+
+      rawCampaignList.forEach(item => {
+        const storeElem = document.getElementById(`batch_store_${item.id}`);
+        if (!storeElem) return;
+
+        const payload = {
+          storeName: storeElem.value || '',
+          platformName: document.getElementById(`batch_platform_${item.id}`)?.value || '개별',
+          status: document.getElementById(`batch_status_${item.id}`)?.value || '선정',
+          visitDate: formatCleanDate(document.getElementById(`batch_visitDate_${item.id}`)?.value || ''),
+          visitTime: document.getElementById(`batch_visitTime_${item.id}`)?.value || '',
+          deadlineDate: formatCleanDate(document.getElementById(`batch_deadlineDate_${item.id}`)?.value || ''),
+          sponsoredAmount: parseCurrencyValue(document.getElementById(`batch_sponsored_${item.id}`)?.value),
+          paidAmount: parseCurrencyValue(document.getElementById(`batch_paid_${item.id}`)?.value),
+          revenue: parseCurrencyValue(document.getElementById(`batch_revenue_${item.id}`)?.value)
+        };
+
+        promises.push(updateDoc(doc(db, "campaigns", item.id), payload));
+      });
+
+      try {
+        await Promise.all(promises);
+        alert('모든 체험 정보가 일괄 저장되었습니다!');
+        isBatchEditing = false;
+        await loadCampaigns();
+      } catch (err) {
+        alert('일괄 저장 실패: ' + err.message);
+      }
     };
 
     window.openEditModalFromId = function(id) {
@@ -1202,11 +1243,25 @@
       }
     });
 
+    // 테이블 컬럼 순서 및 일괄 수정 렌더링
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
       const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
       const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
+      const batchBtn = document.getElementById('batchEditBtn');
+
+      if (batchBtn) {
+        if (isBatchEditing) {
+          batchBtn.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition";
+          batchBtn.innerText = "취소";
+          document.getElementById('saveBatchBtn')?.classList.remove('hidden');
+        } else {
+          batchBtn.className = "px-3.5 py-1.5 rounded-lg font-bold text-xs bg-gray-800 text-white shadow-sm transition hover:bg-gray-900";
+          batchBtn.innerText = "일괄 수정";
+          document.getElementById('saveBatchBtn')?.classList.add('hidden');
+        }
+      }
 
       let filteredList = rawCampaignList.filter(item => {
         const isCompleted = (item.status === '제출' || item.status === '완료');
@@ -1223,27 +1278,72 @@
       cardList.innerHTML = '';
 
       filteredList.forEach((item) => {
-        const row = document.createElement('tr');
-        row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
-        row.innerHTML = `
-          <td class="p-3 font-semibold text-gray-900">${item.storeName}</td>
-          <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
-          <td class="p-3"><span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span></td>
-          <td class="p-3 text-gray-900">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
-          <td class="p-3 text-gray-900 font-medium">${item.deadlineDate || '-'}</td>
-          <td class="p-3 text-gray-900">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
-          <td class="p-3 text-gray-900">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
-          <td class="p-3 font-bold text-gray-900">+${Number(item.revenue || 0).toLocaleString()}원</td>
-          <td class="p-3">
-            <div class="flex items-center gap-2">
+        if (isBatchEditing) {
+          // 일괄 수정 모드 (매장명 -> 사이트 -> 상태 -> 방문일 -> 마감일 -> 제공금액 -> 결제금액 -> 실수익 -> 삭제)
+          const row = document.createElement('tr');
+          row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
+          row.innerHTML = `
+            <td class="p-2">
+              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white">
+            </td>
+            <td class="p-2">
+              <input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white">
+            </td>
+            <td class="p-2">
+              <select id="batch_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white">
+                <option value="신청" ${item.status === '신청' ? 'selected' : ''}>신청</option>
+                <option value="선정" ${item.status === '선정' ? 'selected' : ''}>선정</option>
+                <option value="방문" ${item.status === '방문' ? 'selected' : ''}>방문</option>
+                <option value="미제출" ${item.status === '미제출' ? 'selected' : ''}>미제출</option>
+                <option value="제출" ${item.status === '제출' ? 'selected' : ''}>제출</option>
+                <option value="배송" ${item.status === '배송' ? 'selected' : ''}>배송</option>
+                <option value="원고료" ${item.status === '원고료' ? 'selected' : ''}>원고료</option>
+              </select>
+            </td>
+            <td class="p-2">
+              <div class="flex gap-1">
+                <input type="date" id="batch_visitDate_${item.id}" value="${item.visitDate || ''}" class="w-24 border p-1 rounded-lg outline-none text-[11px] bg-white">
+                <input type="time" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}" class="w-16 border p-1 rounded-lg outline-none text-[11px] bg-white">
+              </div>
+            </td>
+            <td class="p-2">
+              <input type="date" id="batch_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-24 border p-1 rounded-lg outline-none text-[11px] bg-white">
+            </td>
+            <td class="p-2">
+              <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white">
+            </td>
+            <td class="p-2">
+              <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white">
+            </td>
+            <td class="p-2">
+              <input type="text" id="batch_revenue_${item.id}" value="${formatCurrencyInput(item.revenue || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white">
+            </td>
+            <td class="p-2">
+              <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-500 text-white hover:bg-rose-600 px-2.5 py-1.5 rounded-lg font-bold shadow-sm">삭제</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        } else {
+          // 일반 상태 (매장명 -> 사이트 -> 상태 -> 방문일 -> 마감일 -> 제공금액 -> 결제금액 -> 실수익 -> 수정)
+          const row = document.createElement('tr');
+          row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
+          row.innerHTML = `
+            <td class="p-3 font-semibold text-gray-900">${item.storeName}</td>
+            <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
+            <td class="p-3"><span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span></td>
+            <td class="p-3 text-gray-900">${item.visitDate ? `${item.visitDate} (${item.visitTime || '미정'})` : '-'}</td>
+            <td class="p-3 text-gray-900 font-medium">${item.deadlineDate || '-'}</td>
+            <td class="p-3 text-gray-900">${Number(item.sponsoredAmount || 0).toLocaleString()}원</td>
+            <td class="p-3 text-gray-900">-${Number(item.paidAmount || 0).toLocaleString()}원</td>
+            <td class="p-3 font-bold text-gray-900">+${Number(item.revenue || 0).toLocaleString()}원</td>
+            <td class="p-3">
               ${!isReadOnly ? `
-                <button onclick="openEditModalFromId('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-gray-800 font-bold">수정</button>
-                <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg font-bold">삭제</button>
+                <button onclick="openEditModalFromId('${item.id}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-800 font-bold">수정</button>
               ` : '<span class="text-xs text-gray-400 font-medium">읽기전용</span>'}
-            </div>
-          </td>
-        `;
-        tableBody.appendChild(row);
+            </td>
+          `;
+          tableBody.appendChild(row);
+        }
 
         const card = document.createElement('div');
         card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-sm text-gray-900';
@@ -1264,7 +1364,6 @@
           <div class="flex gap-2 mt-2">
             ${!isReadOnly ? `
               <button onclick="openEditModalFromId('${item.id}')" class="flex-1 bg-gray-100 text-gray-800 text-xs px-3 py-2 rounded-xl font-bold">수정</button>
-              <button onclick="deleteCampaign('${item.id}')" class="bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-xl font-bold">삭제</button>
             ` : ''}
           </div>
         `;
@@ -1638,18 +1737,14 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (확장된 도움말 팝업 + 서브 탭 분리) -->
+      <!-- 3. 체험단 목록 탭 (새 레이아웃 반영) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex justify-between items-center h-10 mb-4 shrink-0">
-          <div class="flex items-center gap-3">
+          
+          <!-- 좌측: 제목 바로 옆 밀착 ? 물음표 -->
+          <div class="flex items-center gap-1.5">
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
             
-            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
-              <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행 중인 체험</button>
-              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">제출 완료된 체험</button>
-            </div>
-
-            <!-- 폭 넓혀서 글자 잘림 완벽 해결한 도움말 팝업 -->
             <div class="relative group cursor-pointer">
               <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-sm">?</span>
               <div class="absolute left-0 top-7 hidden group-hover:block z-30 w-96 p-4 bg-white border border-gray-100 rounded-2xl shadow-xl space-y-2.5 text-xs">
@@ -1664,11 +1759,15 @@
                 </div>
               </div>
             </div>
-
           </div>
 
+          <!-- 우측: 서브탭, 상태필터, 검색창, 일괄수정 버튼 라인업 -->
           <div class="flex items-center gap-2">
-            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-60 outline-none focus:ring-2 ring-theme bg-white">
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행 중인 체험</button>
+              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="px-3 py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">제출 완료된 체험</button>
+            </div>
+
             <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
               <option value="ALL">상태 전체</option>
               <option value="신청">신청</option>
@@ -1679,9 +1778,17 @@
               <option value="배송">배송</option>
               <option value="원고료">원고료</option>
             </select>
+
+            <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-48 outline-none focus:ring-2 ring-theme bg-white">
+
+            ${!isReadOnly ? `
+              <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700">전체 저장</button>
+              <button id="batchEditBtn" onclick="toggleBatchEdit()" class="px-3.5 py-1.5 rounded-lg font-bold text-xs bg-gray-800 text-white shadow-sm transition hover:bg-gray-900">일괄 수정</button>
+            ` : ''}
           </div>
         </div>
 
+        <!-- 매장명 | 사이트 | 상태 | 방문일 | 마감일 | 제공금액 | 결제금액 | 실수익 | 관리 -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
@@ -1716,7 +1823,7 @@
         </div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (12종 컬러 모달 팝업) -->
+      <!-- 5. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center h-10 mb-4 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
