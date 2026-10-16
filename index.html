@@ -131,7 +131,6 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
 
-    // 탭 전환 및 히스토리 제어 (뒤로가기 버그 완치)
     window.switchTab = function(tabName, pushState = true) {
       const sections = ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettings'];
       sections.forEach(s => document.getElementById(s)?.classList.add('hidden'));
@@ -168,7 +167,6 @@
       else if (tabName === 'settings') document.getElementById('sectionSettings')?.classList.remove('hidden');
     };
 
-    // 브라우저 뒤로가기 / 앞으로가기 감지 이벤트
     window.addEventListener('popstate', (e) => {
       const hash = window.location.hash.replace('#', '');
       const validTabs = ['dashboard', 'form', 'list', 'settings'];
@@ -531,6 +529,7 @@
       renderAllScheduledVisits();
     }
 
+    // 1. 캘린더 로직 수정 (검정/회색 전용, 시간 D-Day 스타일, 멤버 이름만 회색 표시)
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -565,10 +564,12 @@
 
         matched.forEach(c => {
           if (c.visitDate === dateStr) {
-            html += `<div class="text-[9px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded truncate font-medium mb-0.5">[방문] ${c.storeName}</div>`;
+            const timeBadge = c.visitTime ? `<span class="bg-gray-100 text-gray-700 px-1 py-0.2 rounded text-[8px] mr-1 font-semibold">${c.visitTime}</span>` : '';
+            const companionText = c.companions ? `<span class="text-gray-400 text-[8px] block truncate">${c.companions}</span>` : '';
+            html += `<div class="text-[9px] text-gray-900 font-medium mb-0.5 border-l-2 border-gray-800 pl-1 leading-tight">${timeBadge}${c.storeName}${companionText}</div>`;
           }
-          if (c.deadlineDate === dateStr) {
-            html += `<div class="text-[9px] bg-rose-100 text-rose-800 px-1 py-0.5 rounded truncate font-bold mb-0.5">[마감] ${c.storeName}</div>`;
+          if (c.deadlineDate === dateStr && c.visitDate !== dateStr) {
+            html += `<div class="text-[9px] text-gray-700 font-bold mb-0.5 border-l-2 border-gray-400 pl-1 leading-tight truncate">${c.storeName}</div>`;
           }
         });
 
@@ -598,13 +599,13 @@
           div.innerHTML = `
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2">
-                <span class="font-bold text-xs bg-gray-800 text-white px-2 py-0.5 rounded-md">${item.visitTime || '시간 미지정'}</span>
+                ${item.visitTime ? `<span class="font-bold text-xs bg-gray-800 text-white px-2 py-0.5 rounded-md">${item.visitTime}</span>` : ''}
                 <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
               </div>
               <span class="px-2 py-0.5 rounded text-[10px] text-white ${getStatusBg(item.status)}">${item.status}</span>
             </div>
             <div class="flex justify-between items-center pt-1 text-gray-500 border-t border-gray-200/50">
-              <div>동반인원: <span class="font-bold text-theme">${item.companions || '없음'}</span></div>
+              ${item.companions ? `<div class="text-gray-500">${item.companions}</div>` : '<div></div>'}
               <div class="text-[11px]">사이트: ${item.platformName || '-'}</div>
             </div>
             ${item.memo ? `<div class="bg-white p-2 rounded-xl text-gray-600 text-[11px] mt-1 border border-gray-100">메모: ${item.memo}</div>` : ''}
@@ -616,6 +617,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
+    // 3. 마감 임박 일정 로직 (D-NaN 버그 방지 & 포맷 정리)
     function renderUpcomingDeadlines() {
       const container = document.getElementById('upcomingList');
       if (!container) return;
@@ -624,7 +626,11 @@
       const today = new Date();
       today.setHours(0,0,0,0);
 
-      let deadlineList = rawCampaignList.filter(c => c.deadlineDate && c.status !== '제출' && c.status !== '완료').map(c => {
+      let deadlineList = rawCampaignList.filter(c => {
+        if (!c.deadlineDate || c.status === '제출' || c.status === '완료' || c.status === '신청') return false;
+        const parts = c.deadlineDate.split('-');
+        return parts.length === 3 && !isNaN(new Date(c.deadlineDate).getTime());
+      }).map(c => {
         const dDate = new Date(c.deadlineDate);
         dDate.setHours(0,0,0,0);
         const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
@@ -638,7 +644,7 @@
 
       deadlineList.slice(0, 5).forEach(item => {
         const card = document.createElement('div');
-        card.className = 'p-3 bg-[#FAF8F5] rounded-xl border border-gray-100 flex items-center justify-between text-xs';
+        card.className = 'p-3 bg-theme-light rounded-xl border border-theme/20 flex items-center justify-between text-xs';
         
         let badgeClass = 'bg-gray-200 text-gray-700';
         let dText = `D-${item.diffDays}`;
@@ -648,8 +654,8 @@
 
         card.innerHTML = `
           <div>
-            <div class="font-bold text-gray-800">${item.storeName}</div>
-            <div class="text-[10px] text-gray-400">마감일: ${item.deadlineDate}</div>
+            <span class="font-bold text-gray-900">${item.storeName}</span>
+            <span class="text-[11px] text-gray-500 ml-1.5">(${item.deadlineDate})</span>
           </div>
           <span class="px-2 py-1 rounded-lg text-[10px] ${badgeClass}">${dText}</span>
         `;
@@ -657,6 +663,7 @@
       });
     }
 
+    // 2. 방문 일정 로직 (방문일자/매장명 검정, 시간/멤버 회색)
     function renderAllScheduledVisits() {
       const visitContainer = document.getElementById('scheduledVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
@@ -677,21 +684,26 @@
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-3 bg-amber-50/60 rounded-xl border border-amber-100 flex justify-between items-center text-xs';
+          div.className = 'p-3 bg-theme-light rounded-xl border border-theme/20 space-y-1 text-xs';
+          
+          const companionHtml = item.companions ? `<div class="text-[11px] text-gray-500 truncate">${item.companions}</div>` : '';
+          const timeHtml = item.visitTime ? `<span class="text-[11px] text-gray-500">${item.visitTime}</span>` : '';
+
           div.innerHTML = `
-            <div>
-              <div class="font-bold text-gray-900">${item.storeName}</div>
-              <div class="text-[10px] text-gray-500 mt-0.5">동반: <span class="font-semibold text-theme">${item.companions || '없음'}</span></div>
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-gray-900">${item.visitDate}</span>
+              <span class="font-bold text-gray-900">${item.storeName}</span>
             </div>
-            <div class="text-right">
-              <span class="text-amber-800 font-bold text-xs block">${item.visitDate}</span>
-              <span class="text-[10px] text-amber-600">${item.visitTime || '시간미지정'}</span>
+            <div class="flex justify-between items-center">
+              ${timeHtml}
+              ${companionHtml}
             </div>
           `;
           visitContainer.appendChild(div);
         });
       }
 
+      // 4. 방문 미정 로직 (테마 색상 박스 적용 & (마감일) 표기)
       const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
@@ -699,13 +711,13 @@
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-2.5 bg-rose-50/60 rounded-xl border border-rose-100 flex justify-between items-center text-xs';
+          div.className = 'p-3 bg-theme-light rounded-xl border border-theme/20 flex justify-between items-center text-xs';
           div.innerHTML = `
             <div>
-              <span class="font-bold text-gray-800">${item.storeName}</span>
-              <span class="text-[10px] text-gray-400 block">마감일: ${item.deadlineDate || '미정'}</span>
+              <span class="font-bold text-gray-900">${item.storeName}</span>
+              <span class="text-[11px] text-gray-500 ml-1.5">(${item.deadlineDate || '마감미정'})</span>
             </div>
-            <button onclick="editCampaign('${item.id}')" class="text-[10px] bg-rose-600 text-white px-2 py-1 rounded-lg font-bold">일정 잡기</button>
+            <button onclick="editCampaign('${item.id}')" class="text-[10px] bg-theme bg-theme-hover text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm transition">일정 잡기</button>
           `;
           unscheduledContainer.appendChild(div);
         });
@@ -1064,7 +1076,7 @@
           </div>
         </div>
 
-        <!-- 위젯 레이아웃 교체 (우측: 방문 일정 전체, 하단: 마감 임박) -->
+        <!-- 대시보드 위젯 레이아웃 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <div class="flex justify-between items-center">
@@ -1074,26 +1086,21 @@
             <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
           </div>
 
-          <!-- 우측으로 위치 변경된 방문 일정 위젯 -->
+          <!-- 방문 일정 위젯 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
-              <span>방문 일정</span>
-              <span class="text-[10px] text-amber-600 font-semibold">예정된 모든 방문</span>
-            </h3>
+            <h3 class="font-bold text-gray-800 text-sm">방문 일정</h3>
             <div id="scheduledVisitList" class="space-y-2 max-h-80 overflow-y-auto"></div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- 하단으로 위치 변경된 마감 임박 일정 -->
+          <!-- 마감 임박 일정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 class="font-bold text-gray-800 text-sm flex items-center justify-between">
-              <span>마감 임박 일정</span>
-              <span class="text-[10px] text-rose-500 font-semibold">포스팅 마감 D-Day</span>
-            </h3>
+            <h3 class="font-bold text-gray-800 text-sm">마감 임박 일정</h3>
             <div id="upcomingList" class="space-y-2"></div>
           </div>
 
+          <!-- 방문 미정 -->
           <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
             <h3 class="font-bold text-gray-800 text-sm">방문 미정</h3>
             <div id="unscheduledVisitList" class="space-y-2"></div>
@@ -1289,7 +1296,7 @@
     </main>
   </div>
 
-  <!-- 캘린더 날짜 클릭 시 나오는 시간 순 모달 팝업 -->
+  <!-- 캘린더 날짜 클릭 시 나오는 모달 팝업 -->
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
