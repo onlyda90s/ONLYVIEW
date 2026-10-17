@@ -85,7 +85,6 @@
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
 
-    // 정렬 정보 로컬스토리지 자동 저장 및 로드
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'createdAt'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
 
@@ -203,7 +202,6 @@
       return str;
     }
 
-    // 날짜 간소화 표기 (MM/DD 형식)
     function formatShortDate(dateVal) {
       if (!dateVal) return "-";
       const str = formatCleanDate(dateVal);
@@ -1136,6 +1134,7 @@
       }
     }
 
+    // 상세 정보 모달 (비고를 업체 연락처 하단으로 배치 및 디자인 통일)
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1160,12 +1159,14 @@
             <div>결제금액: <span class="font-bold text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
             <div>실수익·원고료: <span class="font-bold text-gray-800">${Number(item.revenue || 0).toLocaleString()}원</span></div>
           </div>
-          ${item.contact ? `<div class="pt-2 border-t text-gray-600">업체 연락처: <span class="font-bold text-gray-800">${item.contact}</span></div>` : ''}
-          ${item.memo ? `<div class="bg-gray-50 p-2.5 rounded-xl text-gray-600 mt-2 border">비고: ${item.memo}</div>` : ''}
+          
+          <div class="pt-2 border-t text-gray-600">업체 연락처: <span class="font-bold text-gray-800">${item.contact || '없음'}</span></div>
+          
+          <div class="bg-gray-50 p-3 rounded-xl text-gray-600 border border-gray-100">비고: ${item.memo || '없음'}</div>
           
           ${!isReadOnly ? `
             <div class="flex gap-2 pt-2">
-              <button onclick="document.getElementById('dayModal').classList.add('hidden'); openEditModalFromId('${item.id}');" class="flex-1 bg-theme text-white py-2 rounded-xl font-bold">수정하기</button>
+              <button onclick="document.getElementById('dayModal').classList.add('hidden'); openEditModalFromId('${item.id}');" class="flex-1 bg-theme text-white py-2.5 rounded-xl font-bold">수정하기</button>
             </div>
           ` : ''}
         </div>
@@ -1229,7 +1230,6 @@
       }
     };
 
-    // 상태값 원클릭 즉시 변경 함수 (수정 버튼 없이 클릭 한번으로 DB 반영)
     window.quickUpdateStatus = async function(id, newStatus) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
       try {
@@ -1299,7 +1299,6 @@
       }
     });
 
-    // 정렬 클릭 시 설정 상태 로컬스토리지 자동 저장
     window.handleSort = function(colName) {
       if (sortColumn === colName) {
         sortAsc = !sortAsc;
@@ -1455,12 +1454,10 @@
           `;
           tableBody.appendChild(row);
         } else {
-          // 비고란 정산 상태 뱃지 표기
           let noteBadge = isCompleted 
             ? `<span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-600 font-bold rounded-md text-[11px]">정산완료</span>`
             : `<span class="inline-block px-2 py-0.5 bg-amber-50 text-amber-600 font-bold rounded-md text-[11px]">미정산</span>`;
 
-          // 원클릭 상태 실시간 변경 드롭다운 생성
           const statusSelectHtml = `
             <select onchange="quickUpdateStatus('${item.id}', this.value)" class="border-0 bg-transparent text-xs font-bold ${getStatusTextClass(item.status)} outline-none cursor-pointer">
               <option value="신청" ${item.status === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
@@ -1900,7 +1897,7 @@
           </div>
         </div>
 
-        <!-- 2줄: 컨트롤 라인업 (여백 40% 축소 pr-3 mr-2 적용) -->
+        <!-- 2줄: [진행중/완료 탭] -> [수정] -> [검색(30%확장)] -> [년도] -> [월] -> [상태 필터 (40% 줄인 여백 pr-3 mr-2)] -->
         <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap pr-3">
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
