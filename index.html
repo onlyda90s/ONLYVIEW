@@ -794,7 +794,7 @@
       }
     }
 
-    // 1. 대시보드 미제출 수치 정밀 집계 보정
+    // 1. 대시보드 미제출 수치 정밀 집계 (방문일시 < 현재시간 체크)
     function renderDashboardView() {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -840,7 +840,7 @@
           if (item.visitDate) {
             const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
             if (new Date(visitDateTimeStr) < now) {
-              cntSubmitWait++; // 방문 시간이 지났으므로 미제출로 집계
+              cntSubmitWait++; // 방문 시간이 지났으므로 미제출로 정확히 집계
             }
           } else {
             cntSubmitWait++;
@@ -860,7 +860,7 @@
       renderAllScheduledVisits();
     }
 
-    // 2. 대시보드 미제출 팝업 모달 목록 필터링 보정
+    // 2. 대시보드 미제출 팝업 모달 목록 필터링 (방문일시 < 현재시간 체크)
     window.openCounterListModal = function(counterType, titleName) {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
@@ -892,7 +892,7 @@
           if (c.status === '방문') {
             if (!c.visitDate) return true;
             const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-            return new Date(visitDateTimeStr) < now; // 방문시간 지난 건만
+            return new Date(visitDateTimeStr) < now; // 방문 시간이 지난 건만 정확히 추출
           }
           return false;
         });
@@ -1820,7 +1820,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (수정 버튼 -> 완료된 체험 옆 이동 / 상태 필터 -> 오른쪽 배치 / 우측 여백 확보) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <!-- 1줄: 제목 -->
@@ -1845,95 +1845,8 @@
           </div>
         </div>
 
-        <!-- 2줄: [진행중/완료] -> [검색(30%확장)] -> [년도] -> [월] -> [상태] -> [수정] (우측 정렬) -->
-        <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap">
+        <!-- 2줄: [진행중/완료 탭] -> [수정] -> [검색(30%확장)] -> [년도] -> [월] -> [상태 필터 (오른쪽 여백 pr-8)] -->
+        <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap pr-8">
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
-            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">완료된 체험</button>
-          </div>
-
-          <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
-          <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm"></select>
-          <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
-            <option value="ALL">월 전체</option>
-            <option value="1">1월</option>
-            <option value="2">2월</option>
-            <option value="3">3월</option>
-            <option value="4">4월</option>
-            <option value="5">5월</option>
-            <option value="6">6월</option>
-            <option value="7">7월</option>
-            <option value="8">8월</option>
-            <option value="9">9월</option>
-            <option value="10">10월</option>
-            <option value="11">11월</option>
-            <option value="12">12월</option>
-          </select>
-          <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
-            <option value="ALL">상태 전체</option>
-            <option value="신청">신청</option>
-            <option value="선정">선정</option>
-            <option value="방문">방문</option>
-            <option value="미제출">미제출</option>
-            <option value="제출">제출/완료</option>
-            <option value="배송">배송</option>
-            <option value="원고료">원고료</option>
-          </select>
-
-          <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700 ml-3">전체 저장</button>
-          <button id="batchEditBtn" onclick="toggleBatchEdit()" class="px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition hover:bg-theme-hover ml-3">수정</button>
-        </div>
-
-        <!-- 3줄: 테이블 (헤더 정렬 지원) -->
-        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
-              <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">매장명</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">상태</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">사이트</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">방문일/시간</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">마감일</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">제공금액</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">결제금액</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none">실수익</th>
-                <th class="p-3">비고</th>
-              </tr>
-            </thead>
-            <tbody id="campaignTableBody"></tbody>
-          </table>
-        </div>
-
-        <div id="campaignCardList" class="block md:hidden space-y-3"></div>
-      </div>
-
-      <!-- 4. 체험단 정산 탭 -->
-      <div id="sectionSettlement" class="hidden space-y-4">
-        <div class="flex items-center h-10 mb-4 shrink-0">
-          <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
-        </div>
-        <div class="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-3">
-          <div class="text-3xl">💰</div>
-          <h3 class="text-base font-bold text-gray-800">정산 시스템 준비 중</h3>
-          <p class="text-xs text-gray-400">월별 지출 대비 원고료 및 실수익 정산 내역을 한눈에 볼 수 있는 기능이 곧 업데이트됩니다.</p>
-        </div>
-      </div>
-
-      <!-- 5. 설정 및 공유 탭 -->
-      <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
-        <div class="flex items-center h-10 mb-4 shrink-0">
-          <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-600 font-medium mr-2">D-Day 범위:</span>
-              <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">7일 전</button>
-              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">10일 전</button>
-              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">14일 전</button>
-            </div>
-          </div>
-
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-
+            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200
