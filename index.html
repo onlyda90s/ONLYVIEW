@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   
   <style>
     :root {
@@ -108,6 +109,7 @@
     let listSubTab = 'ongoing'; 
     let newBatchRows = []; 
     let yearlyChartInstance = null;
+    let monthlyChartInstance = null;
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -936,13 +938,15 @@
       }
     }
 
-    // 도넛 10% 확대/두껍게 & 정산 완료 옆 가로 수치 배치 & 전년대비 숫자 20% 확대 연동
+    // 연간 수익 + 월간 수익(12개월 막대) 정산 탭 리포트 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
         const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
         const targetYear = selectedYearVal === 'ALL' ? new Date().getFullYear() : parseInt(selectedYearVal);
+        const currentNowMonth = new Date().getMonth() + 1; 
 
+        // --- [1] 연간 수익 계산 ---
         let doneCount = 0;
         let doneAmount = 0;
         let planCount = 0;
@@ -950,6 +954,9 @@
 
         let prevDoneAmount = 0;
         let hasPrevYearData = false;
+
+        // 월별 실수익 배열 (1월~12월)
+        const monthlyRevenues = new Array(12).fill(0);
 
         rawCampaignList.forEach(item => {
           const sponsored = Number(item.sponsoredAmount || 0);
@@ -959,8 +966,10 @@
           const calcRevenue = sponsored - paid;
 
           const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
-          if (!refDate || refDate.length < 4) return;
+          if (!refDate || refDate.length < 7) return;
+          
           const itemYear = parseInt(refDate.slice(0, 4));
+          const itemMonth = parseInt(refDate.slice(5, 7));
 
           const isCompleted = (item.status === '제출' || item.status === '완료');
 
@@ -968,6 +977,9 @@
             if (isCompleted) {
               doneCount++;
               doneAmount += calcRevenue;
+              if (itemMonth >= 1 && itemMonth <= 12) {
+                monthlyRevenues[itemMonth - 1] += calcRevenue;
+              }
             } else {
               planCount++;
               planAmount += calcRevenue;
@@ -1003,7 +1015,6 @@
         const compareContainer = document.getElementById('yearlyCompareContainer');
 
         if (compareContainer) {
-          // 작년 데이터가 없을 경우 "비교 데이터가 없습니다" 회색 텍스트 표출
           if (!hasPrevYearData) {
             compareContainer.innerHTML = `
               <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
@@ -1020,7 +1031,6 @@
             let rateStr = diffAmount >= 0 ? `+${rate}%` : `${rate}%`;
             let badgeClass = diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
 
-            // 전년 대비 숫자 20% 확대 (text-sm 적용)
             compareContainer.innerHTML = `
               <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                 <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block"></span>
@@ -1034,14 +1044,15 @@
           }
         }
 
-        const ctx = document.getElementById('yearlyDonutChart')?.getContext('2d');
-        if (ctx) {
+        // --- 연간 수익 도넛 차트 렌더링 ---
+        const ctxYearly = document.getElementById('yearlyDonutChart')?.getContext('2d');
+        if (ctxYearly) {
           if (yearlyChartInstance) yearlyChartInstance.destroy();
 
           const chartDataValues = totalAmount === 0 ? [1, 0] : [doneAmount, planAmount];
           const chartColors = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : ['#2563EB', '#CBD5E1'];
 
-          yearlyChartInstance = new Chart(ctx, {
+          yearlyChartInstance = new Chart(ctxYearly, {
             type: 'doughnut',
             data: {
               labels: ['정산 완료', '정산 예정'],
@@ -1055,7 +1066,7 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              cutout: '68%', // 10% 더 두껍게 확대 보정
+              cutout: '68%',
               plugins: {
                 legend: { display: false },
                 tooltip: { enabled: totalAmount > 0 }
@@ -1063,6 +1074,96 @@
             }
           });
         }
+
+        // --- [2] 월간 수익 막대 차트 연동 ---
+        let maxMonthIdx = 0;
+        let maxRevVal = 0;
+        monthlyRevenues.forEach((val, idx) => {
+          if (val > maxRevVal) {
+            maxRevVal = val;
+            maxMonthIdx = idx;
+          }
+        });
+
+        // 만원 단위 변환 배열
+        const monthlyDataTenThousand = monthlyRevenues.map(v => Math.round(v / 10000));
+
+        // 월별 막대 색상 분기 (과거완료: 파랑, 이번달: 주황/테마, 미래: 회색)
+        const barColors = monthlyRevenues.map((_, idx) => {
+          const monthNum = idx + 1;
+          if (monthNum === currentNowMonth) return '#F4A261'; // 이번 달 (주황)
+          if (monthNum < currentNowMonth) return '#2563EB';   // 지난 달 (파랑)
+          return '#CBD5E1';                                  // 미래 달 (회색)
+        });
+
+        // 하단 요약 박스 업데이트
+        const bestMonthText = document.getElementById('monthlyBestMonthText');
+        const currentMonthText = document.getElementById('monthlyCurrentMonthText');
+
+        if (bestMonthText) {
+          if (maxRevVal === 0) {
+            bestMonthText.innerText = '-';
+          } else {
+            bestMonthText.innerText = `${maxMonthIdx + 1}월 · ${maxRevVal.toLocaleString()}원`;
+          }
+        }
+
+        if (currentMonthText) {
+          const curVal = monthlyRevenues[currentNowMonth - 1] || 0;
+          currentMonthText.innerText = `${currentNowMonth}월 · ${curVal.toLocaleString()}원`;
+        }
+
+        // 막대 차트 렌더링
+        const ctxMonthly = document.getElementById('monthlyBarChart')?.getContext('2d');
+        if (ctxMonthly) {
+          if (monthlyChartInstance) monthlyChartInstance.destroy();
+
+          monthlyChartInstance = new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+              labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+              datasets: [{
+                data: monthlyDataTenThousand,
+                backgroundColor: barColors,
+                borderRadius: 6,
+                borderSkipped: false,
+                barPercentage: 0.6
+              }]
+            },
+            plugins: [ChartDataLabels],
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              layout: {
+                padding: { top: 22 } // 상단 수치 안겹치게 여백 확보
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: { font: { size: 10, weight: 'bold' }, color: '#6B7280' }
+                },
+                y: { display: false } // Y축 삭제
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (context) => `${(context.raw * 10000).toLocaleString()}원`
+                  }
+                },
+                datalabels: {
+                  anchor: 'end',
+                  align: 'end',
+                  offset: 2,
+                  font: { size: 10, weight: 'bold' },
+                  color: (context) => barColors[context.dataIndex],
+                  formatter: (value) => (value > 0 ? value : '')
+                }
+              }
+            }
+          });
+        }
+
       } catch (err) {
         console.error("정산 연관 렌더링 실패:", err);
       }
@@ -2284,7 +2385,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
+      <!-- 4. 체험단 정산 탭 (연간 수익 + 월간 수익 1줄 2분할 완벽 대칭 완성) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2295,31 +2396,31 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 -->
+        <!-- 1줄: 연간 수익 / 월간 수익 (1:1 완전 대칭 카드) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           
-          <!-- 1줄 1번: 연간 수익 -->
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <!-- 1줄 1번: 연간 수익 카탈로그 -->
+          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <span class="text-[11px] text-gray-400">정산 상태별</span>
             </div>
 
             <!-- 좌우 1:1 콤팩트 컨테이너 -->
-            <div class="grid grid-cols-2 gap-4 items-center my-3">
+            <div class="grid grid-cols-2 gap-4 items-center my-2">
               
-              <!-- 좌측: 10% 증대된 도넛 차트 및 실수익 단독 수치 -->
-              <div class="relative flex items-center justify-center h-40 w-full">
+              <!-- 좌측: 20% 증대된 도넛 차트 및 실수익 단독 수치 -->
+              <div class="relative flex items-center justify-center h-48 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0</span>
                 </div>
               </div>
 
-              <!-- 우측: 30% 오른쪽 이동된 범례 (정산 완료 옆으로 수치 배치 포맷 적용) -->
+              <!-- 우측: 30% 오른쪽 이동된 범례 (정산 완료 옆으로 수치 표기) -->
               <div class="space-y-3.5 text-xs text-left pl-8 ml-4">
                 
-                <!-- 1단: 정산 완료 (옆으로 N건 | N원 가로 배치) -->
+                <!-- 1단: 정산 완료 (옆으로 N건 / N원 가로 배치) -->
                 <div class="space-y-0.5">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
@@ -2357,13 +2458,32 @@
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 -->
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <!-- 1줄 2번: 월간 수익 카탈로그 (12개월 막대 차트 + 2분할 요약 박스) -->
+          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
+              <span class="text-[11px] text-gray-400">단위: 만원</span>
             </div>
-            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal min-h-[160px]"></div>
+
+            <!-- 12개월 막대 차트 구역 -->
+            <div class="relative h-44 w-full my-1">
+              <canvas id="monthlyBarChart"></canvas>
+            </div>
+
+            <!-- 하단 2분할 요약 박스 (최고 수익 달 | 이번 달) -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
+              <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
+                <div class="text-[10px] text-gray-400 font-bold mb-0.5">최고 수익 달</div>
+                <div id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</div>
+              </div>
+              <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
+                <div class="text-[10px] text-gray-400 font-bold mb-0.5">이번 달</div>
+                <div id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</div>
+              </div>
+            </div>
+
           </div>
+
         </div>
 
         <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
