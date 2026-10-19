@@ -40,13 +40,13 @@
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-    .status-text-apply { color: var(--color-status-apply) !important; }
-    .status-text-select { color: var(--color-status-select) !important; }
-    .status-text-visit { color: var(--color-status-visit) !important; }
-    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; }
-    .status-text-submit { color: var(--color-status-submit) !important; }
-    .status-text-delivery { color: var(--color-status-delivery) !important; }
-    .status-text-fee { color: var(--color-status-fee) !important; }
+    .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
+    .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
+    .status-text-visit { color: var(--color-status-visit) !important; font-weight: 700; }
+    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 700; }
+    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
+    .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
+    .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
   </style>
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden">
@@ -938,13 +938,13 @@
         const row = document.createElement('tr');
         row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
         row.innerHTML = `
-          <td class="p-3.5 text-gray-500 font-normal">${displayMonth}</td>
-          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
-          <td class="p-3.5"><span class="status-text-submit font-bold">${item.status}</span></td>
-          <td class="p-3.5 text-gray-700 font-normal">${item.platformName || '-'}</td>
-          <td class="p-3.5 text-gray-700 font-normal">${sponsored.toLocaleString()}원</td>
-          <td class="p-3.5 text-gray-900 font-normal">${paid.toLocaleString()}원</td>
-          <td class="p-3.5 font-bold text-emerald-600">+${rev.toLocaleString()}원</td>
+          <td class="p-3.5 text-gray-500 font-normal text-center">${displayMonth}</td>
+          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-left truncate">${item.storeName}</td>
+          <td class="p-3.5 text-center"><span class="status-text-submit font-normal">${item.status}</span></td>
+          <td class="p-3.5 text-gray-700 font-normal text-center">${item.platformName || '-'}</td>
+          <td class="p-3.5 text-gray-700 font-normal text-center">${sponsored.toLocaleString()}원</td>
+          <td class="p-3.5 text-gray-900 font-normal text-center">${paid.toLocaleString()}원</td>
+          <td class="p-3.5 font-normal text-gray-900 text-center">+${rev.toLocaleString()}원</td>
         `;
         settlementList.appendChild(row);
       });
@@ -1237,7 +1237,7 @@
       }
     }
 
-    // 모달 내 비고(메모) 위치 및 볼드(굵은) 텍스트 유지
+    // 모달 내 볼드(굵은) 텍스트 유지
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1421,7 +1421,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 폰트 크기 12px(text-xs) 통일 / 매장명만 볼드 / 예상 실수익 연한 회색 표현 보정
+    // 테이블 레이아웃 고정(table-fixed) 및 가운데 정렬(text-center) 적용
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1485,15 +1485,15 @@
       const thead = document.querySelector('#sectionList table thead tr');
       if (thead) {
         thead.innerHTML = `
-          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">매장명 ${getSortIndicator('storeName')}</th>
-          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">상태 ${getSortIndicator('status')}</th>
-          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">사이트 ${getSortIndicator('platformName')}</th>
-          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">방문일 ${getSortIndicator('visitDate')}</th>
-          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">마감일 ${getSortIndicator('deadlineDate')}</th>
-          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">결제금액 ${getSortIndicator('paidAmount')}</th>
-          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">실수익 ${getSortIndicator('revenue')}</th>
-          <th class="p-3 font-bold text-xs w-20">비고</th>
+          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/4">매장명 ${getSortIndicator('storeName')}</th>
+          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
+          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
+          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
+          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">마감일 ${getSortIndicator('deadlineDate')}</th>
+          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">결제금액 ${getSortIndicator('paidAmount')}</th>
+          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-[110px]">실수익 ${getSortIndicator('revenue')}</th>
+          <th class="p-3 font-bold text-xs text-center w-20">비고</th>
         `;
       }
 
@@ -1506,7 +1506,6 @@
         const paid = Number(item.paidAmount || 0);
         const inputRev = Number(item.revenue || 0);
 
-        // 실수익 계산 (완료건은 검은색/초록색, 진행중 건은 회색 50,000원(예상) 표기)
         let calcRevenue = 0;
         if (paid === 0) {
           calcRevenue = sponsored > 0 ? sponsored : inputRev;
@@ -1525,11 +1524,11 @@
           const row = document.createElement('tr');
           row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
           row.innerHTML = `
-            <td class="p-2">
-              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
+            <td class="p-2 text-left">
+              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
             </td>
-            <td class="p-2">
-              <select id="batch_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+            <td class="p-2 text-center">
+              <select id="batch_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
                 <option value="신청" ${item.status === '신청' ? 'selected' : ''}>신청</option>
                 <option value="선정" ${item.status === '선정' ? 'selected' : ''}>선정</option>
                 <option value="방문" ${item.status === '방문' ? 'selected' : ''}>방문</option>
@@ -1539,40 +1538,39 @@
                 <option value="원고료" ${item.status === '원고료' ? 'selected' : ''}>원고료</option>
               </select>
             </td>
-            <td class="p-2">
-              <input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+            <td class="p-2 text-center">
+              <input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
             </td>
-            <td class="p-2">
-              <div class="flex gap-1">
+            <td class="p-2 text-center">
+              <div class="flex gap-1 justify-center">
                 <input type="date" id="batch_visitDate_${item.id}" value="${item.visitDate || ''}" class="w-24 border p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
                 <input type="time" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}" class="w-16 border p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
               </div>
             </td>
-            <td class="p-2">
+            <td class="p-2 text-center">
               <input type="date" id="batch_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-24 border p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
             </td>
-            <td class="p-2">
-              <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+            <td class="p-2 text-center">
+              <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
             </td>
-            <td class="p-2">
-              <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+            <td class="p-2 text-center">
+              <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
             </td>
-            <td class="p-2">
-              <input type="text" id="batch_revenue_${item.id}" value="${formatCurrencyInput(item.revenue || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+            <td class="p-2 text-center">
+              <input type="text" id="batch_revenue_${item.id}" value="${formatCurrencyInput(item.revenue || 0)}" class="w-20 border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
             </td>
-            <td class="p-2">
+            <td class="p-2 text-center">
               <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-500 text-white hover:bg-rose-600 px-2.5 py-1.5 rounded-lg font-bold shadow-sm">삭제</button>
             </td>
           `;
           tableBody.appendChild(row);
         } else {
-          // 비고란 라인 회색 텍스트 표기 (미정산 / 정산완료)
           let noteBadge = isCompleted 
             ? `<span class="text-gray-400 font-normal">정산완료</span>`
             : `<span class="text-gray-400 font-normal">미정산</span>`;
 
           const statusSelectHtml = `
-            <select onchange="quickUpdateStatus('${item.id}', this.value)" class="border-0 bg-transparent text-xs font-normal ${getStatusTextClass(item.status)} outline-none cursor-pointer">
+            <select onchange="quickUpdateStatus('${item.id}', this.value)" class="border-0 bg-transparent text-xs font-normal ${getStatusTextClass(item.status)} outline-none cursor-pointer text-center">
               <option value="신청" ${item.status === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
               <option value="선정" ${item.status === '선정' ? 'selected' : ''} class="text-gray-800 font-normal">선정</option>
               <option value="방문" ${item.status === '방문' ? 'selected' : ''} class="text-gray-800 font-normal">방문</option>
@@ -1586,15 +1584,15 @@
           const row = document.createElement('tr');
           row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
           row.innerHTML = `
-            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
-            <td class="p-3 text-xs">${statusSelectHtml}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal">${item.platformName || '-'}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal">${formatShortDate(item.visitDate)}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal">${formatShortDate(item.deadlineDate)}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal">${sponsored.toLocaleString()}원</td>
-            <td class="p-3 text-gray-900 text-xs font-normal">${paid.toLocaleString()}원</td>
-            <td class="p-3 text-xs font-normal">${revDisplayHtml}</td>
-            <td class="p-3 text-xs font-normal w-20">${noteBadge}</td>
+            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+            <td class="p-3 text-xs text-center">${statusSelectHtml}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal text-center">${item.platformName || '-'}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.visitDate)}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.deadlineDate)}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal text-center">${sponsored.toLocaleString()}원</td>
+            <td class="p-3 text-gray-900 text-xs font-normal text-center">${paid.toLocaleString()}원</td>
+            <td class="p-3 text-xs font-normal text-center">${revDisplayHtml}</td>
+            <td class="p-3 text-xs font-normal w-20 text-center">${noteBadge}</td>
           `;
           tableBody.appendChild(row);
         }
@@ -2052,20 +2050,20 @@
           </select>
         </div>
 
-        <!-- 3줄: 테이블 -->
+        <!-- 3줄: 테이블 (table-fixed 적용하여 진행중/완료 탭 폭 완벽 고정) -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table class="w-full text-left border-collapse">
+          <table class="w-full text-left border-collapse table-fixed">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">매장명</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">상태</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">사이트</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">방문일</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">마감일</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">제공금액</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">결제금액</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">실수익</th>
-                <th class="p-3 font-bold text-xs w-20">비고</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/4">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">마감일 ${getSortIndicator('deadlineDate')}</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">결제금액 ${getSortIndicator('paidAmount')}</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-[110px]">실수익 ${getSortIndicator('revenue')}</th>
+                <th class="p-3 font-bold text-xs text-center w-20">비고</th>
               </tr>
             </thead>
             <tbody id="campaignTableBody"></tbody>
@@ -2119,16 +2117,16 @@
             <span class="text-xs text-gray-400 font-normal">매장명 클릭 시 상세 모달 오픈</span>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse table-fixed">
               <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
                 <tr>
-                  <th class="p-3.5 font-bold w-16">월</th>
-                  <th class="p-3.5 font-bold">매장명</th>
-                  <th class="p-3.5 font-bold">상태</th>
-                  <th class="p-3.5 font-bold">사이트</th>
-                  <th class="p-3.5 font-bold">제공금액</th>
-                  <th class="p-3.5 font-bold">결제금액</th>
-                  <th class="p-3.5 font-bold">최종 실수익</th>
+                  <th class="p-3.5 font-bold text-center w-16">월</th>
+                  <th class="p-3.5 font-bold text-left w-1/4">매장명</th>
+                  <th class="p-3.5 font-bold text-center">상태</th>
+                  <th class="p-3.5 font-bold text-center">사이트</th>
+                  <th class="p-3.5 font-bold text-center">제공금액</th>
+                  <th class="p-3.5 font-bold text-center">결제금액</th>
+                  <th class="p-3.5 font-bold text-center w-[110px]">최종 실수익</th>
                 </tr>
               </thead>
               <tbody id="settlementTableBody"></tbody>
