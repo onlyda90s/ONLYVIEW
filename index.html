@@ -581,6 +581,7 @@
       populateYearFilter();
     });
 
+    // DB 데이터 스캔 기반 연도 옵션 동적 생성 (2027년 등 미래/과거 연도 자동 추가)
     function populateYearFilter() {
       const yearSelect = document.getElementById('filterYear');
       const settlementYearSelect = document.getElementById('settlementYearSelect');
@@ -588,15 +589,24 @@
       
       const now = new Date();
       const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
+      const yearsSet = new Set([2025, currentYear]);
 
-      let maxYear = (currentMonth >= 11) ? currentYear + 1 : currentYear;
-      const startYear = 2025; 
+      // 데이터 내 등장하는 연도 모두 수집
+      rawCampaignList.forEach(item => {
+        [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
+          if (d && d.length >= 4) {
+            const y = parseInt(d.slice(0, 4));
+            if (!isNaN(y)) yearsSet.add(y);
+          }
+        });
+      });
+
+      const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
       yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
-      if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
+      if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL font-bold">연도 전체 (누적)</option>';
 
-      for (let y = maxYear; y >= startYear; y--) {
+      sortedYears.forEach(y => {
         const opt = document.createElement('option');
         opt.value = y.toString();
         opt.innerText = `${y}년`;
@@ -609,7 +619,7 @@
           if (y === currentYear) optS.selected = true;
           settlementYearSelect.appendChild(optS);
         }
-      }
+      });
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -812,6 +822,7 @@
           await Promise.all(autoVisitPromises);
         }
 
+        populateYearFilter();
         filterAndRender();
         renderDashboardView();
         renderSettlementView();
@@ -1421,7 +1432,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 매장명 폰트 크기 12px(text-xs) 원복, 매장명 컬럼 너비 w-1/3 확장, 정산완료 일반 굵기 변경
+    // 매장명 너비 w-1/5(20%)로 변경 및 정산완료 일반 굵기 설정
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1485,7 +1496,7 @@
       const thead = document.querySelector('#sectionList table thead tr');
       if (thead) {
         thead.innerHTML = `
-          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/3">매장명 ${getSortIndicator('storeName')}</th>
+          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
           <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
           <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
           <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
@@ -2056,7 +2067,7 @@
           <table class="w-full text-left border-collapse table-fixed">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/3">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
                 <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
                 <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
                 <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
@@ -2122,7 +2133,7 @@
               <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
                 <tr>
                   <th class="p-3.5 font-bold text-center w-16">월</th>
-                  <th class="p-3.5 font-bold text-left w-1/3">매장명</th>
+                  <th class="p-3.5 font-bold text-left w-1/5">매장명</th>
                   <th class="p-3.5 font-bold text-center">상태</th>
                   <th class="p-3.5 font-bold text-center">사이트</th>
                   <th class="p-3.5 font-bold text-center">제공금액</th>
