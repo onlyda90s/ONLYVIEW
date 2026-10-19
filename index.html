@@ -46,12 +46,12 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
-    /* 요청된 세부 수치 전격 반영 (화살표 간격 0.25rem, 좌측 여백 0.05rem) */
+    /* 상태 드롭다운 스타일 수치 통일 */
     select.select-center {
       text-align: center;
       text-align-last: center;
-      padding-right: 0.25rem !important; /* 텍스트와 화살표 간격 0.25rem */
-      padding-left: 0.05rem !important;  /* 드롭박스 세부 수치 0.05rem */
+      padding-right: 0.25rem !important;
+      padding-left: 0.05rem !important;
     }
   </style>
 </head>
@@ -899,7 +899,7 @@
     }
 
     function renderSettlementView() {
-      // 정산 3줄 2분할 뼈대
+      // 3줄 2분할 뼈대
     }
 
     window.openCounterListModal = function(counterType, titleName) {
@@ -1395,6 +1395,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
+    // 목록 렌더링 (요청 수치 적용: 방문일/마감일/제공금액/결제금액/실수익 w-32, 비고 w-18)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -1462,12 +1463,12 @@
             <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
             <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
             <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
-            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-36">방문일 ${getSortIndicator('visitDate')}</th>
+            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">방문일 ${getSortIndicator('visitDate')}</th>
             <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
-            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">결제금액 ${getSortIndicator('paidAmount')}</th>
-            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">실수익 ${getSortIndicator('revenue')}</th>
-            <th class="p-3 font-bold text-xs text-center w-16">비고</th>
+            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">결제금액 ${getSortIndicator('paidAmount')}</th>
+            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">실수익 ${getSortIndicator('revenue')}</th>
+            <th class="p-3 font-bold text-xs text-center w-18">비고</th>
           `;
         }
 
@@ -2096,12 +2097,12 @@
                 <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
                 <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
                 <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-36">방문일 ${getSortIndicator('visitDate')}</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">방문일 ${getSortIndicator('visitDate')}</th>
                 <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">결제금액 ${getSortIndicator('paidAmount')}</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">실수익 ${getSortIndicator('revenue')}</th>
-                <th class="p-3 font-bold text-xs text-center w-16">비고</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">결제금액 ${getSortIndicator('paidAmount')}</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">실수익 ${getSortIndicator('revenue')}</th>
+                <th class="p-3 font-bold text-xs text-center w-18">비고</th>
               </tr>
             </thead>
             <tbody id="campaignTableBody"></tbody>
@@ -2111,7 +2112,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (3줄 2분할 레이아웃 구역) -->
+      <!-- 4. 체험단 정산 탭 (3줄 2분할 뼈대) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2122,7 +2123,7 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 -->
+        <!-- 1줄: 연간 수익 / 월간 수익 (1:1 2분할) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
@@ -2145,7 +2146,7 @@
           </div>
         </div>
 
-        <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
+        <!-- 2줄: 플랫폼 분석 / 월간 분석 (1:1 2분할) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
@@ -2168,7 +2169,7 @@
           </div>
         </div>
 
-        <!-- 3줄: 월간 세부 내역 (2분할) -->
+        <!-- 3줄: 월간 세부 내역 (1:1 2분할 - 홀수달 / 짝수달) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3 min-h-[160px]">
             <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
@@ -2304,8 +2305,8 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
@@ -2342,7 +2343,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
           </div>
         </div>
 
