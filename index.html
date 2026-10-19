@@ -654,7 +654,7 @@
       }
     }
 
-    // 데이터 로드 보정 (오류 방지 및 정상 출력)
+    // 데이터 로드 보정 (목록 미표시 원인 해결)
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -770,7 +770,7 @@
       renderAllScheduledVisits();
     }
 
-    // 정산 리포트 보정 (1:1 2단 통일, 순수익 명시 및 비어있는 연요약 깔끔 정돈)
+    // 정산 리포트 보정
     function renderSettlementView() {
       const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
 
@@ -938,7 +938,7 @@
         }
       }
 
-      // 3줄: 홀수달/짝수달 세부 카드 (가로 너비 1/3 균등 분할 및 순수익 타이틀 보정)
+      // 3줄: 홀수달/짝수달 세부 카드 (순수익 타이틀 명시 및 컬럼 균등 배분)
       const oddList = document.getElementById('oddMonthCardsList');
       const evenList = document.getElementById('evenMonthCardsList');
 
@@ -1886,7 +1886,6 @@
       </div>
     </aside>
 
-    <!-- 우측 메인 영역 패딩 보정(pr-2 추가로 스크롤 가림 방지) -->
     <main class="flex-1 px-6 md:px-8 pr-4 py-4 space-y-4 h-screen overflow-hidden flex flex-col justify-between">
 
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-medium shrink-0">
@@ -2149,10 +2148,9 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (최신 요충사항 및 스크롤 가림 현상 정돈) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-1">
         
-        <!-- 타이틀 및 연도 필터 -->
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
           <div class="flex items-center gap-2">
@@ -2161,7 +2159,7 @@
           </div>
         </div>
 
-        <!-- 1줄: 1년 정산 구조 & 월별 실수익 추이 (하단과 동일하게 1:1 2단 통일) -->
+        <!-- 1줄: 1:1 2단 도넛 + 막대그래프 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
             <div class="flex justify-between items-start">
