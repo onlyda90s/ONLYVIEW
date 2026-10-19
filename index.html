@@ -84,7 +84,7 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
-    let newBatchRows = []; // 수정 모드 내 신규 추가 행 데이터 관리 배열
+    let newBatchRows = []; 
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'createdAt'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -550,6 +550,7 @@
       populateYearFilter();
     });
 
+    // DB 연도 동적 추출
     function populateYearFilter() {
       const yearSelect = document.getElementById('filterYear');
       const settlementYearSelect = document.getElementById('settlementYearSelect');
@@ -653,6 +654,7 @@
       }
     }
 
+    // 데이터 로드 보정 (오류 방지 및 정상 출력)
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -768,7 +770,7 @@
       renderAllScheduledVisits();
     }
 
-    // 정산 리포트
+    // 정산 리포트 보정 (1:1 2단 통일, 순수익 명시 및 비어있는 연요약 깔끔 정돈)
     function renderSettlementView() {
       const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
 
@@ -936,6 +938,7 @@
         }
       }
 
+      // 3줄: 홀수달/짝수달 세부 카드 (가로 너비 1/3 균등 분할 및 순수익 타이틀 보정)
       const oddList = document.getElementById('oddMonthCardsList');
       const evenList = document.getElementById('evenMonthCardsList');
 
@@ -949,24 +952,20 @@
             return refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
           });
 
-          let monthSettledSum = 0;
-          let monthUnsettledSum = 0;
+          let monthNetBenefitSum = 0; // 순수익 (제공금액 - 결제금액)
 
           monthItems.forEach(item => {
-            const isCompleted = (item.status === '제출' || item.status === '완료');
             const sponsored = Number(item.sponsoredAmount || 0);
             const paid = Number(item.paidAmount || 0);
             const inputRev = Number(item.revenue || 0);
 
-            let rev = 0;
-            if (paid === 0) rev = sponsored > 0 ? sponsored : inputRev;
-            else rev = (sponsored - paid) + inputRev;
+            let calcRev = 0;
+            if (paid === 0) calcRev = sponsored > 0 ? sponsored : inputRev;
+            else calcRev = (sponsored - paid) + inputRev;
 
-            if (isCompleted) monthSettledSum += rev;
-            else monthUnsettledSum += rev;
+            monthNetBenefitSum += calcRev;
           });
 
-          const totalMonthRev = monthSettledSum + monthUnsettledSum;
           const isCollapsed = !!monthCollapsedState[m];
 
           const card = document.createElement('div');
@@ -981,22 +980,23 @@
               const paid = Number(item.paidAmount || 0);
               rowsHtml += `
                 <tr class="border-b border-gray-50 text-xs text-gray-800">
-                  <td class="py-2 font-bold text-gray-900 cursor-pointer hover:text-theme truncate text-left" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
-                  <td class="py-2 text-center text-gray-600 font-normal">${sponsored.toLocaleString()}원</td>
-                  <td class="py-2 text-center text-gray-600 font-normal">${paid.toLocaleString()}원</td>
+                  <td class="py-2 font-bold text-gray-900 cursor-pointer hover:text-theme truncate text-left w-1/3" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+                  <td class="py-2 text-center text-gray-600 font-normal w-1/3">${sponsored.toLocaleString()}원</td>
+                  <td class="py-2 text-center text-gray-600 font-normal w-1/3">${paid.toLocaleString()}원</td>
                 </tr>
               `;
             });
           }
 
-          let summaryBadgeText = `총수익 +${monthSettledSum.toLocaleString()}원`;
-          if (monthUnsettledSum > 0) {
-            summaryBadgeText = `총수익 +${monthSettledSum.toLocaleString()}원 (예상 +${monthUnsettledSum.toLocaleString()}원)`;
+          // 순수익이 0원 이상이고 내역이 있을 때만 타이틀에 순수익 명시
+          let headerTitleText = `${m}월 내역`;
+          if (monthItems.length > 0 && monthNetBenefitSum > 0) {
+            headerTitleText = `${m}월 내역 : <span class="text-theme font-bold">순수익 +${monthNetBenefitSum.toLocaleString()}원</span>`;
           }
 
           card.innerHTML = `
             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-              <span class="font-bold text-xs text-gray-900">${m}월 내역 : <span class="text-theme font-bold">${summaryBadgeText}</span></span>
+              <span class="font-bold text-xs text-gray-900">${headerTitleText}</span>
               <button id="monthBtn_${m}" onclick="toggleMonthArchive(${m})" class="text-[11px] text-gray-400 font-normal hover:text-gray-600">
                 ${isCollapsed ? '펼치기 ∨' : '접기 ∧'}
               </button>
@@ -1006,18 +1006,13 @@
               <table class="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr class="text-gray-400 text-[11px] border-b border-gray-100">
-                    <th class="py-1 font-bold text-left w-1/2">매장(업체)명</th>
-                    <th class="py-1 font-bold text-center">제공금액</th>
-                    <th class="py-1 font-bold text-center">결제금액</th>
+                    <th class="py-1 font-bold text-left w-1/3">매장(업체)명</th>
+                    <th class="py-1 font-bold text-center w-1/3">제공금액</th>
+                    <th class="py-1 font-bold text-center w-1/3">결제금액</th>
                   </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
               </table>
-
-              <div class="bg-gray-50 p-2 rounded-xl text-right text-xs font-normal text-gray-600">
-                ${m}월 총 실수익: <span class="text-gray-900 font-bold">+${monthSettledSum.toLocaleString()}원</span>
-                ${monthUnsettledSum > 0 ? `<span class="text-gray-400 ml-1">(예상 +${monthUnsettledSum.toLocaleString()}원)</span>` : ''}
-              </div>
             </div>
           `;
 
@@ -1281,19 +1276,17 @@
       filterAndRender();
     };
 
-    // 일괄 수정 토글 (수정 모드 시작 시 빈 신규 추가 행 1줄 기본 삽입)
     window.toggleBatchEdit = function() {
       if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
       isBatchEditing = !isBatchEditing;
       if (isBatchEditing) {
-        newBatchRows = [{ tempId: Date.now() }]; // 신규 행 1개 기본 생성
+        newBatchRows = [{ tempId: Date.now() }];
       } else {
         newBatchRows = [];
       }
       filterAndRender();
     };
 
-    // 일괄 수정 모드 내 신규 행 추기 함수
     window.addNewBatchRow = function() {
       newBatchRows.push({ tempId: Date.now() + Math.random() });
       filterAndRender();
@@ -1304,13 +1297,11 @@
       filterAndRender();
     };
 
-    // 전체 저장 (기존 수정건 updateDoc + 신규 작성건 addDoc 일괄 저장)
     window.saveAllBatchEdits = async function() {
       if (isReadOnly || !currentUser) return;
 
       const promises = [];
 
-      // 1. 기존 항목 수정 저장
       rawCampaignList.forEach(item => {
         const storeElem = document.getElementById(`batch_store_${item.id}`);
         if (!storeElem) return;
@@ -1330,7 +1321,6 @@
         promises.push(updateDoc(doc(db, "campaigns", item.id), payload));
       });
 
-      // 2. 신규 추가 항목 신규 등록 (매장명이 채워진 경우)
       newBatchRows.forEach((row, idx) => {
         const storeVal = document.getElementById(`new_batch_store_${idx}`)?.value;
         if (storeVal && storeVal.trim()) {
@@ -1450,7 +1440,6 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 체험단 목록 탭 렌더링 (일괄 수정 내 신규 추가 행 포함)
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1645,7 +1634,6 @@
         cardList.appendChild(card);
       });
 
-      // 일괄 수정 모드 시 하단 신규 등록 입력 행들 렌더링
       if (isBatchEditing) {
         newBatchRows.forEach((row, idx) => {
           const newRow = document.createElement('tr');
@@ -1695,7 +1683,6 @@
           tableBody.appendChild(newRow);
         });
 
-        // 신규 행 추가 버튼 로우
         const addBtnRow = document.createElement('tr');
         addBtnRow.innerHTML = `
           <td colspan="9" class="p-3 text-center bg-gray-50/80">
@@ -1899,7 +1886,8 @@
       </div>
     </aside>
 
-    <main class="flex-1 px-6 md:px-8 py-4 space-y-4 h-screen overflow-hidden flex flex-col justify-between">
+    <!-- 우측 메인 영역 패딩 보정(pr-2 추가로 스크롤 가림 방지) -->
+    <main class="flex-1 px-6 md:px-8 pr-4 py-4 space-y-4 h-screen overflow-hidden flex flex-col justify-between">
 
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-medium shrink-0">
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
@@ -2161,9 +2149,10 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
-      <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
+      <!-- 4. 체험단 정산 탭 (최신 요충사항 및 스크롤 가림 현상 정돈) -->
+      <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-1">
         
+        <!-- 타이틀 및 연도 필터 -->
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
           <div class="flex items-center gap-2">
@@ -2172,39 +2161,35 @@
           </div>
         </div>
 
-        <!-- 1줄: 1년 정산 구조 & 월별 실수익 추이 -->
-        <div class="space-y-1.5">
-          <div class="text-xs font-bold text-gray-800">1줄 : 1년 정산 구조 및 월별 실수익 추이</div>
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-3.5">
-            <div class="md:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-              <div class="flex justify-between items-start">
-                <span class="text-xs font-bold text-gray-800">🍩 1년 실수익 비중</span>
-                <div class="text-[11px] space-y-1 text-right">
-                  <div id="legendSettledText" class="text-theme font-bold">완료: +0원</div>
-                  <div id="legendUnsettledText" class="text-gray-400 font-normal">미완료: +0원</div>
-                </div>
-              </div>
-              <div class="flex items-center justify-center py-2">
-                <div id="donutGraphicChart" class="w-20 h-20 rounded-full flex items-center justify-center relative transition-all duration-500" style="background: conic-gradient(#F4A261 0% 0%, #9CA3AF 0% 100%);">
-                  <div id="donutRatioCenter" class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-900">0%</div>
-                </div>
+        <!-- 1줄: 1년 정산 구조 & 월별 실수익 추이 (하단과 동일하게 1:1 2단 통일) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold text-gray-800">🍩 1년 실수익 비중</span>
+              <div class="text-[11px] space-y-1 text-right">
+                <div id="legendSettledText" class="text-theme font-bold">완료: +0원</div>
+                <div id="legendUnsettledText" class="text-gray-400 font-normal">미완료: +0원</div>
               </div>
             </div>
+            <div class="flex items-center justify-center py-2">
+              <div id="donutGraphicChart" class="w-20 h-20 rounded-full flex items-center justify-center relative transition-all duration-500" style="background: conic-gradient(#F4A261 0% 0%, #9CA3AF 0% 100%);">
+                <div id="donutRatioCenter" class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-900">0%</div>
+              </div>
+            </div>
+          </div>
 
-            <div class="md:col-span-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold text-gray-800">📊 월별 실수익 (정산완료 + 미완료)</span>
-                <span class="text-[10px] text-gray-400">마우스 호버 시 상세 금액 확인</span>
-              </div>
-              <div id="revenueBarChartContainer" class="flex items-end justify-between h-24 pt-2 gap-1.5"></div>
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-gray-800">📊 월별 실수익 (정산완료 + 미완료)</span>
+              <span class="text-[10px] text-gray-400">마우스 호버 시 상세 금액 확인</span>
             </div>
+            <div id="revenueBarChartContainer" class="flex items-end justify-between h-24 pt-2 gap-1.5"></div>
           </div>
         </div>
 
         <!-- 2줄: 연간 체험 활동 및 사이트 통계 -->
-        <div class="space-y-1.5 pt-2">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-bold text-gray-800">2줄 : 연간 체험 활동 및 사이트 통계</span>
+        <div class="space-y-1.5 pt-1">
+          <div class="flex justify-end items-center">
             <button id="section2ArchiveBtn" onclick="toggleSection2Archive()" class="text-xs text-gray-500 font-bold bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-xl transition">
               전체 접기 ∧
             </button>
@@ -2227,12 +2212,7 @@
         </div>
 
         <!-- 3줄: 월별 내역 세부 조회 -->
-        <div class="space-y-1.5 pt-2">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-bold text-gray-800">3줄 : 월별 내역 세부 조회 (홀수달 / 짝수달 2열)</span>
-            <span class="text-[11px] text-gray-400 font-normal">각 달별 개별 아카이브 가능</span>
-          </div>
-
+        <div class="space-y-1.5 pt-1">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             <div id="oddMonthCardsList" class="space-y-3"></div>
             <div id="evenMonthCardsList" class="space-y-3"></div>
