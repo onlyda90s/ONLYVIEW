@@ -46,7 +46,6 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
-    /* 드롭다운 텍스트 중앙 정렬 스타일 보정 */
     select.select-center {
       text-align: center;
       text-align-last: center;
@@ -838,13 +837,77 @@
       }
     }
 
+    // 대시보드 렌더링 (전체 데이터 기반 연월 비교 안전화)
     function renderDashboardView() {
+      try {
+        const year = currentCalDate.getFullYear();
+        const month = currentCalDate.getMonth() + 1;
+        const titleElem = document.getElementById('dashMonthTitle');
+        if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
+
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+
+        // 전체 rawCampaignList 기반으로 해당 월 데이터 완벽 필터링
+        const monthlyCampaigns = rawCampaignList.filter(item => {
+          const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
+          const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
+          const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
+          return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+        });
+
+        let cntSelect = 0;     
+        let cntVisitWait = 0;  
+        let cntVisitPlan = 0;  
+        let cntSubmitWait = 0; 
+        let cntSubmitDone = 0; 
+
+        const now = new Date();
+
+        monthlyCampaigns.forEach(item => {
+          const st = item.status;
+          if (st === '선정' || st === '배송' || st === '원고료') {
+            if (st === '선정' && !item.visitDate) {
+              cntSelect++;
+              cntVisitWait++;
+            } else if (st === '배송' || st === '원고료') {
+              cntSelect++;
+            } else if (st === '선정' && item.visitDate) {
+              const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
+              const vTime = new Date(visitDateTimeStr);
+              if (vTime >= now) {
+                cntVisitPlan++;
+              }
+            }
+          }
+          else if (st === '미제출') cntSubmitWait++;
+          else if (st === '방문') cntSubmitWait++;
+          else if (st === '제출' || st === '완료') cntSubmitDone++;
+        });
+
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        setTxt('cntSelect', cntSelect + '건');
+        setTxt('cntVisitWait', cntVisitWait + '건');
+        setTxt('cntVisitPlan', cntVisitPlan + '건');
+        setTxt('cntSubmitWait', cntSubmitWait + '건');
+        setTxt('cntSubmitDone', cntSubmitDone + '건');
+
+        renderCalendar(year, month);
+        renderUpcomingDeadlines();
+        renderAllScheduledVisits();
+      } catch (err) {
+        console.error("대시보드 렌더링 예외 처리:", err);
+      }
+    }
+
+    function renderSettlementView() {
+      // 3분할 뼈대
+    }
+
+    window.openCounterListModal = function(counterType, titleName) {
       const year = currentCalDate.getFullYear();
       const month = currentCalDate.getMonth() + 1;
-      const titleElem = document.getElementById('dashMonthTitle');
-      if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
-
       const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+      const now = new Date();
 
       const monthlyCampaigns = rawCampaignList.filter(item => {
         const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
@@ -853,50 +916,304 @@
         return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
       });
 
-      let cntSelect = 0;     
-      let cntVisitWait = 0;  
-      let cntVisitPlan = 0;  
-      let cntSubmitWait = 0; 
-      let cntSubmitDone = 0; 
+      let matchedItems = [];
+
+      if (counterType === 'select') {
+        matchedItems = monthlyCampaigns.filter(c => (c.status === '선정' && !c.visitDate) || c.status === '배송' || c.status === '원고료');
+      } else if (counterType === 'visitWait') {
+        matchedItems = monthlyCampaigns.filter(c => c.status === '선정' && !c.visitDate);
+      } else if (counterType === 'visitPlan') {
+        matchedItems = monthlyCampaigns.filter(c => {
+          if (c.status !== '선정' || !c.visitDate) return false;
+          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
+          return new Date(visitDateTimeStr) >= now;
+        });
+      } else if (counterType === 'submitWait') {
+        matchedItems = monthlyCampaigns.filter(c => {
+          if (c.status === '미제출') return true;
+          if (c.status === '방문') {
+            if (!c.visitDate) return true;
+            const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
+            return new Date(visitDateTimeStr) < now; 
+          }
+          return false;
+        });
+      } else if (counterType === 'submitDone') {
+        matchedItems = monthlyCampaigns.filter(c => c.status === '제출' || c.status === '완료');
+      }
+
+      const modalTitleElem = document.getElementById('modalDateTitle');
+      if (modalTitleElem) {
+        modalTitleElem.innerText = `${year}년 ${month}월 [${titleName}] 목록 (${matchedItems.length}건)`;
+      }
+      
+      const modalList = document.getElementById('modalItemList');
+      if (modalList) {
+        modalList.innerHTML = '';
+        if (matchedItems.length === 0) {
+          modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center font-normal">${titleName} 항목이 없습니다.</div>`;
+        } else {
+          matchedItems.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
+            div.onclick = () => openDetailItemModal(item.id);
+
+            div.innerHTML = `
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+                <span class="${getStatusTextClass(item.status)} font-bold">${displayStatusName(item.status)}</span>
+              </div>
+              <div class="flex justify-between text-gray-500 text-[11px] font-normal">
+                <span>사이트: ${item.platformName || '개별'}</span>
+                <span>${item.visitDate ? `방문일: ${formatShortDate(item.visitDate)}` : (item.deadlineDate ? `마감일: ${formatShortDate(item.deadlineDate)}` : '')}</span>
+              </div>
+            `;
+            modalList.appendChild(div);
+          });
+        }
+      }
+
+      document.getElementById('dayModal')?.classList.remove('hidden');
+    };
+
+    function renderCalendar(year, month) {
+      const calGrid = document.getElementById('calendarGrid');
+      if (!calGrid) return;
+      calGrid.innerHTML = '';
+
+      const firstDay = new Date(year, month - 1, 1).getDay();
+      const lastDate = new Date(year, month, 0).getDate();
+
+      const days = ['일', '월', '화', '수', '목', '금', '토'];
+      days.forEach((d, idx) => {
+        const dh = document.createElement('div');
+        dh.className = `text-center text-[11px] font-bold py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
+        dh.innerText = d;
+        calGrid.appendChild(dh);
+      });
+
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'bg-gray-50/50 rounded-xl min-h-[38px]';
+        calGrid.appendChild(empty);
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (let date = 1; date <= lastDate; date++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+        const dayCell = document.createElement('div');
+        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[40px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
+        
+        let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
+        
+        const visitMatches = rawCampaignList.filter(c => c.visitDate === dateStr);
+        const deadlineMatches = rawCampaignList.filter(c => c.deadlineDate === dateStr && c.status !== '신청');
+
+        if (visitMatches.length > 0) {
+          html += `<div class="text-[9px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
+        }
+        if (deadlineMatches.length > 0) {
+          html += `<div class="text-[9px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
+        }
+
+        const allMatched = rawCampaignList.filter(c => c.visitDate === dateStr || (c.deadlineDate === dateStr && c.status !== '신청'));
+
+        dayCell.innerHTML = html;
+        dayCell.onclick = () => openDayModal(dateStr, allMatched);
+        calGrid.appendChild(dayCell);
+      }
+    }
+
+    window.openDayModal = function(dateStr, items) {
+      document.getElementById('modalDateTitle').innerText = `${dateStr} 일정 상세`;
+      const modalList = document.getElementById('modalItemList');
+      modalList.innerHTML = '';
+
+      if (items.length === 0) {
+        modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal">등록된 일정이 없습니다.</div>';
+      } else {
+        const sortedItems = [...items].sort((a, b) => {
+          const timeA = a.visitTime || '23:59';
+          const timeB = b.visitTime || '23:59';
+          return timeA.localeCompare(timeB);
+        });
+
+        sortedItems.forEach(item => {
+          const isVisit = item.visitDate === dateStr;
+          const div = document.createElement('div');
+          div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
+          div.onclick = () => openDetailItemModal(item.id);
+
+          const timeBadge = (isVisit && item.visitTime) ? `<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-normal">${item.visitTime}</span>` : '';
+
+          div.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-1.5">
+                ${timeBadge}
+                <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+              </div>
+              <span class="text-xs font-bold text-gray-400">${item.platformName || '개별'}</span>
+            </div>
+            ${item.memo ? `<div class="pt-1.5 text-gray-600 text-[11px] font-bold">비고: ${item.memo}</div>` : ''}
+          `;
+          modalList.appendChild(div);
+        });
+      }
+
+      document.getElementById('dayModal')?.classList.remove('hidden');
+    };
+
+    function renderUpcomingDeadlines() {
+      const container = document.getElementById('upcomingList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      let deadlineList = rawCampaignList.filter(c => {
+        if (!c.deadlineDate || c.status === '제출' || c.status === '완료' || c.status === '신청') return false;
+        const parts = c.deadlineDate.split('-');
+        return parts.length === 3 && !isNaN(new Date(c.deadlineDate).getTime());
+      }).map(c => {
+        const dDate = new Date(c.deadlineDate);
+        dDate.setHours(0,0,0,0);
+        const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
+        return { ...c, diffDays };
+      }).filter(c => c.diffDays <= deadlineAlertDays).sort((a, b) => a.diffDays - b.diffDays);
+
+      if (deadlineList.length === 0) {
+        container.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center font-normal">마감 임박 (${deadlineAlertDays}일 이내) 일정이 없습니다.</div>`;
+        return;
+      }
+
+      deadlineList.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition';
+        card.onclick = () => openDetailItemModal(item.id);
+
+        let dText = `D-${item.diffDays}`;
+        if (item.diffDays < 0) dText = `지연 (D+${Math.abs(item.diffDays)})`;
+        else if (item.diffDays === 0) dText = '오늘 마감';
+
+        card.innerHTML = `
+          <div>
+            <span class="font-bold text-gray-900">${item.storeName}</span>
+            <span class="text-[11px] text-gray-400 ml-1.5 font-normal">(${formatShortDate(item.deadlineDate)})</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-bold">${dText}</span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderAllScheduledVisits() {
+      const visitContainer = document.getElementById('scheduledVisitList');
+      const unscheduledContainer = document.getElementById('unscheduledVisitList');
+      
+      if (!visitContainer || !unscheduledContainer) return;
+
+      visitContainer.innerHTML = '';
+      unscheduledContainer.innerHTML = '';
 
       const now = new Date();
 
-      monthlyCampaigns.forEach(item => {
-        const st = item.status;
-        if (st === '선정' || st === '배송' || st === '원고료') {
-          if (st === '선정' && !item.visitDate) {
-            cntSelect++;
-            cntVisitWait++;
-          } else if (st === '배송' || st === '원고료') {
-            cntSelect++;
-          } else if (st === '선정' && item.visitDate) {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            const vTime = new Date(visitDateTimeStr);
-            if (vTime >= now) {
-              cntVisitPlan++;
-            }
-          }
-        }
-        else if (st === '미제출') cntSubmitWait++;
-        else if (st === '방문') cntSubmitWait++;
-        else if (st === '제출' || st === '완료') cntSubmitDone++;
+      const scheduledItems = rawCampaignList.filter(c => {
+        if (!c.visitDate || c.status === '방문' || c.status === '제출' || c.status === '완료') return false;
+        const vTimeStr = c.visitTime || '23:59';
+        const visitDateTime = new Date(`${c.visitDate}T${vTimeStr}:00`);
+        return visitDateTime >= now;
+      }).sort((a, b) => {
+        const keyA = `${a.visitDate} ${a.visitTime || '00:00'}`;
+        const keyB = `${b.visitDate} ${b.visitTime || '00:00'}`;
+        return keyA.localeCompare(keyB);
       });
 
-      const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-      setTxt('cntSelect', cntSelect + '건');
-      setTxt('cntVisitWait', cntVisitWait + '건');
-      setTxt('cntVisitPlan', cntVisitPlan + '건');
-      setTxt('cntSubmitWait', cntSubmitWait + '건');
-      setTxt('cntSubmitDone', cntSubmitDone + '건');
+      if (scheduledItems.length === 0) {
+        visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">예정된 방문 일정이 없습니다.</div>';
+      } else {
+        scheduledItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 space-y-0.5 text-xs cursor-pointer hover:border-theme transition';
+          div.onclick = () => openDetailItemModal(item.id);
 
-      renderCalendar(year, month);
-      renderUpcomingDeadlines();
-      renderAllScheduledVisits();
+          const timeText = item.visitTime ? ` (${item.visitTime})` : '';
+          const dateFormatted = `${formatShortDate(item.visitDate)}${timeText}`;
+          const companionHtml = item.companions ? `<span class="text-[11px] text-gray-400 font-normal">${item.companions}</span>` : '';
+
+          div.innerHTML = `
+            <div class="flex justify-between items-center text-gray-600 font-normal">
+              <span>${dateFormatted}</span>
+              ${companionHtml}
+            </div>
+            <div class="font-bold text-gray-900 text-sm truncate">${item.storeName}</div>
+          `;
+          visitContainer.appendChild(div);
+        });
+      }
+
+      const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
+
+      if (unscheduledItems.length === 0) {
+        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">일정 미지정 항목이 없습니다.</div>';
+      } else {
+        unscheduledItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition';
+          div.onclick = () => openDetailItemModal(item.id);
+
+          div.innerHTML = `
+            <div class="truncate mr-2">
+              <span class="font-bold text-gray-900">${item.storeName}</span>
+              <span class="text-[11px] text-gray-400 ml-1 font-normal">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
+            </div>
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
+          `;
+          unscheduledContainer.appendChild(div);
+        });
+      }
     }
 
-    function renderSettlementView() {
-      // 3분할 뼈대
-    }
+    window.openDetailItemModal = function(id) {
+      const item = rawCampaignList.find(c => c.id === id);
+      if (!item) return;
+
+      const visitFormatted = item.visitDate ? `${item.visitDate}${item.visitTime ? ` (${item.visitTime})` : ''}` : '미정';
+
+      document.getElementById('modalDateTitle').innerText = `${item.storeName} 상세 정보`;
+      const modalList = document.getElementById('modalItemList');
+      modalList.innerHTML = `
+        <div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm">
+          <div class="flex justify-between items-center border-b pb-2">
+            <span class="text-sm font-bold text-gray-900">${item.storeName}</span>
+            <span class="${getStatusTextClass(item.status)} font-bold">${displayStatusName(item.status)}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-gray-600">
+            <div>체험단 사이트: <span class="font-bold text-gray-800">${item.platformName || '-'}</span></div>
+            <div>신청일: <span class="font-bold text-gray-800">${item.applyDate || '-'}</span></div>
+            <div>방문일시: <span class="font-bold text-gray-800">${visitFormatted}</span></div>
+            <div>포스팅 마감일: <span class="font-bold text-gray-800">${item.deadlineDate || '미정'}</span></div>
+            <div>제공금액: <span class="font-bold text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div>
+            <div>동반인원: <span class="font-bold text-gray-800">${item.companions || '없음'}</span></div>
+            <div>결제금액: <span class="font-bold text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
+            <div>실수익·원고료: <span class="font-bold text-gray-800">${formatRevenueDisplay(item.revenue || 0)}</span></div>
+          </div>
+          
+          <div class="pt-2 border-t text-gray-600 space-y-1">
+            <div>업체 연락처: <span class="font-bold text-gray-800">${item.contact || '없음'}</span></div>
+            <div class="pt-0.5 text-gray-600">비고: <span class="font-bold text-gray-800">${item.memo || '없음'}</span></div>
+          </div>
+          
+          ${!isReadOnly ? `
+            <div class="flex gap-2 pt-2">
+              <button onclick="document.getElementById('dayModal').classList.add('hidden'); openEditModalFromId('${item.id}');" class="flex-1 bg-theme text-white py-2.5 rounded-xl font-bold">수정하기</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('dayModal')?.classList.remove('hidden');
+    };
 
     window.setListSubTab = function(type) {
       listSubTab = type;
@@ -916,11 +1233,7 @@
     window.toggleBatchEdit = function() {
       if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
       isBatchEditing = !isBatchEditing;
-      if (isBatchEditing) {
-        newBatchRows = []; 
-      } else {
-        newBatchRows = [];
-      }
+      newBatchRows = [];
       filterAndRender();
     };
 
@@ -932,10 +1245,6 @@
     window.removeNewBatchRow = function(index) {
       newBatchRows.splice(index, 1);
       filterAndRender();
-    };
-
-    window.toggleTimeInput = function(id) {
-      openEditModalFromId(id);
     };
 
     window.toggleNewRowTimeInput = function(idx) {
@@ -1087,270 +1396,274 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 목록 렌더링 (신규 추가 행 연한 회색 배경 bg-gray-50/80 적용, 드롭다운 중앙 정렬 select-center)
+    // 체험단 목록 렌더링 (안전 가드 및 디자인 보정)
     function filterAndRender() {
-      const tableBody = document.getElementById('campaignTableBody');
-      const cardList = document.getElementById('campaignCardList');
-      const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
-      const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
-      const filterYear = document.getElementById('filterYear')?.value || 'ALL';
-      const filterMonth = document.getElementById('filterMonth')?.value || 'ALL';
-      const batchBtn = document.getElementById('batchEditBtn');
+      try {
+        const tableBody = document.getElementById('campaignTableBody');
+        const cardList = document.getElementById('campaignCardList');
+        const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
+        const filterYear = document.getElementById('filterYear')?.value || 'ALL';
+        const filterMonth = document.getElementById('filterMonth')?.value || 'ALL';
+        const batchBtn = document.getElementById('batchEditBtn');
 
-      if (batchBtn) {
-        if (isBatchEditing) {
-          batchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition mr-2";
-          batchBtn.innerText = "취소";
-          document.getElementById('saveBatchBtn')?.classList.remove('hidden');
-        } else {
-          batchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition hover:bg-theme-hover mr-2";
-          batchBtn.innerText = "수정";
-          document.getElementById('saveBatchBtn')?.classList.add('hidden');
-        }
-      }
-
-      let filteredList = rawCampaignList.filter(item => {
-        const isCompleted = (item.status === '제출' || item.status === '완료');
-        if (listSubTab === 'ongoing' && isCompleted) return false;
-        if (listSubTab === 'submitted' && !isCompleted) return false;
-
-        const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
-                            (item.platformName || '').toLowerCase().includes(searchText);
-        const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
-
-        const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
-        let matchesYear = true;
-        let matchesMonth = true;
-
-        if (refDate && refDate.length >= 7) {
-          const y = refDate.slice(0, 4);
-          const m = String(Number(refDate.slice(5, 7)));
-          if (filterYear !== 'ALL' && y !== filterYear) matchesYear = false;
-          if (filterMonth !== 'ALL' && m !== filterMonth) matchesMonth = false;
-        } else if (filterYear !== 'ALL' || filterMonth !== 'ALL') {
-          matchesYear = false;
+        if (batchBtn) {
+          if (isBatchEditing) {
+            batchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition mr-2";
+            batchBtn.innerText = "취소";
+            document.getElementById('saveBatchBtn')?.classList.remove('hidden');
+          } else {
+            batchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition hover:bg-theme-hover mr-2";
+            batchBtn.innerText = "수정";
+            document.getElementById('saveBatchBtn')?.classList.add('hidden');
+          }
         }
 
-        return matchesName && matchesStatus && matchesYear && matchesMonth;
-      });
+        let filteredList = rawCampaignList.filter(item => {
+          const isCompleted = (item.status === '제출' || item.status === '완료');
+          if (listSubTab === 'ongoing' && isCompleted) return false;
+          if (listSubTab === 'submitted' && !isCompleted) return false;
 
-      filteredList.sort((a, b) => {
-        let valA = a[sortColumn] || '';
-        let valB = b[sortColumn] || '';
+          const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
+                              (item.platformName || '').toLowerCase().includes(searchText);
+          const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
 
-        if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) {
-          valA = Number(valA) || 0;
-          valB = Number(valB) || 0;
-        }
+          const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
+          let matchesYear = true;
+          let matchesMonth = true;
 
-        if (valA < valB) return sortAsc ? -1 : 1;
-        if (valA > valB) return sortAsc ? 1 : -1;
-        return 0;
-      });
+          if (refDate && refDate.length >= 7) {
+            const y = refDate.slice(0, 4);
+            const m = String(Number(refDate.slice(5, 7)));
+            if (filterYear !== 'ALL' && y !== filterYear) matchesYear = false;
+            if (filterMonth !== 'ALL' && m !== filterMonth) matchesMonth = false;
+          } else if (filterYear !== 'ALL' || filterMonth !== 'ALL') {
+            matchesYear = false;
+          }
 
-      const thead = document.querySelector('#sectionList table thead tr');
-      if (thead) {
-        thead.innerHTML = `
-          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
-          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
-          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
-          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-36">방문일 ${getSortIndicator('visitDate')}</th>
-          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
-          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">결제금액 ${getSortIndicator('paidAmount')}</th>
-          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">실수익 ${getSortIndicator('revenue')}</th>
-          <th class="p-3 font-bold text-xs text-center w-16">비고</th>
-        `;
-      }
-
-      tableBody.innerHTML = '';
-      cardList.innerHTML = '';
-
-      filteredList.forEach((item) => {
-        const isCompleted = (item.status === '제출' || item.status === '완료');
-        const sponsored = Number(item.sponsoredAmount || 0);
-        const paid = Number(item.paidAmount || 0);
-        const inputRev = Number(item.revenue || 0);
-
-        let calcRevenue = 0;
-        if (paid === 0) {
-          calcRevenue = sponsored > 0 ? sponsored : inputRev;
-        } else {
-          calcRevenue = (sponsored - paid) + inputRev;
-        }
-
-        let revDisplayHtml = '';
-        if (isCompleted) {
-          revDisplayHtml = `<span class="font-normal text-gray-900">${formatRevenueDisplay(calcRevenue)}</span>`;
-        } else {
-          revDisplayHtml = `<span class="font-normal text-gray-400">${formatRevenueDisplay(calcRevenue)} (예상)</span>`;
-        }
-
-        if (isBatchEditing) {
-          const row = document.createElement('tr');
-          row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
-          row.innerHTML = `
-            <td class="p-2 text-left">
-              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
-            </td>
-            <td class="p-2 text-center">
-              <select id="batch_status_${item.id}" class="select-center w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
-                <option value="신청" ${item.status === '신청' ? 'selected' : ''}>신청</option>
-                <option value="선정" ${item.status === '선정' ? 'selected' : ''}>선정</option>
-                <option value="방문" ${item.status === '방문' ? 'selected' : ''}>방문</option>
-                <option value="미제출" ${item.status === '미제출' ? 'selected' : ''}>미제출</option>
-                <option value="제출" ${item.status === '제출' ? 'selected' : ''}>제출</option>
-                <option value="배송" ${item.status === '배송' ? 'selected' : ''}>배송</option>
-                <option value="원고료" ${item.status === '원고료' ? 'selected' : ''}>원고료</option>
-              </select>
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
-            </td>
-            <td class="p-2 text-center">
-              <div class="flex items-center gap-1 justify-center">
-                <input type="date" id="batch_visitDate_${item.id}" value="${item.visitDate || ''}" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24">
-                <button type="button" onclick="openEditModalFromId('${item.id}')" class="p-1 text-gray-500 hover:text-theme transition" title="시간/세부 정보 수정">🕒</button>
-              </div>
-              <input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}">
-            </td>
-            <td class="p-2 text-center">
-              <input type="date" id="batch_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-full border p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
-            </td>
-            <td class="p-2 text-center font-bold text-gray-700">
-              ${formatRevenueDisplay(calcRevenue)}
-            </td>
-            <td class="p-2 text-center">
-              <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-500 text-white hover:bg-rose-600 px-2 py-1 rounded-lg font-bold shadow-sm">삭제</button>
-            </td>
-          `;
-          tableBody.appendChild(row);
-        } else {
-          let noteBadge = isCompleted 
-            ? `<span class="text-gray-900 font-normal">정산완료</span>`
-            : `<span class="text-gray-400 font-normal">미정산</span>`;
-
-          const statusSelectHtml = `
-            <select onchange="quickUpdateStatus('${item.id}', this.value)" class="select-center border-0 bg-transparent text-xs font-bold ${getStatusTextClass(item.status)} outline-none cursor-pointer text-center">
-              <option value="신청" ${item.status === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
-              <option value="선정" ${item.status === '선정' ? 'selected' : ''} class="text-gray-800 font-normal">선정</option>
-              <option value="방문" ${item.status === '방문' ? 'selected' : ''} class="text-gray-800 font-normal">방문</option>
-              <option value="미제출" ${item.status === '미제출' ? 'selected' : ''} class="text-gray-800 font-normal">미제출</option>
-              <option value="제출" ${item.status === '제출' ? 'selected' : ''} class="text-gray-800 font-normal">제출</option>
-              <option value="배송" ${item.status === '배송' ? 'selected' : ''} class="text-gray-800 font-normal">배송</option>
-              <option value="원고료" ${item.status === '원고료' ? 'selected' : ''} class="text-gray-800 font-normal">원고료</option>
-            </select>
-          `;
-
-          const row = document.createElement('tr');
-          row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
-          row.innerHTML = `
-            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
-            <td class="p-3 text-xs text-center">${statusSelectHtml}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal text-center">${item.platformName || '-'}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.visitDate)}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.deadlineDate)}</td>
-            <td class="p-3 text-gray-900 text-xs font-normal text-center">${sponsored.toLocaleString()}원</td>
-            <td class="p-3 text-gray-900 text-xs font-normal text-center">${paid.toLocaleString()}원</td>
-            <td class="p-3 text-xs font-normal text-center">${revDisplayHtml}</td>
-            <td class="p-3 text-xs font-normal text-center">${noteBadge}</td>
-          `;
-          tableBody.appendChild(row);
-        }
-
-        const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-xs text-gray-900';
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <span class="${getStatusTextClass(item.status)} text-xs mr-1.5 font-normal">${displayStatusName(item.status)}</span>
-              <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
-              <h3 class="font-bold text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
-            </div>
-            <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? formatRevenueDisplay(calcRevenue) : `${formatRevenueDisplay(calcRevenue)}(예상)`}</span>
-          </div>
-          <div class="text-xs text-gray-800 space-y-0.5 font-normal">
-            <div>방문일: ${formatShortDate(item.visitDate)} | 마감일: <span class="font-normal text-gray-900">${formatShortDate(item.deadlineDate)}</span></div>
-            <div>동반인원: <span class="font-normal text-gray-900">${item.companions || '없음'}</span></div>
-          </div>
-        `;
-        cardList.appendChild(card);
-      });
-
-      // 일괄 수정 모드 시 하단 신규 등록 입력 행 렌더링 (연한 회색 배경 bg-gray-50/80 적용)
-      if (isBatchEditing) {
-        newBatchRows.forEach((row, idx) => {
-          const newRow = document.createElement('tr');
-          newRow.className = 'bg-gray-50/80 border-b border-gray-200 text-xs text-gray-900';
-          const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
-
-          newRow.innerHTML = `
-            <td class="p-2 text-left">
-              <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-bold focus:border-theme">
-            </td>
-            <td class="p-2 text-center">
-              <select id="new_batch_status_${idx}" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
-                <option value="신청" ${defaultStatus === '신청' ? 'selected' : ''}>신청</option>
-                <option value="선정" ${defaultStatus === '선정' ? 'selected' : ''}>선정</option>
-                <option value="방문" ${defaultStatus === '방문' ? 'selected' : ''}>방문</option>
-                <option value="미제출" ${defaultStatus === '미제출' ? 'selected' : ''}>미제출</option>
-                <option value="제출" ${defaultStatus === '제출' ? 'selected' : ''}>제출</option>
-                <option value="배송" ${defaultStatus === '배송' ? 'selected' : ''}>배송</option>
-                <option value="원고료" ${defaultStatus === '원고료' ? 'selected' : ''}>원고료</option>
-              </select>
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="new_batch_platform_${idx}" placeholder="사이트" value="개별" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
-            </td>
-            <td class="p-2 text-center">
-              <div class="flex items-center gap-1 justify-center">
-                <input type="date" id="new_batch_visitDate_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24 focus:border-theme">
-                <button type="button" onclick="toggleNewRowTimeInput(${idx})" class="p-1 text-gray-500 hover:text-gray-800 transition" title="시간 설정">🕒</button>
-              </div>
-              <div id="newTimeContainer_${idx}" class="hidden mt-1">
-                <input type="time" id="new_batch_visitTime_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-20 focus:border-theme">
-              </div>
-            </td>
-            <td class="p-2 text-center">
-              <input type="date" id="new_batch_deadlineDate_${idx}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal focus:border-theme">
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
-            </td>
-            <td class="p-2 text-center">
-              <input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
-            </td>
-            <td class="p-2 text-center font-bold text-gray-400">
-              자동계산
-            </td>
-            <td class="p-2 text-center">
-              <button onclick="removeNewBatchRow(${idx})" class="text-xs bg-gray-400 text-white hover:bg-gray-500 px-2 py-1 rounded-lg font-bold shadow-sm">취소</button>
-            </td>
-          `;
-          tableBody.appendChild(newRow);
+          return matchesName && matchesStatus && matchesYear && matchesMonth;
         });
 
-        const addBtnRow = document.createElement('tr');
-        addBtnRow.innerHTML = `
-          <td colspan="9" class="p-3 text-center bg-gray-50/80">
-            <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
-              + 새 체험 추가
-            </button>
-          </td>
-        `;
-        tableBody.appendChild(addBtnRow);
-      }
+        filteredList.sort((a, b) => {
+          let valA = a[sortColumn] || '';
+          let valB = b[sortColumn] || '';
 
-      if (filteredList.length === 0 && !isBatchEditing) {
-        const emptyMsg = '<div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
-        tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
-        cardList.innerHTML = emptyMsg;
+          if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) {
+            valA = Number(valA) || 0;
+            valB = Number(valB) || 0;
+          }
+
+          if (valA < valB) return sortAsc ? -1 : 1;
+          if (valA > valB) return sortAsc ? 1 : -1;
+          return 0;
+        });
+
+        const thead = document.querySelector('#sectionList table thead tr');
+        if (thead) {
+          thead.innerHTML = `
+            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
+            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
+            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
+            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-36">방문일 ${getSortIndicator('visitDate')}</th>
+            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
+            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">결제금액 ${getSortIndicator('paidAmount')}</th>
+            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">실수익 ${getSortIndicator('revenue')}</th>
+            <th class="p-3 font-bold text-xs text-center w-16">비고</th>
+          `;
+        }
+
+        if (tableBody) tableBody.innerHTML = '';
+        if (cardList) cardList.innerHTML = '';
+
+        filteredList.forEach((item) => {
+          const isCompleted = (item.status === '제출' || item.status === '완료');
+          const sponsored = Number(item.sponsoredAmount || 0);
+          const paid = Number(item.paidAmount || 0);
+          const inputRev = Number(item.revenue || 0);
+
+          let calcRevenue = 0;
+          if (paid === 0) {
+            calcRevenue = sponsored > 0 ? sponsored : inputRev;
+          } else {
+            calcRevenue = (sponsored - paid) + inputRev;
+          }
+
+          let revDisplayHtml = '';
+          if (isCompleted) {
+            revDisplayHtml = `<span class="font-normal text-gray-900">${formatRevenueDisplay(calcRevenue)}</span>`;
+          } else {
+            revDisplayHtml = `<span class="font-normal text-gray-400">${formatRevenueDisplay(calcRevenue)} (예상)</span>`;
+          }
+
+          if (isBatchEditing) {
+            const row = document.createElement('tr');
+            row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
+            row.innerHTML = `
+              <td class="p-2 text-left">
+                <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
+              </td>
+              <td class="p-2 text-center">
+                <select id="batch_status_${item.id}" class="select-center w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                  <option value="신청" ${item.status === '신청' ? 'selected' : ''}>신청</option>
+                  <option value="선정" ${item.status === '선정' ? 'selected' : ''}>선정</option>
+                  <option value="방문" ${item.status === '방문' ? 'selected' : ''}>방문</option>
+                  <option value="미제출" ${item.status === '미제출' ? 'selected' : ''}>미제출</option>
+                  <option value="제출" ${item.status === '제출' ? 'selected' : ''}>제출</option>
+                  <option value="배송" ${item.status === '배송' ? 'selected' : ''}>배송</option>
+                  <option value="원고료" ${item.status === '원고료' ? 'selected' : ''}>원고료</option>
+                </select>
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+              </td>
+              <td class="p-2 text-center">
+                <div class="flex items-center gap-1 justify-center">
+                  <input type="date" id="batch_visitDate_${item.id}" value="${item.visitDate || ''}" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24">
+                  <button type="button" onclick="openEditModalFromId('${item.id}')" class="p-1 text-gray-500 hover:text-theme transition" title="시간/세부 정보 수정">🕒</button>
+                </div>
+                <input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}">
+              </td>
+              <td class="p-2 text-center">
+                <input type="date" id="batch_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-full border p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+              </td>
+              <td class="p-2 text-center font-bold text-gray-700">
+                ${formatRevenueDisplay(calcRevenue)}
+              </td>
+              <td class="p-2 text-center">
+                <button onclick="deleteCampaign('${item.id}')" class="text-xs bg-rose-500 text-white hover:bg-rose-600 px-2 py-1 rounded-lg font-bold shadow-sm">삭제</button>
+              </td>
+            `;
+            tableBody?.appendChild(row);
+          } else {
+            let noteBadge = isCompleted 
+              ? `<span class="text-gray-900 font-normal">정산완료</span>`
+              : `<span class="text-gray-400 font-normal">미정산</span>`;
+
+            const statusSelectHtml = `
+              <select onchange="quickUpdateStatus('${item.id}', this.value)" class="select-center border-0 bg-transparent text-xs font-bold ${getStatusTextClass(item.status)} outline-none cursor-pointer text-center">
+                <option value="신청" ${item.status === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
+                <option value="선정" ${item.status === '선정' ? 'selected' : ''} class="text-gray-800 font-normal">선정</option>
+                <option value="방문" ${item.status === '방문' ? 'selected' : ''} class="text-gray-800 font-normal">방문</option>
+                <option value="미제출" ${item.status === '미제출' ? 'selected' : ''} class="text-gray-800 font-normal">미제출</option>
+                <option value="제출" ${item.status === '제출' ? 'selected' : ''} class="text-gray-800 font-normal">제출</option>
+                <option value="배송" ${item.status === '배송' ? 'selected' : ''} class="text-gray-800 font-normal">배송</option>
+                <option value="원고료" ${item.status === '원고료' ? 'selected' : ''} class="text-gray-800 font-normal">원고료</option>
+              </select>
+            `;
+
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
+            row.innerHTML = `
+              <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+              <td class="p-3 text-xs text-center">${statusSelectHtml}</td>
+              <td class="p-3 text-gray-900 text-xs font-normal text-center">${item.platformName || '-'}</td>
+              <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.visitDate)}</td>
+              <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.deadlineDate)}</td>
+              <td class="p-3 text-gray-900 text-xs font-normal text-center">${sponsored.toLocaleString()}원</td>
+              <td class="p-3 text-gray-900 text-xs font-normal text-center">${paid.toLocaleString()}원</td>
+              <td class="p-3 text-xs font-normal text-center">${revDisplayHtml}</td>
+              <td class="p-3 text-xs font-normal text-center">${noteBadge}</td>
+            `;
+            tableBody?.appendChild(row);
+          }
+
+          const card = document.createElement('div');
+          card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-xs text-gray-900';
+          card.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="${getStatusTextClass(item.status)} text-xs mr-1.5 font-normal">${displayStatusName(item.status)}</span>
+                <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
+                <h3 class="font-bold text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+              </div>
+              <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? formatRevenueDisplay(calcRevenue) : `${formatRevenueDisplay(calcRevenue)}(예상)`}</span>
+            </div>
+            <div class="text-xs text-gray-800 space-y-0.5 font-normal">
+              <div>방문일: ${formatShortDate(item.visitDate)} | 마감일: <span class="font-normal text-gray-900">${formatShortDate(item.deadlineDate)}</span></div>
+              <div>동반인원: <span class="font-normal text-gray-900">${item.companions || '없음'}</span></div>
+            </div>
+          `;
+          cardList?.appendChild(card);
+        });
+
+        // 일괄 수정 모드 시 하단 신규 등록 입력 행 렌더링 (연한 회색 배경 bg-gray-50/80 적용)
+        if (isBatchEditing) {
+          newBatchRows.forEach((row, idx) => {
+            const newRow = document.createElement('tr');
+            newRow.className = 'bg-gray-50/80 border-b border-gray-200 text-xs text-gray-900';
+            const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
+
+            newRow.innerHTML = `
+              <td class="p-2 text-left">
+                <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-bold focus:border-theme">
+              </td>
+              <td class="p-2 text-center">
+                <select id="new_batch_status_${idx}" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
+                  <option value="신청" ${defaultStatus === '신청' ? 'selected' : ''}>신청</option>
+                  <option value="선정" ${defaultStatus === '선정' ? 'selected' : ''}>선정</option>
+                  <option value="방문" ${defaultStatus === '방문' ? 'selected' : ''}>방문</option>
+                  <option value="미제출" ${defaultStatus === '미제출' ? 'selected' : ''}>미제출</option>
+                  <option value="제출" ${defaultStatus === '제출' ? 'selected' : ''}>제출</option>
+                  <option value="배송" ${defaultStatus === '배송' ? 'selected' : ''}>배송</option>
+                  <option value="원고료" ${defaultStatus === '원고료' ? 'selected' : ''}>원고료</option>
+                </select>
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="new_batch_platform_${idx}" placeholder="사이트" value="개별" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
+              </td>
+              <td class="p-2 text-center">
+                <div class="flex items-center gap-1 justify-center">
+                  <input type="date" id="new_batch_visitDate_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24 focus:border-theme">
+                  <button type="button" onclick="toggleNewRowTimeInput(${idx})" class="p-1 text-gray-500 hover:text-gray-800 transition" title="시간 설정">🕒</button>
+                </div>
+                <div id="newTimeContainer_${idx}" class="hidden mt-1">
+                  <input type="time" id="new_batch_visitTime_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-20 focus:border-theme">
+                </div>
+              </td>
+              <td class="p-2 text-center">
+                <input type="date" id="new_batch_deadlineDate_${idx}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal focus:border-theme">
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
+              </td>
+              <td class="p-2 text-center">
+                <input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
+              </td>
+              <td class="p-2 text-center font-bold text-gray-400">
+                자동계산
+              </td>
+              <td class="p-2 text-center">
+                <button onclick="removeNewBatchRow(${idx})" class="text-xs bg-gray-400 text-white hover:bg-gray-500 px-2 py-1 rounded-lg font-bold shadow-sm">취소</button>
+              </td>
+            `;
+            tableBody?.appendChild(newRow);
+          });
+
+          const addBtnRow = document.createElement('tr');
+          addBtnRow.innerHTML = `
+            <td colspan="9" class="p-3 text-center bg-gray-50/80">
+              <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                + 새 체험 추가
+              </button>
+            </td>
+          `;
+          tableBody?.appendChild(addBtnRow);
+        }
+
+        if (filteredList.length === 0 && !isBatchEditing) {
+          const emptyMsg = '<div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
+          if (tableBody) tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
+          if (cardList) cardList.innerHTML = emptyMsg;
+        }
+      } catch (err) {
+        console.error("목록 렌더링 안전 무시:", err);
       }
     }
 
@@ -1969,8 +2282,8 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
