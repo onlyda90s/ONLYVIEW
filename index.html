@@ -46,11 +46,12 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
+    /* 상태 드롭다운 화살표 간격 및 중앙정렬 스타일 */
     select.select-center {
       text-align: center;
       text-align-last: center;
-      padding-right: 1.25rem !important;
-      padding-left: 0.5rem !important;
+      padding-right: 1.25rem !important; /* 20px 화살표 여백 */
+      padding-left: 0.5rem !important;   /* 8px 좌측 여백 */
     }
   </style>
 </head>
@@ -837,7 +838,6 @@
       }
     }
 
-    // 대시보드 렌더링 (전체 데이터 기반 연월 비교 안전화)
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
@@ -847,7 +847,6 @@
 
         const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
-        // 전체 rawCampaignList 기반으로 해당 월 데이터 완벽 필터링
         const monthlyCampaigns = rawCampaignList.filter(item => {
           const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
           const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
@@ -900,7 +899,7 @@
     }
 
     function renderSettlementView() {
-      // 3분할 뼈대
+      // 1:1 2분할 뼈대
     }
 
     window.openCounterListModal = function(counterType, titleName) {
@@ -1396,7 +1395,6 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 체험단 목록 렌더링 (안전 가드 및 디자인 보정)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -1593,7 +1591,6 @@
           cardList?.appendChild(card);
         });
 
-        // 일괄 수정 모드 시 하단 신규 등록 입력 행 렌더링 (연한 회색 배경 bg-gray-50/80 적용)
         if (isBatchEditing) {
           newBatchRows.forEach((row, idx) => {
             const newRow = document.createElement('tr');
@@ -1663,7 +1660,7 @@
           if (cardList) cardList.innerHTML = emptyMsg;
         }
       } catch (err) {
-        console.error("목록 렌더링 안전 무시:", err);
+        console.error("목록 렌더링 예외 처리:", err);
       }
     }
 
@@ -2114,8 +2111,8 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
-      <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-1">
+      <!-- 4. 체험단 정산 탭 (1:1 2단 분할 레이아웃 안전 영역) -->
+      <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
@@ -2125,38 +2122,32 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+        <!-- 1줄: 1:1 2단 레이아웃 박스 (우측 pr-2 여백 확보) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <!-- 좌측 1/2 박스: 도넛 차트 구역 -->
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[180px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">🍩 1년 실수익 비중</span>
               <span class="text-[10px] text-gray-400">실수익 vs 예상수익</span>
             </div>
-            <div class="flex items-center justify-center py-4 text-xs text-gray-400 font-normal">
+            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
               [도넛 차트 구역 - 실수익(회색) / 예상수익(테마색)]
             </div>
           </div>
 
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+          <!-- 우측 1/2 박스: 월별 실수익 추이 구역 -->
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[180px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">📊 월별 실수익 추이</span>
               <span class="text-[10px] text-gray-400">매월 총 실수익 합계</span>
             </div>
-            <div class="flex items-center justify-center py-4 text-xs text-gray-400 font-normal">
+            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
               [월별 막대/선형 그래프 구역]
-            </div>
-          </div>
-
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
-            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
-              <span class="text-xs font-bold text-gray-800">📈 체험단 진행 횟수</span>
-              <span class="text-[10px] text-gray-400">월별 완료 / 사이트 분포</span>
-            </div>
-            <div class="flex items-center justify-center py-4 text-xs text-gray-400 font-normal">
-              [완료 횟수 및 사이트별 통계 구역]
             </div>
           </div>
         </div>
 
+        <!-- 2줄: 세부 정산 완료 명단 구역 -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
             <span>💵 세부 정산 완료 명단</span>
@@ -2282,7 +2273,7 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
