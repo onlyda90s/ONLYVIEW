@@ -46,12 +46,12 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
-    /* 상태 드롭다운 세부 수치 세밀 조정 (화살표 간격 40% 축소 0.75rem, 좌측 여백 0.1rem) */
+    /* 요청된 세부 수치 전격 반영 (화살표 간격 0.25rem, 좌측 여백 0.05rem) */
     select.select-center {
       text-align: center;
       text-align-last: center;
-      padding-right: 0.75rem !important; /* 40% 줄인 화살표 간격 */
-      padding-left: 0.1rem !important;  /* 요청하신 왼쪽 여백 0.1rem */
+      padding-right: 0.25rem !important; /* 텍스트와 화살표 간격 0.25rem */
+      padding-left: 0.05rem !important;  /* 드롭박스 세부 수치 0.05rem */
     }
   </style>
 </head>
@@ -899,7 +899,7 @@
     }
 
     function renderSettlementView() {
-      // 정산 3줄 레이아웃 연동
+      // 정산 3줄 2분할 뼈대
     }
 
     window.openCounterListModal = function(counterType, titleName) {
@@ -2111,7 +2111,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (1:1 2단 분할 레이아웃 안전 영역) -->
+      <!-- 4. 체험단 정산 탭 (3줄 2분할 레이아웃 구역) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2122,39 +2122,70 @@
           </div>
         </div>
 
-        <!-- 1줄: 1:1 2단 레이아웃 박스 -->
+        <!-- 1줄: 연간 수익 / 월간 수익 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          <!-- 좌측 1/2 박스: 도넛 차트 구역 -->
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[180px]">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
-              <span class="text-xs font-bold text-gray-800">🍩 1년 실수익 비중</span>
+              <span class="text-xs font-bold text-gray-800">🍩 연간 수익</span>
               <span class="text-[10px] text-gray-400">실수익 vs 예상수익</span>
             </div>
             <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
-              [도넛 차트 구역 - 실수익(회색) / 예상수익(테마색)]
+              [연간 수익 구역]
             </div>
           </div>
 
-          <!-- 우측 1/2 박스: 월별 실수익 추이 구역 -->
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[180px]">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
-              <span class="text-xs font-bold text-gray-800">📊 월별 실수익 추이</span>
+              <span class="text-xs font-bold text-gray-800">📊 월간 수익</span>
               <span class="text-[10px] text-gray-400">매월 총 실수익 합계</span>
             </div>
             <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
-              [월별 막대/선형 그래프 구역]
+              [월간 수익 구역]
             </div>
           </div>
         </div>
 
-        <!-- 2줄: 세부 정산 완료 명단 구역 -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-          <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
-            <span>💵 세부 정산 완료 명단</span>
-            <span class="text-[11px] text-gray-400 font-normal">월별 상세 내역</span>
+        <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
+              <span class="text-xs font-bold text-gray-800">🏆 플랫폼 분석</span>
+              <span class="text-[10px] text-gray-400">사이트별 진행 현황</span>
+            </div>
+            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
+              [플랫폼 분석 구역]
+            </div>
           </div>
-          <div class="text-center py-8 text-xs text-gray-400 font-normal">
-            하단 세부 정산 내역 영역 준비 완료
+
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
+              <span class="text-xs font-bold text-gray-800">📈 월간 분석</span>
+              <span class="text-[10px] text-gray-400">월별 방문 및 활동 분석</span>
+            </div>
+            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal">
+              [월간 분석 구역]
+            </div>
+          </div>
+        </div>
+
+        <!-- 3줄: 월간 세부 내역 (2분할) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3 min-h-[160px]">
+            <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
+              <span>💵 월간 세부 내역 (홀수달)</span>
+            </div>
+            <div class="text-center py-6 text-xs text-gray-400 font-normal">
+              [홀수달 내역 구역]
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3 min-h-[160px]">
+            <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
+              <span>💵 월간 세부 내역 (짝수달)</span>
+            </div>
+            <div class="text-center py-6 text-xs text-gray-400 font-normal">
+              [짝수달 내역 구역]
+            </div>
           </div>
         </div>
 
@@ -2273,8 +2304,8 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
@@ -2311,7 +2342,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
           </div>
         </div>
 
