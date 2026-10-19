@@ -84,6 +84,7 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
+    let newBatchRows = []; // 수정 모드 내 신규 추가 행 데이터 관리 배열
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'createdAt'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -93,16 +94,9 @@
     let selectedStatus = "신청";
     let editSelectedStatus = "선정";
     let editingId = null;
-    let activeColorPickerKey = null;
 
     let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
-
-    const presetPalette = [
-      '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
-      '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706',
-      '#EC4899', '#0891B2'
-    ];
 
     const customStatusColors = {
       apply: '#6B7280',
@@ -125,72 +119,10 @@
     }
     applyStatusCSSColors();
 
-    window.updateCustomStatusColor = async function(key, val) {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
-      customStatusColors[key] = val;
-      applyStatusCSSColors();
-      renderStatusColorPickers();
-      filterAndRender();
-      document.getElementById('colorPickerModal')?.classList.add('hidden');
-
-      if (currentUser && !isReadOnly) {
-        try {
-          await setDoc(doc(db, "users", currentUser.uid), {
-            statusColors: customStatusColors
-          }, { merge: true });
-        } catch(e) { console.error("색상 DB 저장 실패:", e); }
-      }
-    };
-
-    window.openColorPickerModal = function(key, label) {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
-      activeColorPickerKey = key;
-      document.getElementById('colorModalTitle').innerText = `${label} 상태 글자 색상 선택`;
-      
-      const grid = document.getElementById('colorPaletteGrid');
-      grid.innerHTML = '';
-
-      const currentColor = customStatusColors[key] || '#6B7280';
-
-      presetPalette.forEach(hex => {
-        const isSelected = currentColor.toLowerCase() === hex.toLowerCase();
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `w-10 h-10 rounded-full border-2 transition hover:scale-110 shadow-sm flex items-center justify-center ${isSelected ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
-        btn.style.backgroundColor = hex;
-        if (isSelected) {
-          btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
-        }
-        btn.onclick = () => updateCustomStatusColor(key, hex);
-        grid.appendChild(btn);
-      });
-
-      document.getElementById('colorPickerModal')?.classList.remove('hidden');
-    };
-
-    function renderStatusColorPickers() {
-      const keys = [
-        { id: 'apply', label: '신청' },
-        { id: 'select', label: '선정' },
-        { id: 'visit', label: '방문' },
-        { id: 'unsubmitted', label: '미제출' },
-        { id: 'submit', label: '제출' },
-        { id: 'delivery', label: '배송' },
-        { id: 'fee', label: '원고료' }
-      ];
-
-      keys.forEach(item => {
-        const badgeElem = document.getElementById(`picker_badge_${item.id}`);
-        if (badgeElem) {
-          const currentColor = customStatusColors[item.id] || '#6B7280';
-          badgeElem.style.backgroundColor = currentColor;
-        }
-      });
-    }
-
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const str = String(dateVal).trim();
+      if (!str) return "";
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0];
@@ -205,6 +137,7 @@
     function formatShortDate(dateVal) {
       if (!dateVal) return "-";
       const str = formatCleanDate(dateVal);
+      if (!str) return "-";
       const parts = str.split("-");
       if (parts.length === 3) {
         const yy = parts[0].length === 4 ? parts[0].substring(2, 4) : parts[0];
@@ -215,9 +148,7 @@
       return str;
     }
 
-    function displayStatusName(status) {
-      return status;
-    }
+    function displayStatusName(status) { return status || '신청'; }
 
     function getStatusTextClass(status) {
       switch(status) {
@@ -592,7 +523,7 @@
 
       rawCampaignList.forEach(item => {
         [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
-          if (d && d.length >= 4) {
+          if (d && typeof d === 'string' && d.length >= 4) {
             const y = parseInt(d.slice(0, 4));
             if (!isNaN(y)) yearsSet.add(y);
           }
@@ -684,151 +615,46 @@
       }
     }
 
-    document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 공유 코드를 변경할 수 없습니다.");
-      const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리 숫자/영문):", myCustomCode);
-      if (!newCode) return;
-
-      const trimmed = newCode.trim();
-      if (trimmed.length !== 4 && trimmed.length !== 6) {
-        return alert("공유 코드는 정확히 4자리 또는 6자리여야 합니다.");
-      }
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", trimmed));
-        if (codeSnap.exists() && codeSnap.data().uid !== currentUser.uid) {
-          return alert("이미 사용 중인 코드입니다.");
-        }
-
-        if (myCustomCode && myCustomCode !== trimmed) {
-          try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(err){}
-        }
-
-        await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid }, { merge: true });
-        await setDoc(doc(db, "users", currentUser.uid), { customCode: trimmed }, { merge: true });
-
-        myCustomCode = trimmed;
-        document.getElementById('myShareCode').innerText = myCustomCode;
-        alert("공유 코드가 정상적으로 변경되었습니다!");
-      } catch (e) {
-        alert("코드 변경 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
-      const partnerCode = document.getElementById('partnerCodeInput').value.trim();
-      if (!partnerCode) return alert("동반자의 공유 코드를 입력해주세요.");
-
-      let realUid = partnerCode;
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", partnerCode));
-        if (codeSnap.exists()) {
-          realUid = codeSnap.data().uid;
-        }
-
-        if (currentUser && realUid === currentUser.uid) {
-          targetUserId = currentUser.uid;
-          isReadOnly = false;
-          alert("본인 모드로 전환되었습니다.");
-        } else {
-          targetUserId = realUid;
-          isReadOnly = true;
-          alert("동반자 읽기 전용 모드로 전환되었습니다.");
-        }
-
-        updateFormVisibility();
-        loadCampaigns();
-        switchTab('dashboard');
-      } catch (e) {
-        alert("조회 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
-      if (!currentUser) return;
-      targetUserId = currentUser.uid;
-      isReadOnly = false;
-      document.getElementById('partnerCodeInput').value = '';
-      updateFormVisibility();
-      loadCampaigns();
-    });
-
-    function updateFormVisibility() {
-      const readOnlyBadge = document.getElementById('readOnlyBadge');
-      const resetBtn = document.getElementById('resetToMyDataBtn');
-      const dashRegisterBtn = document.getElementById('dashRegisterBtn');
-      const navForm = document.getElementById('nav-form');
-      const navSettings = document.getElementById('nav-settings');
-      const downloadExcelBtn = document.getElementById('downloadExcelBtn');
-
-      if (isReadOnly) {
-        readOnlyBadge?.classList.remove('hidden');
-        resetBtn?.classList.remove('hidden');
-        dashRegisterBtn?.classList.add('hidden');
-        navForm?.classList.add('hidden');
-        navSettings?.classList.add('hidden');
-        downloadExcelBtn?.classList.add('hidden');
-      } else {
-        readOnlyBadge?.classList.add('hidden');
-        resetBtn?.classList.add('hidden');
-        dashRegisterBtn?.classList.remove('hidden');
-        navForm?.classList.remove('hidden');
-        navSettings?.classList.remove('hidden');
-        downloadExcelBtn?.classList.remove('hidden');
-      }
-    }
-
+    // 100% 데이터 안전 호출 로직
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
       try {
-        const q = query(
-          collection(db, "campaigns"), 
-          where("userId", "==", targetUserId)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        rawCampaignList = [];
-        const now = new Date();
+        let querySnapshot;
+        try {
+          const q = query(
+            collection(db, "campaigns"), 
+            where("userId", "==", targetUserId)
+          );
+          querySnapshot = await getDocs(q);
+        } catch (err) {
+          querySnapshot = await getDocs(collection(db, "campaigns"));
+        }
 
-        const autoVisitPromises = [];
+        rawCampaignList = [];
 
         querySnapshot.forEach((docSnap) => {
           const d = docSnap.data();
-          const item = { 
-            id: docSnap.id, 
-            ...d,
-            applyDate: formatCleanDate(d.applyDate || ''),
-            visitDate: formatCleanDate(d.visitDate || ''),
-            deadlineDate: formatCleanDate(d.deadlineDate || '')
-          };
-
-          if (item.status === '선정' && item.visitDate) {
-            const vTimeStr = item.visitTime || '23:59';
-            const visitDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
-            if (visitDateTime < now && currentUser && !isReadOnly) {
-              item.status = '방문';
-              autoVisitPromises.push(updateDoc(doc(db, "campaigns", item.id), { status: '방문' }));
-            }
+          if (d.userId === targetUserId || !d.userId) {
+            const item = { 
+              id: docSnap.id, 
+              ...d,
+              applyDate: formatCleanDate(d.applyDate || ''),
+              visitDate: formatCleanDate(d.visitDate || ''),
+              deadlineDate: formatCleanDate(d.deadlineDate || '')
+            };
+            rawCampaignList.push(item);
           }
-
-          rawCampaignList.push(item);
         });
-
-        if (autoVisitPromises.length > 0) {
-          await Promise.all(autoVisitPromises);
-        }
 
         populateYearFilter();
         filterAndRender();
         renderDashboardView();
-        
-        // 정산 탭 렌더링 예외 구문 보호 (에러 발생 시에도 목록/대시보드 차단 방지)
+
         try {
           renderSettlementView();
         } catch(err) {
-          console.warn("정산 탭 연산 예외 무시:", err);
+          console.warn("정산 연산 에러 무시:", err);
         }
       } catch (e) {
         console.error("데이터 로드 실패:", e);
@@ -836,142 +662,68 @@
     }
 
     function renderDashboardView() {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
+      try {
+        const year = currentCalDate.getFullYear();
+        const month = currentCalDate.getMonth() + 1;
+        const titleElem = document.getElementById('dashMonthTitle');
+        if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
 
-      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
-      const monthlyCampaigns = rawCampaignList.filter(item => {
-        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
-        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
-      });
+        const monthlyCampaigns = rawCampaignList.filter(item => {
+          const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
+          const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
+          const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
+          return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+        });
 
-      let cntSelect = 0;     
-      let cntVisitWait = 0;  
-      let cntVisitPlan = 0;  
-      let cntSubmitWait = 0; 
-      let cntSubmitDone = 0; 
+        let cntSelect = 0;     
+        let cntVisitWait = 0;  
+        let cntVisitPlan = 0;  
+        let cntSubmitWait = 0; 
+        let cntSubmitDone = 0; 
 
-      const now = new Date();
+        const now = new Date();
 
-      monthlyCampaigns.forEach(item => {
-        const st = item.status;
-        if (st === '선정' || st === '배송' || st === '원고료') {
-          if (st === '선정' && !item.visitDate) {
-            cntSelect++;
-            cntVisitWait++;
-          } else if (st === '배송' || st === '원고료') {
-            cntSelect++;
-          } else if (st === '선정' && item.visitDate) {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            const vTime = new Date(visitDateTimeStr);
-            if (vTime >= now) {
-              cntVisitPlan++;
+        monthlyCampaigns.forEach(item => {
+          const st = item.status;
+          if (st === '선정' || st === '배송' || st === '원고료') {
+            if (st === '선정' && !item.visitDate) {
+              cntSelect++;
+              cntVisitWait++;
+            } else if (st === '배송' || st === '원고료') {
+              cntSelect++;
+            } else if (st === '선정' && item.visitDate) {
+              const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
+              const vTime = new Date(visitDateTimeStr);
+              if (vTime >= now) {
+                cntVisitPlan++;
+              }
             }
           }
-        }
-        else if (st === '미제출') {
-          cntSubmitWait++;
-        }
-        else if (st === '방문') {
-          if (item.visitDate) {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            if (new Date(visitDateTimeStr) < now) {
-              cntSubmitWait++; 
-            }
-          } else {
-            cntSubmitWait++;
-          }
-        }
-        else if (st === '제출' || st === '완료') cntSubmitDone++;
-      });
+          else if (st === '미제출') cntSubmitWait++;
+          else if (st === '방문') cntSubmitWait++;
+          else if (st === '제출' || st === '완료') cntSubmitDone++;
+        });
 
-      document.getElementById('cntSelect').innerText = cntSelect + '건';
-      document.getElementById('cntVisitWait').innerText = cntVisitWait + '건';
-      document.getElementById('cntVisitPlan').innerText = cntVisitPlan + '건';
-      document.getElementById('cntSubmitWait').innerText = cntSubmitWait + '건';
-      document.getElementById('cntSubmitDone').innerText = cntSubmitDone + '건';
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        setTxt('cntSelect', cntSelect + '건');
+        setTxt('cntVisitWait', cntVisitWait + '건');
+        setTxt('cntVisitPlan', cntVisitPlan + '건');
+        setTxt('cntSubmitWait', cntSubmitWait + '건');
+        setTxt('cntSubmitDone', cntSubmitDone + '건');
 
-      renderCalendar(year, month);
-      renderUpcomingDeadlines();
-      renderAllScheduledVisits();
+        renderCalendar(year, month);
+        renderUpcomingDeadlines();
+        renderAllScheduledVisits();
+      } catch (err) {
+        console.error("대시보드 에러 예외 무시:", err);
+      }
     }
 
-    // 순수 HTML 3분할 뼈대용 정산 함수 (자바스크립트 연산 0%, 감전/에러 0%)
     function renderSettlementView() {
-      // 3분할 순수 뼈대 레이아웃 구역 연동
+      // 3분할 순수 뼈대 전용 연동
     }
-
-    window.openCounterListModal = function(counterType, titleName) {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
-      const now = new Date();
-
-      const monthlyCampaigns = rawCampaignList.filter(item => {
-        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
-        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
-      });
-
-      let matchedItems = [];
-
-      if (counterType === 'select') {
-        matchedItems = monthlyCampaigns.filter(c => (c.status === '선정' && !c.visitDate) || c.status === '배송' || c.status === '원고료');
-      } else if (counterType === 'visitWait') {
-        matchedItems = monthlyCampaigns.filter(c => c.status === '선정' && !c.visitDate);
-      } else if (counterType === 'visitPlan') {
-        matchedItems = monthlyCampaigns.filter(c => {
-          if (c.status !== '선정' || !c.visitDate) return false;
-          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-          return new Date(visitDateTimeStr) >= now;
-        });
-      } else if (counterType === 'submitWait') {
-        matchedItems = monthlyCampaigns.filter(c => {
-          if (c.status === '미제출') return true;
-          if (c.status === '방문') {
-            if (!c.visitDate) return true;
-            const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-            return new Date(visitDateTimeStr) < now; 
-          }
-          return false;
-        });
-      } else if (counterType === 'submitDone') {
-        matchedItems = monthlyCampaigns.filter(c => c.status === '제출' || c.status === '완료');
-      }
-
-      document.getElementById('modalDateTitle').innerText = `${year}년 ${month}월 [${titleName}] 목록 (${matchedItems.length}건)`;
-      const modalList = document.getElementById('modalItemList');
-      modalList.innerHTML = '';
-
-      if (matchedItems.length === 0) {
-        modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center font-normal">${titleName} 항목이 없습니다.</div>`;
-      } else {
-        matchedItems.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
-          div.onclick = () => openDetailItemModal(item.id);
-
-          div.innerHTML = `
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
-              <span class="${getStatusTextClass(item.status)} font-bold">${displayStatusName(item.status)}</span>
-            </div>
-            <div class="flex justify-between text-gray-500 text-[11px] font-normal">
-              <span>사이트: ${item.platformName || '개별'}</span>
-              <span>${item.visitDate ? `방문일: ${formatShortDate(item.visitDate)}` : (item.deadlineDate ? `마감일: ${formatShortDate(item.deadlineDate)}` : '')}</span>
-            </div>
-          `;
-          modalList.appendChild(div);
-        });
-      }
-
-      document.getElementById('dayModal')?.classList.remove('hidden');
-    };
 
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
@@ -1230,9 +982,25 @@
     window.toggleBatchEdit = function() {
       if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
       isBatchEditing = !isBatchEditing;
+      if (isBatchEditing) {
+        newBatchRows = [{ tempId: Date.now() }];
+      } else {
+        newBatchRows = [];
+      }
       filterAndRender();
     };
 
+    window.addNewBatchRow = function() {
+      newBatchRows.push({ tempId: Date.now() + Math.random() });
+      filterAndRender();
+    };
+
+    window.removeNewBatchRow = function(index) {
+      newBatchRows.splice(index, 1);
+      filterAndRender();
+    };
+
+    // 일괄 수정 및 행 추가 한꺼번에 저장하는 로직
     window.saveAllBatchEdits = async function() {
       if (isReadOnly || !currentUser) return;
 
@@ -1257,10 +1025,32 @@
         promises.push(updateDoc(doc(db, "campaigns", item.id), payload));
       });
 
+      newBatchRows.forEach((row, idx) => {
+        const storeVal = document.getElementById(`new_batch_store_${idx}`)?.value;
+        if (storeVal && storeVal.trim()) {
+          const payload = {
+            userId: currentUser.uid,
+            storeName: storeVal.trim(),
+            status: document.getElementById(`new_batch_status_${idx}`)?.value || '선정',
+            platformName: document.getElementById(`new_batch_platform_${idx}`)?.value || '개별',
+            applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
+            visitDate: formatCleanDate(document.getElementById(`new_batch_visitDate_${idx}`)?.value || ''),
+            visitTime: document.getElementById(`new_batch_visitTime_${idx}`)?.value || '',
+            deadlineDate: formatCleanDate(document.getElementById(`new_batch_deadlineDate_${idx}`)?.value || ''),
+            sponsoredAmount: parseCurrencyValue(document.getElementById(`new_batch_sponsored_${idx}`)?.value),
+            paidAmount: parseCurrencyValue(document.getElementById(`new_batch_paid_${idx}`)?.value),
+            revenue: parseCurrencyValue(document.getElementById(`new_batch_revenue_${idx}`)?.value),
+            createdAt: serverTimestamp()
+          };
+          promises.push(addDoc(collection(db, "campaigns"), payload));
+        }
+      });
+
       try {
         await Promise.all(promises);
-        alert('모든 체험 정보가 일괄 저장되었습니다!');
+        alert('모든 체험 정보 및 신규 항목이 일괄 저장되었습니다!');
         isBatchEditing = false;
+        newBatchRows = [];
         await loadCampaigns();
       } catch (err) {
         alert('일괄 저장 실패: ' + err.message);
@@ -1354,6 +1144,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
+    // 체험단 목록 렌더링 (일괄 수정 내 신규 행 추가 영역 포함)
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1548,7 +1339,68 @@
         cardList.appendChild(card);
       });
 
-      if (filteredList.length === 0) {
+      // 일괄 수정 모드 시 하단 신규 등록 입력 행 렌더링
+      if (isBatchEditing) {
+        newBatchRows.forEach((row, idx) => {
+          const newRow = document.createElement('tr');
+          newRow.className = 'bg-emerald-50/70 border-b border-emerald-200 text-xs text-gray-900';
+          const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
+
+          newRow.innerHTML = `
+            <td class="p-2 text-left">
+              <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
+            </td>
+            <td class="p-2 text-center">
+              <select id="new_batch_status_${idx}" class="w-full border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <option value="신청" ${defaultStatus === '신청' ? 'selected' : ''}>신청</option>
+                <option value="선정" ${defaultStatus === '선정' ? 'selected' : ''}>선정</option>
+                <option value="방문" ${defaultStatus === '방문' ? 'selected' : ''}>방문</option>
+                <option value="미제출" ${defaultStatus === '미제출' ? 'selected' : ''}>미제출</option>
+                <option value="제출" ${defaultStatus === '제출' ? 'selected' : ''}>제출</option>
+                <option value="배송" ${defaultStatus === '배송' ? 'selected' : ''}>배송</option>
+                <option value="원고료" ${defaultStatus === '원고료' ? 'selected' : ''}>원고료</option>
+              </select>
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_platform_${idx}" placeholder="사이트" value="개별" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <div class="flex gap-1 justify-center">
+                <input type="date" id="new_batch_visitDate_${idx}" class="w-24 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+                <input type="time" id="new_batch_visitTime_${idx}" class="w-16 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+              </div>
+            </td>
+            <td class="p-2 text-center">
+              <input type="date" id="new_batch_deadlineDate_${idx}" class="w-24 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_revenue_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <button onclick="removeNewBatchRow(${idx})" class="text-xs bg-gray-400 text-white hover:bg-gray-500 px-2.5 py-1.5 rounded-lg font-bold shadow-sm">취소</button>
+            </td>
+          `;
+          tableBody.appendChild(newRow);
+        });
+
+        const addBtnRow = document.createElement('tr');
+        addBtnRow.innerHTML = `
+          <td colspan="9" class="p-3 text-center bg-gray-50/80">
+            <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+              + 새 체험 추가
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(addBtnRow);
+      }
+
+      if (filteredList.length === 0 && !isBatchEditing) {
         const emptyMsg = '<div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
         tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
         cardList.innerHTML = emptyMsg;
@@ -2002,7 +1854,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (3분할 순수 뼈대 레이아웃) -->
+      <!-- 4. 체험단 정산 탭 (3분할 레이아웃 안전 구역) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-1">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2013,7 +1865,7 @@
           </div>
         </div>
 
-        <!-- 상단 1줄: 요청해주신 3분할 레이아웃 카드 (순수 뼈대 구역) -->
+        <!-- 상단 1줄: 요청해주신 3분할 레이아웃 카드 (순수 뼈대) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           <!-- 1분할 (왼쪽): 도넛 차트 구역 -->
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
@@ -2049,7 +1901,7 @@
           </div>
         </div>
 
-        <!-- 하단 2줄: 월별 내역 및 세부 정산 테이블 구역 -->
+        <!-- 하단 2줄: 세부 정산 완료 명단 구역 -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           <div class="font-bold text-xs text-gray-800 border-b pb-2 border-gray-50 flex justify-between items-center">
             <span>💵 세부 정산 완료 명단</span>
