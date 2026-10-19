@@ -936,7 +936,7 @@
       }
     }
 
-    // 도넛 10% 두껍게/크게 확대 & 우측 범례 30% 오른쪽 이동 보정 연동
+    // 도넛 10% 확대/두껍게 & 정산 완료 옆 가로 수치 배치 & 전년대비 숫자 20% 확대 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1020,14 +1020,14 @@
             let rateStr = diffAmount >= 0 ? `+${rate}%` : `${rate}%`;
             let badgeClass = diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
 
-            // 이미지처럼 N건 / N원 형태와 일직선 정렬 유지
+            // 전년 대비 숫자 20% 확대 (text-sm 적용)
             compareContainer.innerHTML = `
               <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                 <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block"></span>
                 <span>전년 대비 증가</span>
               </div>
-              <div class="flex items-center gap-1.5 pl-4 text-xs">
-                <span class="font-bold text-gray-900">${diffStr}</span>
+              <div class="flex items-center gap-1.5 pl-4">
+                <span class="font-black text-gray-900 text-sm">${diffStr}</span>
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}">(${rateStr})</span>
               </div>
             `;
@@ -2284,7 +2284,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (도넛 10% 확대/두껍게 & 우측 범례 30% 이동 및 일직선 포맷 유지) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2312,14 +2312,14 @@
               <div class="relative flex items-center justify-center h-40 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span id="yearlyTotalRevenueText" class="text-xl font-black text-gray-900 tracking-tight">0</span>
+                  <span id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0</span>
                 </div>
               </div>
 
-              <!-- 우측: 30% 오른쪽 이동된 범례 및 전년 대비 (이미지의 3건 / 145,000원 정렬 유지) -->
+              <!-- 우측: 30% 오른쪽 이동된 범례 (정산 완료 옆으로 수치 배치 포맷 적용) -->
               <div class="space-y-3.5 text-xs text-left pl-8 ml-4">
                 
-                <!-- 1단: 정산 완료 -->
+                <!-- 1단: 정산 완료 (옆으로 N건 | N원 가로 배치) -->
                 <div class="space-y-0.5">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
@@ -2341,7 +2341,7 @@
                   </div>
                 </div>
 
-                <!-- 3단: 전년 대비 증가 -->
+                <!-- 3단: 전년 대비 증가 (숫자 20% 확대 적용) -->
                 <div id="yearlyCompareContainer" class="space-y-0.5 pt-1.5 border-t border-gray-100">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block"></span>
