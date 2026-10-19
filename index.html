@@ -94,7 +94,6 @@
     let selectedStatus = "신청";
     let editSelectedStatus = "선정";
     let editingId = null;
-    let activeColorPickerKey = null;
 
     let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
@@ -159,9 +158,11 @@
       }
     };
 
+    // 날짜 안전 파싱 보정
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const str = String(dateVal).trim();
+      if (!str) return "";
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0];
@@ -176,6 +177,7 @@
     function formatShortDate(dateVal) {
       if (!dateVal) return "-";
       const str = formatCleanDate(dateVal);
+      if (!str) return "-";
       const parts = str.split("-");
       if (parts.length === 3) {
         const yy = parts[0].length === 4 ? parts[0].substring(2, 4) : parts[0];
@@ -186,7 +188,7 @@
       return str;
     }
 
-    function displayStatusName(status) { return status; }
+    function displayStatusName(status) { return status || '신청'; }
 
     function getStatusTextClass(status) {
       switch(status) {
@@ -561,7 +563,7 @@
 
       rawCampaignList.forEach(item => {
         [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
-          if (d && d.length >= 4) {
+          if (d && typeof d === 'string' && d.length >= 4) {
             const y = parseInt(d.slice(0, 4));
             if (!isNaN(y)) yearsSet.add(y);
           }
@@ -653,7 +655,7 @@
       }
     }
 
-    // 데이터 로드 복구 (정상 작동 보장)
+    // 데이터 복구 핵심 로직
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -769,7 +771,7 @@
       renderAllScheduledVisits();
     }
 
-    // 정산 리포트 구동 함수 (완벽 예외 처리)
+    // 정산 리포트 구동 (예외 방지 가드)
     function renderSettlementView() {
       try {
         const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
@@ -807,7 +809,7 @@
 
           const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
           let monthNum = 0;
-          if (refDate && refDate.length >= 7) {
+          if (refDate && typeof refDate === 'string' && refDate.length >= 7) {
             monthNum = Number(refDate.slice(5, 7));
           }
 
@@ -952,7 +954,7 @@
           for (let m = 1; m <= 12; m++) {
             const monthItems = yearFilteredItems.filter(item => {
               const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
-              return refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
+              return typeof refDate === 'string' && refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
             });
 
             let monthNetBenefitSum = 0; 
@@ -1023,7 +1025,7 @@
           }
         }
       } catch (err) {
-        console.error("정산 리포트 연산 무시:", err);
+        console.error("정산 연산 차단 예외 무시:", err);
       }
     }
 
@@ -2153,7 +2155,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (여백 및 레이아웃 정리 완료) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-1">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
