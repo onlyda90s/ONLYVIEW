@@ -40,13 +40,13 @@
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-    .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
-    .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
-    .status-text-visit { color: var(--color-status-visit) !important; font-weight: 700; }
-    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 700; }
-    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
-    .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
-    .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
+    .status-text-apply { color: var(--color-status-apply) !important; }
+    .status-text-select { color: var(--color-status-select) !important; }
+    .status-text-visit { color: var(--color-status-visit) !important; }
+    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; }
+    .status-text-submit { color: var(--color-status-submit) !important; }
+    .status-text-delivery { color: var(--color-status-delivery) !important; }
+    .status-text-fee { color: var(--color-status-fee) !important; }
   </style>
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden">
@@ -541,6 +541,7 @@
       document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
       document.getElementById('filterYear')?.addEventListener('change', filterAndRender);
       document.getElementById('filterMonth')?.addEventListener('change', filterAndRender);
+      document.getElementById('settlementYearSelect')?.addEventListener('change', renderSettlementView);
 
       document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
         currentCalDate.setMonth(currentCalDate.getMonth() - 1);
@@ -582,6 +583,7 @@
 
     function populateYearFilter() {
       const yearSelect = document.getElementById('filterYear');
+      const settlementYearSelect = document.getElementById('settlementYearSelect');
       if (!yearSelect) return;
       
       const now = new Date();
@@ -592,11 +594,21 @@
       const startYear = 2025; 
 
       yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
+      if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
+
       for (let y = maxYear; y >= startYear; y--) {
         const opt = document.createElement('option');
         opt.value = y.toString();
         opt.innerText = `${y}년`;
         yearSelect.appendChild(opt);
+
+        if (settlementYearSelect) {
+          const optS = document.createElement('option');
+          optS.value = y.toString();
+          optS.innerText = `${y}년 전체`;
+          if (y === currentYear) optS.selected = true;
+          settlementYearSelect.appendChild(optS);
+        }
       }
     }
 
@@ -873,18 +885,33 @@
       renderAllScheduledVisits();
     }
 
-    // 정산 탭 시스템 집계 구동 함수
     function renderSettlementView() {
       const settlementList = document.getElementById('settlementTableBody');
       if (!settlementList) return;
 
+      const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
+
       let totalSettledRevenue = 0;
       let totalPaidAmount = 0;
+      let totalSponsoredAmount = 0;
       let settledCount = 0;
+      let topStoreName = '-';
+      let topStoreRev = 0;
 
       settlementList.innerHTML = '';
 
-      const completedItems = rawCampaignList.filter(item => item.status === '제출' || item.status === '완료');
+      const completedItems = rawCampaignList.filter(item => {
+        const isCompleted = (item.status === '제출' || item.status === '완료');
+        if (!isCompleted) return false;
+
+        if (selectedYear !== 'ALL') {
+          const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
+          return refDate.startsWith(selectedYear);
+        }
+        return true;
+      });
+
+      const storeRevMap = {};
 
       completedItems.forEach(item => {
         const sponsored = Number(item.sponsoredAmount || 0);
@@ -900,28 +927,47 @@
 
         totalSettledRevenue += rev;
         totalPaidAmount += paid;
+        totalSponsoredAmount += sponsored;
         settledCount++;
 
+        storeRevMap[item.storeName] = (storeRevMap[item.storeName] || 0) + rev;
+
+        const refDate = item.deadlineDate || item.visitDate || '-';
+        const displayMonth = (refDate && refDate.length >= 7) ? `${Number(refDate.slice(5, 7))}월` : '-';
+
         const row = document.createElement('tr');
-        row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900';
+        row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
         row.innerHTML = `
-          <td class="p-3.5 font-bold text-gray-900">${item.storeName}</td>
+          <td class="p-3.5 text-gray-500 font-normal">${displayMonth}</td>
+          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
           <td class="p-3.5"><span class="status-text-submit font-bold">${item.status}</span></td>
-          <td class="p-3.5 text-gray-700">${item.platformName || '-'}</td>
-          <td class="p-3.5 text-gray-700">${formatShortDate(item.deadlineDate)}</td>
-          <td class="p-3.5 text-gray-700">${sponsored.toLocaleString()}원</td>
-          <td class="p-3.5 text-rose-500">${paid.toLocaleString()}원</td>
+          <td class="p-3.5 text-gray-700 font-normal">${item.platformName || '-'}</td>
+          <td class="p-3.5 text-gray-700 font-normal">${sponsored.toLocaleString()}원</td>
+          <td class="p-3.5 text-gray-900 font-normal">${paid.toLocaleString()}원</td>
           <td class="p-3.5 font-bold text-emerald-600">+${rev.toLocaleString()}원</td>
         `;
         settlementList.appendChild(row);
       });
 
+      Object.keys(storeRevMap).forEach(name => {
+        if (storeRevMap[name] > topStoreRev) {
+          topStoreRev = storeRevMap[name];
+          topStoreName = name;
+        }
+      });
+
+      const avgRev = settledCount > 0 ? Math.round(totalSettledRevenue / settledCount) : 0;
+      const netBenefit = totalSettledRevenue - totalPaidAmount;
+
       document.getElementById('totalSettledRevenue').innerText = `+${totalSettledRevenue.toLocaleString()}원`;
-      document.getElementById('totalPaidAmount').innerText = `-${totalPaidAmount.toLocaleString()}원`;
+      document.getElementById('totalPaidAmount').innerText = `${totalPaidAmount.toLocaleString()}원`;
       document.getElementById('totalSettledCount').innerText = `${settledCount}건`;
+      document.getElementById('avgSettledRevenue').innerText = `+${avgRev.toLocaleString()}원`;
+      document.getElementById('topSettledStore').innerText = topStoreRev > 0 ? `${topStoreName} (+${topStoreRev.toLocaleString()}원)` : '-';
+      document.getElementById('netBenefitAmount').innerText = `${netBenefit >= 0 ? '+' : ''}${netBenefit.toLocaleString()}원`;
 
       if (completedItems.length === 0) {
-        settlementList.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-sm">정산 완료된 체험단 내역이 없습니다.</td></tr>`;
+        settlementList.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs font-normal">해당 기간의 정산 완료 내역이 없습니다.</td></tr>`;
       }
     }
 
@@ -969,7 +1015,7 @@
       modalList.innerHTML = '';
 
       if (matchedItems.length === 0) {
-        modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center">${titleName} 항목이 없습니다.</div>`;
+        modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center font-normal">${titleName} 항목이 없습니다.</div>`;
       } else {
         matchedItems.forEach(item => {
           const div = document.createElement('div');
@@ -979,9 +1025,9 @@
           div.innerHTML = `
             <div class="flex justify-between items-center">
               <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
-              <span class="${getStatusTextClass(item.status)}">${displayStatusName(item.status)}</span>
+              <span class="${getStatusTextClass(item.status)} font-bold">${displayStatusName(item.status)}</span>
             </div>
-            <div class="flex justify-between text-gray-500 text-[11px]">
+            <div class="flex justify-between text-gray-500 text-[11px] font-normal">
               <span>사이트: ${item.platformName || '개별'}</span>
               <span>${item.visitDate ? `방문일: ${formatShortDate(item.visitDate)}` : (item.deadlineDate ? `마감일: ${formatShortDate(item.deadlineDate)}` : '')}</span>
             </div>
@@ -1047,7 +1093,7 @@
       modalList.innerHTML = '';
 
       if (items.length === 0) {
-        modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center">등록된 일정이 없습니다.</div>';
+        modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal">등록된 일정이 없습니다.</div>';
       } else {
         const sortedItems = [...items].sort((a, b) => {
           const timeA = a.visitTime || '23:59';
@@ -1100,7 +1146,7 @@
       }).filter(c => c.diffDays <= deadlineAlertDays).sort((a, b) => a.diffDays - b.diffDays);
 
       if (deadlineList.length === 0) {
-        container.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">마감 임박 (${deadlineAlertDays}일 이내) 일정이 없습니다.</div>`;
+        container.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center font-normal">마감 임박 (${deadlineAlertDays}일 이내) 일정이 없습니다.</div>`;
         return;
       }
 
@@ -1116,7 +1162,7 @@
         card.innerHTML = `
           <div>
             <span class="font-bold text-gray-900">${item.storeName}</span>
-            <span class="text-[11px] text-gray-400 ml-1.5">(${formatShortDate(item.deadlineDate)})</span>
+            <span class="text-[11px] text-gray-400 ml-1.5 font-normal">(${formatShortDate(item.deadlineDate)})</span>
           </div>
           <span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-bold">${dText}</span>
         `;
@@ -1147,7 +1193,7 @@
       });
 
       if (scheduledItems.length === 0) {
-        visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">예정된 방문 일정이 없습니다.</div>';
+        visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">예정된 방문 일정이 없습니다.</div>';
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
@@ -1172,7 +1218,7 @@
       const unscheduledItems = rawCampaignList.filter(c => c.status === '선정' && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
-        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">일정 미지정 항목이 없습니다.</div>';
+        unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">일정 미지정 항목이 없습니다.</div>';
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
@@ -1182,7 +1228,7 @@
           div.innerHTML = `
             <div class="truncate mr-2">
               <span class="font-bold text-gray-900">${item.storeName}</span>
-              <span class="text-[11px] text-gray-400 ml-1">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
+              <span class="text-[11px] text-gray-400 ml-1 font-normal">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
             ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
           `;
@@ -1191,7 +1237,7 @@
       }
     }
 
-    // 모달 내 비고(메모) 위치 및 볼드(굵은) 텍스트 스타일 보정
+    // 모달 내 비고(메모) 위치 및 볼드(굵은) 텍스트 유지
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1375,6 +1421,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
+    // 폰트 크기 12px(text-xs) 통일 / 매장명만 볼드 / 예상 실수익 연한 회색 표현 보정
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1438,15 +1485,15 @@
       const thead = document.querySelector('#sectionList table thead tr');
       if (thead) {
         thead.innerHTML = `
-          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">매장명 ${getSortIndicator('storeName')}</th>
-          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">상태 ${getSortIndicator('status')}</th>
-          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">사이트 ${getSortIndicator('platformName')}</th>
-          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">방문일 ${getSortIndicator('visitDate')}</th>
-          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">마감일 ${getSortIndicator('deadlineDate')}</th>
-          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">결제금액 ${getSortIndicator('paidAmount')}</th>
-          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">실수익 ${getSortIndicator('revenue')}</th>
-          <th class="p-3 font-bold w-24">비고</th>
+          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">매장명 ${getSortIndicator('storeName')}</th>
+          <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">상태 ${getSortIndicator('status')}</th>
+          <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">사이트 ${getSortIndicator('platformName')}</th>
+          <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">방문일 ${getSortIndicator('visitDate')}</th>
+          <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">마감일 ${getSortIndicator('deadlineDate')}</th>
+          <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+          <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">결제금액 ${getSortIndicator('paidAmount')}</th>
+          <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">실수익 ${getSortIndicator('revenue')}</th>
+          <th class="p-3 font-bold text-xs w-20">비고</th>
         `;
       }
 
@@ -1459,13 +1506,19 @@
         const paid = Number(item.paidAmount || 0);
         const inputRev = Number(item.revenue || 0);
 
+        // 실수익 계산 (완료건은 검은색/초록색, 진행중 건은 회색 50,000원(예상) 표기)
         let calcRevenue = 0;
+        if (paid === 0) {
+          calcRevenue = sponsored > 0 ? sponsored : inputRev;
+        } else {
+          calcRevenue = (sponsored - paid) + inputRev;
+        }
+
+        let revDisplayHtml = '';
         if (isCompleted) {
-          if (paid === 0) {
-            calcRevenue = sponsored > 0 ? sponsored : inputRev;
-          } else {
-            calcRevenue = (sponsored - paid) + inputRev;
-          }
+          revDisplayHtml = `<span class="font-normal text-gray-900">+${calcRevenue.toLocaleString()}원</span>`;
+        } else {
+          revDisplayHtml = `<span class="font-normal text-gray-400">${calcRevenue.toLocaleString()}원 (예상)</span>`;
         }
 
         if (isBatchEditing) {
@@ -1473,7 +1526,7 @@
           row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
           row.innerHTML = `
             <td class="p-2">
-              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
             </td>
             <td class="p-2">
               <select id="batch_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
@@ -1513,14 +1566,13 @@
           `;
           tableBody.appendChild(row);
         } else {
-          // 비고란 라인 텍스트 스타일 적용 (미정산 / 정산완료)
+          // 비고란 라인 회색 텍스트 표기 (미정산 / 정산완료)
           let noteBadge = isCompleted 
-            ? `<span class="text-emerald-600 font-bold">정산완료</span>`
-            : `<span class="text-amber-600 font-bold">미정산</span>`;
+            ? `<span class="text-gray-400 font-normal">정산완료</span>`
+            : `<span class="text-gray-400 font-normal">미정산</span>`;
 
-          // 원클릭 화살표(∨) 상태 드롭다운 원복
           const statusSelectHtml = `
-            <select onchange="quickUpdateStatus('${item.id}', this.value)" class="border-0 bg-transparent text-xs font-bold ${getStatusTextClass(item.status)} outline-none cursor-pointer">
+            <select onchange="quickUpdateStatus('${item.id}', this.value)" class="border-0 bg-transparent text-xs font-normal ${getStatusTextClass(item.status)} outline-none cursor-pointer">
               <option value="신청" ${item.status === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
               <option value="선정" ${item.status === '선정' ? 'selected' : ''} class="text-gray-800 font-normal">선정</option>
               <option value="방문" ${item.status === '방문' ? 'selected' : ''} class="text-gray-800 font-normal">방문</option>
@@ -1532,42 +1584,42 @@
           `;
 
           const row = document.createElement('tr');
-          row.className = 'border-b border-gray-100 hover:bg-theme-light text-sm text-gray-900 font-normal';
+          row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
           row.innerHTML = `
-            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
-            <td class="p-3">${statusSelectHtml}</td>
-            <td class="p-3 text-gray-900">${item.platformName || '-'}</td>
-            <td class="p-3 text-gray-900">${formatShortDate(item.visitDate)}</td>
-            <td class="p-3 text-gray-900 font-medium">${formatShortDate(item.deadlineDate)}</td>
-            <td class="p-3 text-gray-900">${sponsored.toLocaleString()}원</td>
-            <td class="p-3 text-gray-900">${paid.toLocaleString()}원</td>
-            <td class="p-3 font-bold text-gray-900">+${calcRevenue.toLocaleString()}원</td>
-            <td class="p-3 text-xs w-24">${noteBadge}</td>
+            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+            <td class="p-3 text-xs">${statusSelectHtml}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal">${item.platformName || '-'}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal">${formatShortDate(item.visitDate)}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal">${formatShortDate(item.deadlineDate)}</td>
+            <td class="p-3 text-gray-900 text-xs font-normal">${sponsored.toLocaleString()}원</td>
+            <td class="p-3 text-gray-900 text-xs font-normal">${paid.toLocaleString()}원</td>
+            <td class="p-3 text-xs font-normal">${revDisplayHtml}</td>
+            <td class="p-3 text-xs font-normal w-20">${noteBadge}</td>
           `;
           tableBody.appendChild(row);
         }
 
         const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-sm text-gray-900';
+        card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-xs text-gray-900';
         card.innerHTML = `
           <div class="flex justify-between items-start">
             <div>
-              <span class="${getStatusTextClass(item.status)} text-xs mr-1.5 font-bold">${displayStatusName(item.status)}</span>
-              <span class="text-xs text-gray-400">${item.platformName || ''}</span>
-              <h3 class="font-bold text-base text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+              <span class="${getStatusTextClass(item.status)} text-xs mr-1.5 font-normal">${displayStatusName(item.status)}</span>
+              <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
+              <h3 class="font-bold text-sm text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
             </div>
-            <span class="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded">+${calcRevenue.toLocaleString()}원</span>
+            <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? `+${calcRevenue.toLocaleString()}원` : `${calcRevenue.toLocaleString()}원(예상)`}</span>
           </div>
-          <div class="text-xs text-gray-800 space-y-0.5">
-            <div>방문일: ${formatShortDate(item.visitDate)} | 마감일: <span class="font-semibold text-gray-900">${formatShortDate(item.deadlineDate)}</span></div>
-            <div>동반인원: <span class="font-bold text-gray-900">${item.companions || '없음'}</span></div>
+          <div class="text-xs text-gray-800 space-y-0.5 font-normal">
+            <div>방문일: ${formatShortDate(item.visitDate)} | 마감일: <span class="font-normal text-gray-900">${formatShortDate(item.deadlineDate)}</span></div>
+            <div>동반인원: <span class="font-normal text-gray-900">${item.companions || '없음'}</span></div>
           </div>
         `;
         cardList.appendChild(card);
       });
 
       if (filteredList.length === 0) {
-        const emptyMsg = '<div class="p-6 text-center text-gray-400 text-sm">조건에 해당하는 체험단이 없습니다.</div>';
+        const emptyMsg = '<div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
         tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
         cardList.innerHTML = emptyMsg;
       }
@@ -2005,15 +2057,15 @@
           <table class="w-full text-left border-collapse">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">매장명</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">상태</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">사이트</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">방문일</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">마감일</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">제공금액</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">결제금액</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold">실수익</th>
-                <th class="p-3 font-bold w-24">비고</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">매장명</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">상태</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">사이트</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">방문일</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">마감일</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">제공금액</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">결제금액</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs">실수익</th>
+                <th class="p-3 font-bold text-xs w-20">비고</th>
               </tr>
             </thead>
             <tbody id="campaignTableBody"></tbody>
@@ -2023,42 +2075,57 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (본격 구동 리포트 및 카드가 연동된 화면) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
-          <span class="text-xs text-gray-400 font-bold">제출 완료건 기준 자동 정산</span>
+          
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-500 font-bold">조회 연도:</span>
+            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-bold text-gray-800"></select>
+          </div>
         </div>
 
-        <!-- 정산 통계 카드 3종 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">총 실수익 (누적 정산)</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3.5 shrink-0">
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+            <div class="text-xs font-bold text-gray-500">총 실수익 (정산 완료)</div>
             <div id="totalSettledRevenue" class="text-2xl font-black text-emerald-600">+0원</div>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">총 결제 금액 (지출)</div>
-            <div id="totalPaidAmount" class="text-2xl font-black text-rose-500">-0원</div>
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+            <div class="text-xs font-bold text-gray-500">총 결제 지출금액</div>
+            <div id="totalPaidAmount" class="text-2xl font-black text-rose-500">0원</div>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+            <div class="text-xs font-bold text-gray-500">총 순수혜 (실수익 - 지출)</div>
+            <div id="netBenefitAmount" class="text-2xl font-black text-theme">+0원</div>
+          </div>
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
             <div class="text-xs font-bold text-gray-500">정산 완료 건수</div>
-            <div id="totalSettledCount" class="text-2xl font-black text-gray-900">0건</div>
+            <div id="totalSettledCount" class="text-xl font-black text-gray-900">0건</div>
+          </div>
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+            <div class="text-xs font-bold text-gray-500">건당 평균 실수익</div>
+            <div id="avgSettledRevenue" class="text-xl font-black text-gray-800">+0원</div>
+          </div>
+          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
+            <div class="text-xs font-bold text-gray-500">최고 수익 매장</div>
+            <div id="topSettledStore" class="text-base font-bold text-gray-900 truncate mt-1">-</div>
           </div>
         </div>
 
-        <!-- 정산 완료 목록 테이블 -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="p-4 border-b border-gray-100 font-bold text-sm text-gray-800">
-            💵 정산 완료 체험단 명단
+          <div class="p-4 border-b border-gray-100 font-bold text-sm text-gray-800 flex justify-between items-center">
+            <span>💵 세부 정산 완료 명단</span>
+            <span class="text-xs text-gray-400 font-normal">매장명 클릭 시 상세 모달 오픈</span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
                 <tr>
+                  <th class="p-3.5 font-bold w-16">월</th>
                   <th class="p-3.5 font-bold">매장명</th>
                   <th class="p-3.5 font-bold">상태</th>
                   <th class="p-3.5 font-bold">사이트</th>
-                  <th class="p-3.5 font-bold">마감일</th>
                   <th class="p-3.5 font-bold">제공금액</th>
                   <th class="p-3.5 font-bold">결제금액</th>
                   <th class="p-3.5 font-bold">최종 실수익</th>
