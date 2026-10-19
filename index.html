@@ -299,6 +299,7 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
 
+    // 탭 이동 시 해당 페이지의 '첫 메인 화면(초기 상태)'으로 상쾌하게 리셋 전환
     window.switchTab = function(tabName, pushState = true) {
       if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
         alert("현재 읽기 전용 모드입니다. 해당 메뉴에 접근할 수 없습니다.");
@@ -323,15 +324,37 @@
         history.pushState({ tab: tabName }, '', `#${tabName}`);
       }
 
+      // 모달 팝업 닫기 리셋
+      document.getElementById('dayModal')?.classList.add('hidden');
+      document.getElementById('editModal')?.classList.add('hidden');
+      document.getElementById('colorPickerModal')?.classList.add('hidden');
+
       if (tabName === 'dashboard') {
+        currentCalDate = new Date(); // 오늘 날짜 연월으로 대시보드 리셋
         document.getElementById('sectionDashboard')?.classList.remove('hidden');
         renderDashboardView();
       }
       else if (tabName === 'list') {
+        isBatchEditing = false;   // 수정 모드 해제
+        newBatchRows = [];         // 추가 행 초기화
+        listSubTab = 'ongoing';    // 기본 진행중인 체험 탭으로 리셋
+        const btnOngoing = document.getElementById('subTabOngoing');
+        const btnSubmitted = document.getElementById('subTabSubmitted');
+        if (btnOngoing && btnSubmitted) {
+          btnOngoing.className = "flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
+          btnSubmitted.className = "flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
+        }
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterStatus').value = 'ALL';
+        document.getElementById('filterYear').value = 'ALL';
+        document.getElementById('filterMonth').value = 'ALL';
         document.getElementById('sectionList')?.classList.remove('hidden');
         filterAndRender();
       }
       else if (tabName === 'form') {
+        document.getElementById('campaignForm')?.reset();
+        setStatusBtn('신청');
+        selectPlatformChip('개별');
         document.getElementById('sectionForm')?.classList.remove('hidden');
         document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
       }
@@ -1395,7 +1418,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 목록 렌더링 (요청 수치 적용: 방문일/마감일/제공금액/결제금액/실수익 w-32, 비고 w-18)
+    // 목록 렌더링 (가로 잘림 방지: table-auto 적용 및 열 비율 최적화)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -1460,14 +1483,14 @@
         const thead = document.querySelector('#sectionList table thead tr');
         if (thead) {
           thead.innerHTML = `
-            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
+            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
             <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
             <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
-            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">방문일 ${getSortIndicator('visitDate')}</th>
-            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
-            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">결제금액 ${getSortIndicator('paidAmount')}</th>
-            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">실수익 ${getSortIndicator('revenue')}</th>
+            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">방문일 ${getSortIndicator('visitDate')}</th>
+            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">마감일 ${getSortIndicator('deadlineDate')}</th>
+            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">결제금액 ${getSortIndicator('paidAmount')}</th>
+            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-28">실수익 ${getSortIndicator('revenue')}</th>
             <th class="p-3 font-bold text-xs text-center w-18">비고</th>
           `;
         }
@@ -2025,7 +2048,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (가로잘림 차단: table-auto 적용) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center h-10 shrink-0">
@@ -2090,19 +2113,19 @@
           </select>
         </div>
 
-        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table class="w-full text-left border-collapse table-fixed">
+        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table class="w-full text-left border-collapse table-auto">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/5">매장명 ${getSortIndicator('storeName')}</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">상태 ${getSortIndicator('status')}</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-24">사이트 ${getSortIndicator('platformName')}</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">방문일 ${getSortIndicator('visitDate')}</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">마감일 ${getSortIndicator('deadlineDate')}</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">결제금액 ${getSortIndicator('paidAmount')}</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center w-32">실수익 ${getSortIndicator('revenue')}</th>
-                <th class="p-3 font-bold text-xs text-center w-18">비고</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">마감일 ${getSortIndicator('deadlineDate')}</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">결제금액 ${getSortIndicator('paidAmount')}</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">실수익 ${getSortIndicator('revenue')}</th>
+                <th class="p-3 font-bold text-xs text-center">비고</th>
               </tr>
             </thead>
             <tbody id="campaignTableBody"></tbody>
@@ -2306,7 +2329,7 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
@@ -2343,7 +2366,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
           </div>
         </div>
 
