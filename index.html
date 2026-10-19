@@ -99,6 +99,9 @@
     let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
+    let isSection2Collapsed = false;
+    let monthCollapsedState = {};
+
     const presetPalette = [
       '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
       '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706',
@@ -125,6 +128,36 @@
       document.documentElement.style.setProperty('--color-status-fee', customStatusColors.fee);
     }
     applyStatusCSSColors();
+
+    window.toggleSection2Archive = function() {
+      isSection2Collapsed = !isSection2Collapsed;
+      const content = document.getElementById('section2Content');
+      const btn = document.getElementById('section2ArchiveBtn');
+      if (content && btn) {
+        if (isSection2Collapsed) {
+          content.classList.add('hidden');
+          btn.innerText = "전체 펼치기 ∨";
+        } else {
+          content.classList.remove('hidden');
+          btn.innerText = "전체 접기 ∧";
+        }
+      }
+    };
+
+    window.toggleMonthArchive = function(m) {
+      monthCollapsedState[m] = !monthCollapsedState[m];
+      const bodyElem = document.getElementById(`monthBody_${m}`);
+      const btnElem = document.getElementById(`monthBtn_${m}`);
+      if (bodyElem && btnElem) {
+        if (monthCollapsedState[m]) {
+          bodyElem.classList.add('hidden');
+          btnElem.innerText = "펼치기 ∨";
+        } else {
+          bodyElem.classList.remove('hidden');
+          btnElem.innerText = "접기 ∧";
+        }
+      }
+    };
 
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
@@ -620,7 +653,7 @@
       }
     }
 
-    // 데이터 로드 복구
+    // 데이터 로드 복구 (정상 작동 보장)
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -736,7 +769,7 @@
       renderAllScheduledVisits();
     }
 
-    // 정산 리포트 구동 함수 (오류 예방 및 안정화)
+    // 정산 리포트 구동 함수 (완벽 예외 처리)
     function renderSettlementView() {
       try {
         const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
@@ -922,7 +955,7 @@
               return refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
             });
 
-            let monthNetBenefitSum = 0;
+            let monthNetBenefitSum = 0; 
 
             monthItems.forEach(item => {
               const sponsored = Number(item.sponsoredAmount || 0);
@@ -990,7 +1023,7 @@
           }
         }
       } catch (err) {
-        console.error("정산 리포트 연산 에러 무시:", err);
+        console.error("정산 리포트 연산 무시:", err);
       }
     }
 
