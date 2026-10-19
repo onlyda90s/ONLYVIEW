@@ -939,7 +939,7 @@
         row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
         row.innerHTML = `
           <td class="p-3.5 text-gray-500 font-normal text-center">${displayMonth}</td>
-          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-left truncate text-[10.8px]">${item.storeName}</td>
+          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-left truncate text-xs">${item.storeName}</td>
           <td class="p-3.5 text-center"><span class="status-text-submit font-bold">${item.status}</span></td>
           <td class="p-3.5 text-gray-700 font-normal text-center">${item.platformName || '-'}</td>
           <td class="p-3.5 text-gray-700 font-normal text-center">${sponsored.toLocaleString()}원</td>
@@ -1237,7 +1237,7 @@
       }
     }
 
-    // 모달 내 볼드(굵은) 텍스트 유지
+    // 모달 내 비고(메모) 위치 및 볼드(굵은) 텍스트 유지
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1421,7 +1421,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 매장명 폰트 사이즈 10% 축소(text-[10.8px]) 및 정산완료 검정색 표기 반영
+    // 매장명 폰트 크기 12px(text-xs) 원복, 매장명 컬럼 너비 w-1/3 확장, 정산완료 일반 굵기 변경
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1485,7 +1485,7 @@
       const thead = document.querySelector('#sectionList table thead tr');
       if (thead) {
         thead.innerHTML = `
-          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/4">매장명 ${getSortIndicator('storeName')}</th>
+          <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/3">매장명 ${getSortIndicator('storeName')}</th>
           <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
           <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
           <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
@@ -1525,7 +1525,7 @@
           row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
           row.innerHTML = `
             <td class="p-2 text-left">
-              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-[10.8px] bg-white font-bold">
+              <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
             </td>
             <td class="p-2 text-center">
               <select id="batch_status_${item.id}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
@@ -1565,9 +1565,9 @@
           `;
           tableBody.appendChild(row);
         } else {
-          // 비고란 정산완료 문구 검정색(text-gray-900 font-bold) 적용
+          // 비고란 정산완료 검정색 일반 굵기(text-gray-900 font-normal) 적용
           let noteBadge = isCompleted 
-            ? `<span class="text-gray-900 font-bold">정산완료</span>`
+            ? `<span class="text-gray-900 font-normal">정산완료</span>`
             : `<span class="text-gray-400 font-normal">미정산</span>`;
 
           const statusSelectHtml = `
@@ -1585,7 +1585,7 @@
           const row = document.createElement('tr');
           row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
           row.innerHTML = `
-            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-[10.8px] text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+            <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
             <td class="p-3 text-xs text-center">${statusSelectHtml}</td>
             <td class="p-3 text-gray-900 text-xs font-normal text-center">${item.platformName || '-'}</td>
             <td class="p-3 text-gray-900 text-xs font-normal text-center">${formatShortDate(item.visitDate)}</td>
@@ -1605,7 +1605,7 @@
             <div>
               <span class="${getStatusTextClass(item.status)} text-xs mr-1.5 font-normal">${displayStatusName(item.status)}</span>
               <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
-              <h3 class="font-bold text-[13px] text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+              <h3 class="font-bold text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
             </div>
             <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? `+${calcRevenue.toLocaleString()}원` : `${calcRevenue.toLocaleString()}원(예상)`}</span>
           </div>
@@ -2056,7 +2056,7 @@
           <table class="w-full text-left border-collapse table-fixed">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/4">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left w-1/3">매장명 ${getSortIndicator('storeName')}</th>
                 <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">상태 ${getSortIndicator('status')}</th>
                 <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">사이트 ${getSortIndicator('platformName')}</th>
                 <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center">방문일 ${getSortIndicator('visitDate')}</th>
@@ -2122,7 +2122,7 @@
               <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
                 <tr>
                   <th class="p-3.5 font-bold text-center w-16">월</th>
-                  <th class="p-3.5 font-bold text-left w-1/4">매장명</th>
+                  <th class="p-3.5 font-bold text-left w-1/3">매장명</th>
                   <th class="p-3.5 font-bold text-center">상태</th>
                   <th class="p-3.5 font-bold text-center">사이트</th>
                   <th class="p-3.5 font-bold text-center">제공금액</th>
