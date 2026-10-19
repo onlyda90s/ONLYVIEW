@@ -6,6 +6,7 @@
   <title>온리뷰 (onlyview) - 대시보드</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
     :root {
@@ -46,15 +47,13 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
-    /* 텍스트와 v 표시 간격을 기존 대비 80% 축소 조절 */
     select.select-center {
       text-align: center;
       text-align-last: center;
-      padding-right: 0.25rem !important; /* 80% 단축된 좁은 v 간격 */
+      padding-right: 0.25rem !important;
       padding-left: 0.05rem !important;
     }
 
-    /* 상단 버튼 및 테이블 컬럼 고정 너비 규격 */
     .tab-fixed-btn {
       width: 112px !important;
       min-width: 112px !important;
@@ -108,6 +107,7 @@
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
     let newBatchRows = []; 
+    let yearlyChartInstance = null;
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -936,8 +936,129 @@
       }
     }
 
+    // 1줄 1번 [연간 수익] 차트 및 수치 실데이터 계산 연동
     function renderSettlementView() {
-      // 3줄 2분할 뼈대
+      try {
+        const yearSelect = document.getElementById('settlementYearSelect');
+        const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
+        const targetYear = selectedYearVal === 'ALL' ? new Date().getFullYear() : parseInt(selectedYearVal);
+
+        let doneCount = 0;
+        let doneAmount = 0;
+        let planCount = 0;
+        let planAmount = 0;
+
+        let prevDoneAmount = 0;
+
+        rawCampaignList.forEach(item => {
+          const sponsored = Number(item.sponsoredAmount || 0);
+          const paid = Number(item.paidAmount || 0);
+          const inputRev = Number(item.revenue || 0);
+
+          let calcRevenue = 0;
+          if (paid === 0) {
+            calcRevenue = sponsored > 0 ? sponsored : inputRev;
+          } else {
+            calcRevenue = (sponsored - paid) + inputRev;
+          }
+
+          const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
+          if (!refDate || refDate.length < 4) return;
+          const itemYear = parseInt(refDate.slice(0, 4));
+
+          const isCompleted = (item.status === '제출' || item.status === '완료');
+
+          if (selectedYearVal === 'ALL' || itemYear === targetYear) {
+            if (isCompleted) {
+              doneCount++;
+              doneAmount += calcRevenue;
+            } else {
+              planCount++;
+              planAmount += calcRevenue;
+            }
+          }
+
+          if (itemYear === targetYear - 1 && isCompleted) {
+            prevDoneAmount += calcRevenue;
+          }
+        });
+
+        const totalAmount = doneAmount + planAmount;
+
+        const totalRevElem = document.getElementById('yearlyTotalRevenueText');
+        if (totalRevElem) {
+          totalRevElem.innerText = totalAmount.toLocaleString();
+        }
+
+        const doneCntElem = document.getElementById('yearlyDoneCount');
+        const doneAmtElem = document.getElementById('yearlyDoneAmount');
+        if (doneCntElem) doneCntElem.innerText = `${doneCount}건`;
+        if (doneAmtElem) doneAmtElem.innerText = `${doneAmount.toLocaleString()}원`;
+
+        const planCntElem = document.getElementById('yearlyPlanCount');
+        const planAmtElem = document.getElementById('yearlyPlanAmount');
+        if (planCntElem) planCntElem.innerText = `${planCount}건`;
+        if (planAmtElem) planAmtElem.innerText = `${planAmount.toLocaleString()}원`;
+
+        const diffAmount = doneAmount - prevDoneAmount;
+        const diffElem = document.getElementById('yearlyDiffAmount');
+        const rateElem = document.getElementById('yearlyDiffRate');
+
+        if (diffElem && rateElem) {
+          if (prevDoneAmount === 0 && doneAmount === 0) {
+            diffElem.innerText = '0원';
+            rateElem.innerText = '0.0%';
+            rateElem.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-500';
+          } else if (prevDoneAmount === 0 && doneAmount > 0) {
+            diffElem.innerText = `+${doneAmount.toLocaleString()}원`;
+            rateElem.innerText = '+100%';
+            rateElem.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700';
+          } else {
+            const rate = ((diffAmount / prevDoneAmount) * 100).toFixed(1);
+            if (diffAmount >= 0) {
+              diffElem.innerText = `+${diffAmount.toLocaleString()}원`;
+              rateElem.innerText = `+${rate}%`;
+              rateElem.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700';
+            } else {
+              diffElem.innerText = `${diffAmount.toLocaleString()}원`;
+              rateElem.innerText = `${rate}%`;
+              rateElem.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700';
+            }
+          }
+        }
+
+        const ctx = document.getElementById('yearlyDonutChart')?.getContext('2d');
+        if (ctx) {
+          if (yearlyChartInstance) yearlyChartInstance.destroy();
+
+          const chartDataValues = totalAmount === 0 ? [1, 0] : [doneAmount, planAmount];
+          const chartColors = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : ['#2563EB', '#CBD5E1'];
+
+          yearlyChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['정산 완료', '정산 예정'],
+              datasets: [{
+                data: chartDataValues,
+                backgroundColor: chartColors,
+                borderWidth: 0,
+                hoverOffset: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '76%',
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: totalAmount > 0 }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error("정산 연관 렌더링 실패:", err);
+      }
     }
 
     window.openCounterListModal = function(counterType, titleName) {
@@ -1416,17 +1537,16 @@
       }
     });
 
-    // 헤더 정렬 순환 조절 함수 (▲ 오름차순 -> ▼ 내림차순 -> ↕ 정렬 해제)
     window.handleSort = function(colName) {
       if (sortColumn === colName) {
         if (sortAsc) {
-          sortAsc = false; // 내림차순
+          sortAsc = false; 
         } else {
-          sortColumn = 'none'; // 필터 해제
+          sortColumn = 'none'; 
           sortAsc = true;
         }
       } else {
-        sortColumn = colName; // 새 열 오름차순
+        sortColumn = colName; 
         sortAsc = true;
       }
       localStorage.setItem('onlyview_sortColumn', sortColumn);
@@ -1486,7 +1606,6 @@
           return matchesName && matchesStatus && matchesYear && matchesMonth;
         });
 
-        // 정렬 수행 (sortColumn이 'none'이 아닐 경우만 정렬)
         if (sortColumn !== 'none') {
           filteredList.sort((a, b) => {
             let valA = a[sortColumn] || '';
@@ -2158,7 +2277,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
+      <!-- 4. 체험단 정산 탭 (1줄 1번 [연간 수익] 요청 레이아웃/폰트/색상 완벽 반영) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2171,14 +2290,58 @@
 
         <!-- 1줄: 연간 수익 / 월간 수익 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+          
+          <!-- 1줄 1번: 연간 수익 카탈로그 (요청 이미지 규격 반영) -->
+          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
+              <span class="text-[11px] text-gray-400">정산 상태별</span>
             </div>
-            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal"></div>
+
+            <!-- 상단 중앙 도넛 차트 -->
+            <div class="relative flex items-center justify-center my-3 h-44 w-full">
+              <canvas id="yearlyDonutChart"></canvas>
+              <!-- 도넛 한가운데 실수익 금액 단독 강조 -->
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0</span>
+              </div>
+            </div>
+
+            <!-- 하단 구분선 및 1안 2분할 범례 / 전년 대비 영역 -->
+            <div class="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+              
+              <!-- 좌측: 범례 영역 (건수 볼드 해제, 텍스트 검은색 통일) -->
+              <div class="space-y-1 text-gray-900 font-normal">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
+                  <span class="text-gray-900">정산 완료</span>
+                  <span id="yearlyDoneCount" class="text-gray-900 font-normal ml-2">0건</span>
+                  <span class="text-gray-300">|</span>
+                  <span id="yearlyDoneAmount" class="text-gray-900 font-normal">0원</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
+                  <span class="text-gray-900">정산 예정</span>
+                  <span id="yearlyPlanCount" class="text-gray-900 font-normal ml-2">0건</span>
+                  <span class="text-gray-300">|</span>
+                  <span id="yearlyPlanAmount" class="text-gray-900 font-normal">0원</span>
+                </div>
+              </div>
+
+              <!-- 우측: 전년 대비 증가/감소 수치 및 뱃지 -->
+              <div class="text-right space-y-0.5">
+                <div class="text-[10px] text-gray-400 font-semibold">전년 대비 증가</div>
+                <div class="flex items-center justify-end gap-1.5">
+                  <span id="yearlyDiffAmount" class="font-black text-gray-900 text-sm">+0원</span>
+                  <span id="yearlyDiffRate" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">+0%</span>
+                </div>
+              </div>
+
+            </div>
           </div>
 
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
+          <!-- 1줄 2번: 월간 수익 -->
+          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
             </div>
@@ -2335,8 +2498,87 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
+          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
+            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">포스팅 마감일</label>
+            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
+          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 컬러 팔레트 모달 -->
+  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
+        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+      <p class="text-xs text-gray-500">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
+      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
+    </div>
+  </div>
+
+</body>
+</html>
