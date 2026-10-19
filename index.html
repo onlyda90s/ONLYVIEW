@@ -84,6 +84,7 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
+    let newBatchRows = []; // 수정 모드 내 신규 추가 행 데이터 관리 배열
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'createdAt'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -97,6 +98,9 @@
 
     let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
+
+    let isSection2Collapsed = false;
+    let monthCollapsedState = {};
 
     const presetPalette = [
       '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
@@ -125,68 +129,35 @@
     }
     applyStatusCSSColors();
 
-    window.updateCustomStatusColor = async function(key, val) {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
-      customStatusColors[key] = val;
-      applyStatusCSSColors();
-      renderStatusColorPickers();
-      filterAndRender();
-      document.getElementById('colorPickerModal')?.classList.add('hidden');
-
-      if (currentUser && !isReadOnly) {
-        try {
-          await setDoc(doc(db, "users", currentUser.uid), {
-            statusColors: customStatusColors
-          }, { merge: true });
-        } catch(e) { console.error("색상 DB 저장 실패:", e); }
+    window.toggleSection2Archive = function() {
+      isSection2Collapsed = !isSection2Collapsed;
+      const content = document.getElementById('section2Content');
+      const btn = document.getElementById('section2ArchiveBtn');
+      if (content && btn) {
+        if (isSection2Collapsed) {
+          content.classList.add('hidden');
+          btn.innerText = "전체 펼치기 ∨";
+        } else {
+          content.classList.remove('hidden');
+          btn.innerText = "전체 접기 ∧";
+        }
       }
     };
 
-    window.openColorPickerModal = function(key, label) {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
-      activeColorPickerKey = key;
-      document.getElementById('colorModalTitle').innerText = `${label} 상태 글자 색상 선택`;
-      
-      const grid = document.getElementById('colorPaletteGrid');
-      grid.innerHTML = '';
-
-      const currentColor = customStatusColors[key] || '#6B7280';
-
-      presetPalette.forEach(hex => {
-        const isSelected = currentColor.toLowerCase() === hex.toLowerCase();
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `w-10 h-10 rounded-full border-2 transition hover:scale-110 shadow-sm flex items-center justify-center ${isSelected ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
-        btn.style.backgroundColor = hex;
-        if (isSelected) {
-          btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
+    window.toggleMonthArchive = function(m) {
+      monthCollapsedState[m] = !monthCollapsedState[m];
+      const bodyElem = document.getElementById(`monthBody_${m}`);
+      const btnElem = document.getElementById(`monthBtn_${m}`);
+      if (bodyElem && btnElem) {
+        if (monthCollapsedState[m]) {
+          bodyElem.classList.add('hidden');
+          btnElem.innerText = "펼치기 ∨";
+        } else {
+          bodyElem.classList.remove('hidden');
+          btnElem.innerText = "접기 ∧";
         }
-        btn.onclick = () => updateCustomStatusColor(key, hex);
-        grid.appendChild(btn);
-      });
-
-      document.getElementById('colorPickerModal')?.classList.remove('hidden');
+      }
     };
-
-    function renderStatusColorPickers() {
-      const keys = [
-        { id: 'apply', label: '신청' },
-        { id: 'select', label: '선정' },
-        { id: 'visit', label: '방문' },
-        { id: 'unsubmitted', label: '미제출' },
-        { id: 'submit', label: '제출' },
-        { id: 'delivery', label: '배송' },
-        { id: 'fee', label: '원고료' }
-      ];
-
-      keys.forEach(item => {
-        const badgeElem = document.getElementById(`picker_badge_${item.id}`);
-        if (badgeElem) {
-          const currentColor = customStatusColors[item.id] || '#6B7280';
-          badgeElem.style.backgroundColor = currentColor;
-        }
-      });
-    }
 
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
@@ -215,9 +186,7 @@
       return str;
     }
 
-    function displayStatusName(status) {
-      return status;
-    }
+    function displayStatusName(status) { return status; }
 
     function getStatusTextClass(status) {
       switch(status) {
@@ -581,7 +550,6 @@
       populateYearFilter();
     });
 
-    // DB 데이터 스캔 기반 연도 옵션 동적 생성 (2027년 등 미래/과거 연도 자동 추가)
     function populateYearFilter() {
       const yearSelect = document.getElementById('filterYear');
       const settlementYearSelect = document.getElementById('settlementYearSelect');
@@ -591,7 +559,6 @@
       const currentYear = now.getFullYear();
       const yearsSet = new Set([2025, currentYear]);
 
-      // 데이터 내 등장하는 연도 모두 수집
       rawCampaignList.forEach(item => {
         [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
           if (d && d.length >= 4) {
@@ -604,7 +571,7 @@
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
       yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
-      if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL font-bold">연도 전체 (누적)</option>';
+      if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
 
       sortedYears.forEach(y => {
         const opt = document.createElement('option');
@@ -683,101 +650,6 @@
         document.getElementById('myShareCode').innerText = myCustomCode;
       } catch (e) {
         console.error("유저 설정 로드 에러:", e);
-      }
-    }
-
-    document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 공유 코드를 변경할 수 없습니다.");
-      const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리 숫자/영문):", myCustomCode);
-      if (!newCode) return;
-
-      const trimmed = newCode.trim();
-      if (trimmed.length !== 4 && trimmed.length !== 6) {
-        return alert("공유 코드는 정확히 4자리 또는 6자리여야 합니다.");
-      }
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", trimmed));
-        if (codeSnap.exists() && codeSnap.data().uid !== currentUser.uid) {
-          return alert("이미 사용 중인 코드입니다.");
-        }
-
-        if (myCustomCode && myCustomCode !== trimmed) {
-          try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(err){}
-        }
-
-        await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid }, { merge: true });
-        await setDoc(doc(db, "users", currentUser.uid), { customCode: trimmed }, { merge: true });
-
-        myCustomCode = trimmed;
-        document.getElementById('myShareCode').innerText = myCustomCode;
-        alert("공유 코드가 정상적으로 변경되었습니다!");
-      } catch (e) {
-        alert("코드 변경 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
-      const partnerCode = document.getElementById('partnerCodeInput').value.trim();
-      if (!partnerCode) return alert("동반자의 공유 코드를 입력해주세요.");
-
-      let realUid = partnerCode;
-
-      try {
-        const codeSnap = await getDoc(doc(db, "userCodes", partnerCode));
-        if (codeSnap.exists()) {
-          realUid = codeSnap.data().uid;
-        }
-
-        if (currentUser && realUid === currentUser.uid) {
-          targetUserId = currentUser.uid;
-          isReadOnly = false;
-          alert("본인 모드로 전환되었습니다.");
-        } else {
-          targetUserId = realUid;
-          isReadOnly = true;
-          alert("동반자 읽기 전용 모드로 전환되었습니다.");
-        }
-
-        updateFormVisibility();
-        loadCampaigns();
-        switchTab('dashboard');
-      } catch (e) {
-        alert("조회 실패: " + e.message);
-      }
-    });
-
-    document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
-      if (!currentUser) return;
-      targetUserId = currentUser.uid;
-      isReadOnly = false;
-      document.getElementById('partnerCodeInput').value = '';
-      updateFormVisibility();
-      loadCampaigns();
-    });
-
-    function updateFormVisibility() {
-      const readOnlyBadge = document.getElementById('readOnlyBadge');
-      const resetBtn = document.getElementById('resetToMyDataBtn');
-      const dashRegisterBtn = document.getElementById('dashRegisterBtn');
-      const navForm = document.getElementById('nav-form');
-      const navSettings = document.getElementById('nav-settings');
-      const downloadExcelBtn = document.getElementById('downloadExcelBtn');
-
-      if (isReadOnly) {
-        readOnlyBadge?.classList.remove('hidden');
-        resetBtn?.classList.remove('hidden');
-        dashRegisterBtn?.classList.add('hidden');
-        navForm?.classList.add('hidden');
-        navSettings?.classList.add('hidden');
-        downloadExcelBtn?.classList.add('hidden');
-      } else {
-        readOnlyBadge?.classList.add('hidden');
-        resetBtn?.classList.add('hidden');
-        dashRegisterBtn?.classList.remove('hidden');
-        navForm?.classList.remove('hidden');
-        navSettings?.classList.remove('hidden');
-        downloadExcelBtn?.classList.remove('hidden');
       }
     }
 
@@ -896,159 +768,264 @@
       renderAllScheduledVisits();
     }
 
+    // 정산 리포트
     function renderSettlementView() {
-      const settlementList = document.getElementById('settlementTableBody');
-      if (!settlementList) return;
-
       const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
 
-      let totalSettledRevenue = 0;
-      let totalPaidAmount = 0;
-      let totalSponsoredAmount = 0;
-      let settledCount = 0;
-      let topStoreName = '-';
-      let topStoreRev = 0;
-
-      settlementList.innerHTML = '';
-
-      const completedItems = rawCampaignList.filter(item => {
-        const isCompleted = (item.status === '제출' || item.status === '완료');
-        if (!isCompleted) return false;
-
-        if (selectedYear !== 'ALL') {
-          const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
-          return refDate.startsWith(selectedYear);
-        }
-        return true;
+      const yearFilteredItems = rawCampaignList.filter(item => {
+        if (selectedYear === 'ALL') return true;
+        const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
+        return refDate.startsWith(selectedYear);
       });
 
-      const storeRevMap = {};
+      let yearSettledSum = 0;
+      let yearUnsettledSum = 0;
 
-      completedItems.forEach(item => {
+      const monthlyRevData = {}; 
+      const monthlyVisitData = {}; 
+      const platformStats = {};
+
+      for (let m = 1; m <= 12; m++) {
+        monthlyRevData[m] = { settled: 0, unsettled: 0 };
+        monthlyVisitData[m] = { done: 0, plan: 0 };
+      }
+
+      yearFilteredItems.forEach(item => {
+        const isCompleted = (item.status === '제출' || item.status === '완료');
         const sponsored = Number(item.sponsoredAmount || 0);
         const paid = Number(item.paidAmount || 0);
         const inputRev = Number(item.revenue || 0);
 
-        let rev = 0;
+        let calcRev = 0;
         if (paid === 0) {
-          rev = sponsored > 0 ? sponsored : inputRev;
+          calcRev = sponsored > 0 ? sponsored : inputRev;
         } else {
-          rev = (sponsored - paid) + inputRev;
+          calcRev = (sponsored - paid) + inputRev;
         }
 
-        totalSettledRevenue += rev;
-        totalPaidAmount += paid;
-        totalSponsoredAmount += sponsored;
-        settledCount++;
-
-        storeRevMap[item.storeName] = (storeRevMap[item.storeName] || 0) + rev;
-
-        const refDate = item.deadlineDate || item.visitDate || '-';
-        const displayMonth = (refDate && refDate.length >= 7) ? `${Number(refDate.slice(5, 7))}월` : '-';
-
-        const row = document.createElement('tr');
-        row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
-        row.innerHTML = `
-          <td class="p-3.5 text-gray-500 font-normal text-center">${displayMonth}</td>
-          <td class="p-3.5 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-left truncate text-xs">${item.storeName}</td>
-          <td class="p-3.5 text-center"><span class="status-text-submit font-bold">${item.status}</span></td>
-          <td class="p-3.5 text-gray-700 font-normal text-center">${item.platformName || '-'}</td>
-          <td class="p-3.5 text-gray-700 font-normal text-center">${sponsored.toLocaleString()}원</td>
-          <td class="p-3.5 text-gray-900 font-normal text-center">${paid.toLocaleString()}원</td>
-          <td class="p-3.5 font-normal text-gray-900 text-center">+${rev.toLocaleString()}원</td>
-        `;
-        settlementList.appendChild(row);
-      });
-
-      Object.keys(storeRevMap).forEach(name => {
-        if (storeRevMap[name] > topStoreRev) {
-          topStoreRev = storeRevMap[name];
-          topStoreName = name;
+        const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
+        let monthNum = 0;
+        if (refDate && refDate.length >= 7) {
+          monthNum = Number(refDate.slice(5, 7));
         }
-      });
 
-      const avgRev = settledCount > 0 ? Math.round(totalSettledRevenue / settledCount) : 0;
-      const netBenefit = totalSettledRevenue - totalPaidAmount;
+        if (isCompleted) {
+          yearSettledSum += calcRev;
+          if (monthNum >= 1 && monthNum <= 12) monthlyRevData[monthNum].settled += calcRev;
+        } else {
+          yearUnsettledSum += calcRev;
+          if (monthNum >= 1 && monthNum <= 12) monthlyRevData[monthNum].unsettled += calcRev;
+        }
 
-      document.getElementById('totalSettledRevenue').innerText = `+${totalSettledRevenue.toLocaleString()}원`;
-      document.getElementById('totalPaidAmount').innerText = `${totalPaidAmount.toLocaleString()}원`;
-      document.getElementById('totalSettledCount').innerText = `${settledCount}건`;
-      document.getElementById('avgSettledRevenue').innerText = `+${avgRev.toLocaleString()}원`;
-      document.getElementById('topSettledStore').innerText = topStoreRev > 0 ? `${topStoreName} (+${topStoreRev.toLocaleString()}원)` : '-';
-      document.getElementById('netBenefitAmount').innerText = `${netBenefit >= 0 ? '+' : ''}${netBenefit.toLocaleString()}원`;
-
-      if (completedItems.length === 0) {
-        settlementList.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs font-normal">해당 기간의 정산 완료 내역이 없습니다.</td></tr>`;
-      }
-    }
-
-    window.openCounterListModal = function(counterType, titleName) {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
-      const now = new Date();
-
-      const monthlyCampaigns = rawCampaignList.filter(item => {
-        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
-        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
-      });
-
-      let matchedItems = [];
-
-      if (counterType === 'select') {
-        matchedItems = monthlyCampaigns.filter(c => (c.status === '선정' && !c.visitDate) || c.status === '배송' || c.status === '원고료');
-      } else if (counterType === 'visitWait') {
-        matchedItems = monthlyCampaigns.filter(c => c.status === '선정' && !c.visitDate);
-      } else if (counterType === 'visitPlan') {
-        matchedItems = monthlyCampaigns.filter(c => {
-          if (c.status !== '선정' || !c.visitDate) return false;
-          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-          return new Date(visitDateTimeStr) >= now;
-        });
-      } else if (counterType === 'submitWait') {
-        matchedItems = monthlyCampaigns.filter(c => {
-          if (c.status === '미제출') return true;
-          if (c.status === '방문') {
-            if (!c.visitDate) return true;
-            const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-            return new Date(visitDateTimeStr) < now; 
+        if (monthNum >= 1 && monthNum <= 12) {
+          if (isCompleted || item.status === '방문') {
+            monthlyVisitData[monthNum].done++;
+          } else {
+            monthlyVisitData[monthNum].plan++;
           }
-          return false;
-        });
-      } else if (counterType === 'submitDone') {
-        matchedItems = monthlyCampaigns.filter(c => c.status === '제출' || c.status === '완료');
+        }
+
+        const pName = item.platformName || '개별';
+        if (!platformStats[pName]) platformStats[pName] = { done: 0, plan: 0 };
+        if (isCompleted || item.status === '방문') platformStats[pName].done++;
+        else platformStats[pName].plan++;
+      });
+
+      document.getElementById('legendSettledText').innerText = `완료: +${yearSettledSum.toLocaleString()}원`;
+      document.getElementById('legendUnsettledText').innerText = `미완료: +${yearUnsettledSum.toLocaleString()}원`;
+
+      const totalYearRev = yearSettledSum + yearUnsettledSum;
+      const settledRatio = totalYearRev > 0 ? Math.round((yearSettledSum / totalYearRev) * 100) : 0;
+      document.getElementById('donutRatioCenter').innerText = `${settledRatio}%`;
+
+      const donutGraphic = document.getElementById('donutGraphicChart');
+      if (donutGraphic) {
+        donutGraphic.style.background = `conic-gradient(#F4A261 0% ${settledRatio}%, #9CA3AF ${settledRatio}% 100%)`;
       }
 
-      document.getElementById('modalDateTitle').innerText = `${year}년 ${month}월 [${titleName}] 목록 (${matchedItems.length}건)`;
-      const modalList = document.getElementById('modalItemList');
-      modalList.innerHTML = '';
+      const barContainer = document.getElementById('revenueBarChartContainer');
+      if (barContainer) {
+        barContainer.innerHTML = '';
+        let maxMonthlyRev = 0;
+        for (let m = 1; m <= 12; m++) {
+          const sum = monthlyRevData[m].settled + monthlyRevData[m].unsettled;
+          if (sum > maxMonthlyRev) maxMonthlyRev = sum;
+        }
+        if (maxMonthlyRev === 0) maxMonthlyRev = 1;
 
-      if (matchedItems.length === 0) {
-        modalList.innerHTML = `<div class="text-xs text-gray-400 py-6 text-center font-normal">${titleName} 항목이 없습니다.</div>`;
-      } else {
-        matchedItems.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
-          div.onclick = () => openDetailItemModal(item.id);
+        for (let m = 1; m <= 12; m++) {
+          const s = monthlyRevData[m].settled;
+          const u = monthlyRevData[m].unsettled;
+          const total = s + u;
 
-          div.innerHTML = `
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
-              <span class="${getStatusTextClass(item.status)} font-bold">${displayStatusName(item.status)}</span>
+          const hSettled = Math.round((s / maxMonthlyRev) * 100);
+          const hUnsettled = Math.round((u / maxMonthlyRev) * 100);
+
+          const barItem = document.createElement('div');
+          barItem.className = 'flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer';
+
+          let tooltipText = `${m}월 총수익: +${total.toLocaleString()}원`;
+          if (s > 0 && u > 0) tooltipText += `<br>• 완료: ${s.toLocaleString()}원<br>• 미완료: ${u.toLocaleString()}원`;
+
+          barItem.innerHTML = `
+            <div class="absolute bottom-10 hidden group-hover:block z-30 bg-gray-900 text-white text-[10px] p-2 rounded-lg shadow-xl whitespace-nowrap leading-tight">
+              ${tooltipText}
             </div>
-            <div class="flex justify-between text-gray-500 text-[11px] font-normal">
-              <span>사이트: ${item.platformName || '개별'}</span>
-              <span>${item.visitDate ? `방문일: ${formatShortDate(item.visitDate)}` : (item.deadlineDate ? `마감일: ${formatShortDate(item.deadlineDate)}` : '')}</span>
+            <div class="w-full max-w-[16px] flex flex-col justify-end rounded-t overflow-hidden" style="height: ${Math.max(hSettled + hUnsettled, total > 0 ? 8 : 2)}%;">
+              ${u > 0 ? `<div class="bg-gray-400 w-full" style="height: ${(u/total)*100}%;"></div>` : ''}
+              ${s > 0 ? `<div class="bg-theme w-full" style="height: ${(s/total)*100}%;"></div>` : ''}
+            </div>
+            <span class="text-[10px] text-gray-500 font-normal mt-1">${m}월</span>
+          `;
+          barContainer.appendChild(barItem);
+        }
+      }
+
+      const visitContainer = document.getElementById('visitBarChartContainer');
+      if (visitContainer) {
+        visitContainer.innerHTML = '';
+        let maxVisit = 0;
+        for (let m = 1; m <= 12; m++) {
+          const sum = monthlyVisitData[m].done + monthlyVisitData[m].plan;
+          if (sum > maxVisit) maxVisit = sum;
+        }
+        if (maxVisit === 0) maxVisit = 1;
+
+        for (let m = 1; m <= 12; m++) {
+          const d = monthlyVisitData[m].done;
+          const p = monthlyVisitData[m].plan;
+          const total = d + p;
+
+          const barItem = document.createElement('div');
+          barItem.className = 'flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer';
+
+          barItem.innerHTML = `
+            <div class="absolute bottom-10 hidden group-hover:block z-30 bg-gray-900 text-white text-[10px] p-2 rounded-lg shadow-xl whitespace-nowrap leading-tight">
+              ${m}월 방문: 총 ${total}건 (완료 ${d}건 / 예정 ${p}건)
+            </div>
+            <div class="w-full max-w-[16px] flex flex-col justify-end rounded-t overflow-hidden" style="height: ${Math.max(Math.round((total/maxVisit)*100), total > 0 ? 8 : 2)}%;">
+              ${p > 0 ? `<div class="bg-gray-400 w-full" style="height: ${(p/total)*100}%;"></div>` : ''}
+              ${d > 0 ? `<div class="bg-theme w-full" style="height: ${(d/total)*100}%;"></div>` : ''}
+            </div>
+            <span class="text-[10px] text-gray-500 font-normal mt-1">${m}월</span>
+          `;
+          visitContainer.appendChild(barItem);
+        }
+      }
+
+      const platformContainer = document.getElementById('platformStatsList');
+      if (platformContainer) {
+        platformContainer.innerHTML = '';
+        const platformKeys = Object.keys(platformStats);
+
+        if (platformKeys.length === 0) {
+          platformContainer.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal">등록된 체험단 내역이 없습니다.</div>';
+        } else {
+          platformKeys.forEach(pName => {
+            const stat = platformStats[pName];
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center text-xs py-1 text-gray-800';
+            div.innerHTML = `
+              <span class="font-bold text-gray-900">${pName}</span>
+              <span class="font-normal text-xs">
+                <span class="text-theme font-bold">완료 ${stat.done}건</span> / <span class="text-gray-400">예정 ${stat.plan}건</span>
+              </span>
+            `;
+            platformContainer.appendChild(div);
+          });
+        }
+      }
+
+      const oddList = document.getElementById('oddMonthCardsList');
+      const evenList = document.getElementById('evenMonthCardsList');
+
+      if (oddList && evenList) {
+        oddList.innerHTML = '';
+        evenList.innerHTML = '';
+
+        for (let m = 1; m <= 12; m++) {
+          const monthItems = yearFilteredItems.filter(item => {
+            const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
+            return refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
+          });
+
+          let monthSettledSum = 0;
+          let monthUnsettledSum = 0;
+
+          monthItems.forEach(item => {
+            const isCompleted = (item.status === '제출' || item.status === '완료');
+            const sponsored = Number(item.sponsoredAmount || 0);
+            const paid = Number(item.paidAmount || 0);
+            const inputRev = Number(item.revenue || 0);
+
+            let rev = 0;
+            if (paid === 0) rev = sponsored > 0 ? sponsored : inputRev;
+            else rev = (sponsored - paid) + inputRev;
+
+            if (isCompleted) monthSettledSum += rev;
+            else monthUnsettledSum += rev;
+          });
+
+          const totalMonthRev = monthSettledSum + monthUnsettledSum;
+          const isCollapsed = !!monthCollapsedState[m];
+
+          const card = document.createElement('div');
+          card.className = 'bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-2';
+
+          let rowsHtml = '';
+          if (monthItems.length === 0) {
+            rowsHtml = `<tr><td colspan="3" class="p-3 text-center text-gray-400 text-xs font-normal">등록된 내역이 없습니다.</td></tr>`;
+          } else {
+            monthItems.forEach(item => {
+              const sponsored = Number(item.sponsoredAmount || 0);
+              const paid = Number(item.paidAmount || 0);
+              rowsHtml += `
+                <tr class="border-b border-gray-50 text-xs text-gray-800">
+                  <td class="py-2 font-bold text-gray-900 cursor-pointer hover:text-theme truncate text-left" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+                  <td class="py-2 text-center text-gray-600 font-normal">${sponsored.toLocaleString()}원</td>
+                  <td class="py-2 text-center text-gray-600 font-normal">${paid.toLocaleString()}원</td>
+                </tr>
+              `;
+            });
+          }
+
+          let summaryBadgeText = `총수익 +${monthSettledSum.toLocaleString()}원`;
+          if (monthUnsettledSum > 0) {
+            summaryBadgeText = `총수익 +${monthSettledSum.toLocaleString()}원 (예상 +${monthUnsettledSum.toLocaleString()}원)`;
+          }
+
+          card.innerHTML = `
+            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+              <span class="font-bold text-xs text-gray-900">${m}월 내역 : <span class="text-theme font-bold">${summaryBadgeText}</span></span>
+              <button id="monthBtn_${m}" onclick="toggleMonthArchive(${m})" class="text-[11px] text-gray-400 font-normal hover:text-gray-600">
+                ${isCollapsed ? '펼치기 ∨' : '접기 ∧'}
+              </button>
+            </div>
+
+            <div id="monthBody_${m}" class="${isCollapsed ? 'hidden' : ''} space-y-2">
+              <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                  <tr class="text-gray-400 text-[11px] border-b border-gray-100">
+                    <th class="py-1 font-bold text-left w-1/2">매장(업체)명</th>
+                    <th class="py-1 font-bold text-center">제공금액</th>
+                    <th class="py-1 font-bold text-center">결제금액</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+
+              <div class="bg-gray-50 p-2 rounded-xl text-right text-xs font-normal text-gray-600">
+                ${m}월 총 실수익: <span class="text-gray-900 font-bold">+${monthSettledSum.toLocaleString()}원</span>
+                ${monthUnsettledSum > 0 ? `<span class="text-gray-400 ml-1">(예상 +${monthUnsettledSum.toLocaleString()}원)</span>` : ''}
+              </div>
             </div>
           `;
-          modalList.appendChild(div);
-        });
-      }
 
-      document.getElementById('dayModal')?.classList.remove('hidden');
-    };
+          if (m % 2 === 1) oddList.appendChild(card);
+          else evenList.appendChild(card);
+        }
+      }
+    }
 
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
@@ -1248,7 +1225,6 @@
       }
     }
 
-    // 모달 내 비고(메모) 위치 및 볼드(굵은) 텍스트 유지
     window.openDetailItemModal = function(id) {
       const item = rawCampaignList.find(c => c.id === id);
       if (!item) return;
@@ -1305,17 +1281,36 @@
       filterAndRender();
     };
 
+    // 일괄 수정 토글 (수정 모드 시작 시 빈 신규 추가 행 1줄 기본 삽입)
     window.toggleBatchEdit = function() {
       if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
       isBatchEditing = !isBatchEditing;
+      if (isBatchEditing) {
+        newBatchRows = [{ tempId: Date.now() }]; // 신규 행 1개 기본 생성
+      } else {
+        newBatchRows = [];
+      }
       filterAndRender();
     };
 
+    // 일괄 수정 모드 내 신규 행 추기 함수
+    window.addNewBatchRow = function() {
+      newBatchRows.push({ tempId: Date.now() + Math.random() });
+      filterAndRender();
+    };
+
+    window.removeNewBatchRow = function(index) {
+      newBatchRows.splice(index, 1);
+      filterAndRender();
+    };
+
+    // 전체 저장 (기존 수정건 updateDoc + 신규 작성건 addDoc 일괄 저장)
     window.saveAllBatchEdits = async function() {
       if (isReadOnly || !currentUser) return;
 
       const promises = [];
 
+      // 1. 기존 항목 수정 저장
       rawCampaignList.forEach(item => {
         const storeElem = document.getElementById(`batch_store_${item.id}`);
         if (!storeElem) return;
@@ -1335,10 +1330,33 @@
         promises.push(updateDoc(doc(db, "campaigns", item.id), payload));
       });
 
+      // 2. 신규 추가 항목 신규 등록 (매장명이 채워진 경우)
+      newBatchRows.forEach((row, idx) => {
+        const storeVal = document.getElementById(`new_batch_store_${idx}`)?.value;
+        if (storeVal && storeVal.trim()) {
+          const payload = {
+            userId: currentUser.uid,
+            storeName: storeVal.trim(),
+            status: document.getElementById(`new_batch_status_${idx}`)?.value || '선정',
+            platformName: document.getElementById(`new_batch_platform_${idx}`)?.value || '개별',
+            applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
+            visitDate: formatCleanDate(document.getElementById(`new_batch_visitDate_${idx}`)?.value || ''),
+            visitTime: document.getElementById(`new_batch_visitTime_${idx}`)?.value || '',
+            deadlineDate: formatCleanDate(document.getElementById(`new_batch_deadlineDate_${idx}`)?.value || ''),
+            sponsoredAmount: parseCurrencyValue(document.getElementById(`new_batch_sponsored_${idx}`)?.value),
+            paidAmount: parseCurrencyValue(document.getElementById(`new_batch_paid_${idx}`)?.value),
+            revenue: parseCurrencyValue(document.getElementById(`new_batch_revenue_${idx}`)?.value),
+            createdAt: serverTimestamp()
+          };
+          promises.push(addDoc(collection(db, "campaigns"), payload));
+        }
+      });
+
       try {
         await Promise.all(promises);
-        alert('모든 체험 정보가 일괄 저장되었습니다!');
+        alert('모든 체험 정보 및 신규 항목이 일괄 저장되었습니다!');
         isBatchEditing = false;
+        newBatchRows = [];
         await loadCampaigns();
       } catch (err) {
         alert('일괄 저장 실패: ' + err.message);
@@ -1432,7 +1450,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 매장명 너비 w-1/5(20%)로 변경 및 정산완료 일반 굵기 설정
+    // 체험단 목록 탭 렌더링 (일괄 수정 내 신규 추가 행 포함)
     function filterAndRender() {
       const tableBody = document.getElementById('campaignTableBody');
       const cardList = document.getElementById('campaignCardList');
@@ -1576,7 +1594,6 @@
           `;
           tableBody.appendChild(row);
         } else {
-          // 비고란 정산완료 검정색 일반 굵기(text-gray-900 font-normal) 적용
           let noteBadge = isCompleted 
             ? `<span class="text-gray-900 font-normal">정산완료</span>`
             : `<span class="text-gray-400 font-normal">미정산</span>`;
@@ -1628,7 +1645,69 @@
         cardList.appendChild(card);
       });
 
-      if (filteredList.length === 0) {
+      // 일괄 수정 모드 시 하단 신규 등록 입력 행들 렌더링
+      if (isBatchEditing) {
+        newBatchRows.forEach((row, idx) => {
+          const newRow = document.createElement('tr');
+          newRow.className = 'bg-emerald-50/70 border-b border-emerald-200 text-xs text-gray-900';
+          const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
+
+          newRow.innerHTML = `
+            <td class="p-2 text-left">
+              <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
+            </td>
+            <td class="p-2 text-center">
+              <select id="new_batch_status_${idx}" class="w-full border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <option value="신청" ${defaultStatus === '신청' ? 'selected' : ''}>신청</option>
+                <option value="선정" ${defaultStatus === '선정' ? 'selected' : ''}>선정</option>
+                <option value="방문" ${defaultStatus === '방문' ? 'selected' : ''}>방문</option>
+                <option value="미제출" ${defaultStatus === '미제출' ? 'selected' : ''}>미제출</option>
+                <option value="제출" ${defaultStatus === '제출' ? 'selected' : ''}>제출</option>
+                <option value="배송" ${defaultStatus === '배송' ? 'selected' : ''}>배송</option>
+                <option value="원고료" ${defaultStatus === '원고료' ? 'selected' : ''}>원고료</option>
+              </select>
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_platform_${idx}" placeholder="사이트" value="개별" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <div class="flex gap-1 justify-center">
+                <input type="date" id="new_batch_visitDate_${idx}" class="w-24 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+                <input type="time" id="new_batch_visitTime_${idx}" class="w-16 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+              </div>
+            </td>
+            <td class="p-2 text-center">
+              <input type="date" id="new_batch_deadlineDate_${idx}" class="w-24 border border-emerald-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <input type="text" id="new_batch_revenue_${idx}" placeholder="0" class="w-20 border border-emerald-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+            </td>
+            <td class="p-2 text-center">
+              <button onclick="removeNewBatchRow(${idx})" class="text-xs bg-gray-400 text-white hover:bg-gray-500 px-2.5 py-1.5 rounded-lg font-bold shadow-sm">취소</button>
+            </td>
+          `;
+          tableBody.appendChild(newRow);
+        });
+
+        // 신규 행 추가 버튼 로우
+        const addBtnRow = document.createElement('tr');
+        addBtnRow.innerHTML = `
+          <td colspan="9" class="p-3 text-center bg-gray-50/80">
+            <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+              + 새 체험 추가
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(addBtnRow);
+      }
+
+      if (filteredList.length === 0 && !isBatchEditing) {
         const emptyMsg = '<div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
         tableBody.innerHTML = `<tr><td colspan="10">${emptyMsg}</td></tr>`;
         cardList.innerHTML = emptyMsg;
@@ -1998,7 +2077,6 @@
       <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
-        <!-- 1줄: 제목 -->
         <div class="flex items-center h-10 shrink-0">
           <div class="flex items-center gap-1.5">
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
@@ -2020,7 +2098,6 @@
           </div>
         </div>
 
-        <!-- 2줄: [진행중/완료 탭] -> [수정] -> [검색(30%확장)] -> [년도] -> [월] -> [상태 필터 (40% 줄인 여백 pr-3 mr-2)] -->
         <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap pr-3">
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="flex-1 w-28 text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
@@ -2062,7 +2139,6 @@
           </select>
         </div>
 
-        <!-- 3줄: 테이블 (table-fixed 적용 / 매장명 제외 주요 항목 가운데 정렬) -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table class="w-full text-left border-collapse table-fixed">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
@@ -2087,64 +2163,82 @@
 
       <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
-        <div class="flex items-center justify-between h-10 mb-2 shrink-0">
+        
+        <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
-          
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500 font-bold">조회 연도:</span>
             <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-bold text-gray-800"></select>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-3.5 shrink-0">
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">총 실수익 (정산 완료)</div>
-            <div id="totalSettledRevenue" class="text-2xl font-black text-emerald-600">+0원</div>
-          </div>
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">총 결제 지출금액</div>
-            <div id="totalPaidAmount" class="text-2xl font-black text-rose-500">0원</div>
-          </div>
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">총 순수혜 (실수익 - 지출)</div>
-            <div id="netBenefitAmount" class="text-2xl font-black text-theme">+0원</div>
-          </div>
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">정산 완료 건수</div>
-            <div id="totalSettledCount" class="text-xl font-black text-gray-900">0건</div>
-          </div>
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">건당 평균 실수익</div>
-            <div id="avgSettledRevenue" class="text-xl font-black text-gray-800">+0원</div>
-          </div>
-          <div class="bg-white p-4.5 rounded-2xl border border-gray-100 shadow-sm space-y-1">
-            <div class="text-xs font-bold text-gray-500">최고 수익 매장</div>
-            <div id="topSettledStore" class="text-base font-bold text-gray-900 truncate mt-1">-</div>
+        <!-- 1줄: 1년 정산 구조 & 월별 실수익 추이 -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-gray-800">1줄 : 1년 정산 구조 및 월별 실수익 추이</div>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3.5">
+            <div class="md:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+              <div class="flex justify-between items-start">
+                <span class="text-xs font-bold text-gray-800">🍩 1년 실수익 비중</span>
+                <div class="text-[11px] space-y-1 text-right">
+                  <div id="legendSettledText" class="text-theme font-bold">완료: +0원</div>
+                  <div id="legendUnsettledText" class="text-gray-400 font-normal">미완료: +0원</div>
+                </div>
+              </div>
+              <div class="flex items-center justify-center py-2">
+                <div id="donutGraphicChart" class="w-20 h-20 rounded-full flex items-center justify-center relative transition-all duration-500" style="background: conic-gradient(#F4A261 0% 0%, #9CA3AF 0% 100%);">
+                  <div id="donutRatioCenter" class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-900">0%</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="md:col-span-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-800">📊 월별 실수익 (정산완료 + 미완료)</span>
+                <span class="text-[10px] text-gray-400">마우스 호버 시 상세 금액 확인</span>
+              </div>
+              <div id="revenueBarChartContainer" class="flex items-end justify-between h-24 pt-2 gap-1.5"></div>
+            </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="p-4 border-b border-gray-100 font-bold text-sm text-gray-800 flex justify-between items-center">
-            <span>💵 세부 정산 완료 명단</span>
-            <span class="text-xs text-gray-400 font-normal">매장명 클릭 시 상세 모달 오픈</span>
+        <!-- 2줄: 연간 체험 활동 및 사이트 통계 -->
+        <div class="space-y-1.5 pt-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-gray-800">2줄 : 연간 체험 활동 및 사이트 통계</span>
+            <button id="section2ArchiveBtn" onclick="toggleSection2Archive()" class="text-xs text-gray-500 font-bold bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-xl transition">
+              전체 접기 ∧
+            </button>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse table-fixed">
-              <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
-                <tr>
-                  <th class="p-3.5 font-bold text-center w-16">월</th>
-                  <th class="p-3.5 font-bold text-left w-1/5">매장명</th>
-                  <th class="p-3.5 font-bold text-center">상태</th>
-                  <th class="p-3.5 font-bold text-center">사이트</th>
-                  <th class="p-3.5 font-bold text-center">제공금액</th>
-                  <th class="p-3.5 font-bold text-center">결제금액</th>
-                  <th class="p-3.5 font-bold text-center w-[110px]">최종 실수익</th>
-                </tr>
-              </thead>
-              <tbody id="settlementTableBody"></tbody>
-            </table>
+
+          <div id="section2Content" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-800">📈 연간 월별 방문 횟수</span>
+                <span class="text-[10px] text-gray-400">완료(주황) / 예정(회색)</span>
+              </div>
+              <div id="visitBarChartContainer" class="flex items-end justify-between h-20 pt-2 gap-1.5"></div>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+              <span class="text-xs font-bold text-gray-800 block">🏆 체험단 사이트별 진행 횟수</span>
+              <div id="platformStatsList" class="space-y-1 pt-1 widget-scroll max-h-24"></div>
+            </div>
           </div>
         </div>
+
+        <!-- 3줄: 월별 내역 세부 조회 -->
+        <div class="space-y-1.5 pt-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-gray-800">3줄 : 월별 내역 세부 조회 (홀수달 / 짝수달 2열)</span>
+            <span class="text-[11px] text-gray-400 font-normal">각 달별 개별 아카이브 가능</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div id="oddMonthCardsList" class="space-y-3"></div>
+            <div id="evenMonthCardsList" class="space-y-3"></div>
+          </div>
+        </div>
+
       </div>
 
       <!-- 5. 설정 및 공유 탭 -->
@@ -2330,7 +2424,7 @@
     </div>
   </div>
 
-  <!-- 직관적인 12종 세련된 컬러 팔레트 모달 -->
+  <!-- 컬러 팔레트 모달 -->
   <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
       <div class="flex justify-between items-center border-b pb-3">
