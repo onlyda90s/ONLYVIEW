@@ -46,12 +46,12 @@
     .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
     .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
 
-    /* 상태 드롭다운 화살표 간격 및 중앙정렬 스타일 */
+    /* 상태 드롭다운 세부 수치 세밀 조정 (화살표 간격 40% 축소 0.75rem, 좌측 여백 0.1rem) */
     select.select-center {
       text-align: center;
       text-align-last: center;
-      padding-right: 1.25rem !important; /* 20px 화살표 여백 */
-      padding-left: 0.5rem !important;   /* 8px 좌측 여백 */
+      padding-right: 0.75rem !important; /* 40% 줄인 화살표 간격 */
+      padding-left: 0.1rem !important;  /* 요청하신 왼쪽 여백 0.1rem */
     }
   </style>
 </head>
@@ -899,7 +899,7 @@
     }
 
     function renderSettlementView() {
-      // 1:1 2분할 뼈대
+      // 정산 3줄 레이아웃 연동
     }
 
     window.openCounterListModal = function(counterType, titleName) {
@@ -2122,7 +2122,7 @@
           </div>
         </div>
 
-        <!-- 1줄: 1:1 2단 레이아웃 박스 (우측 pr-2 여백 확보) -->
+        <!-- 1줄: 1:1 2단 레이아웃 박스 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <!-- 좌측 1/2 박스: 도넛 차트 구역 -->
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[180px]">
@@ -2273,7 +2273,7 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
