@@ -32,9 +32,7 @@
     .border-theme { border-color: var(--primary) !important; }
     .ring-theme:focus { --tw-ring-color: var(--primary) !important; }
 
-    .widget-scroll {
-      overflow-y: auto !important;
-    }
+    .widget-scroll { overflow-y: auto !important; }
     .widget-scroll::-webkit-scrollbar { width: 4px; }
     .widget-scroll::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
@@ -101,12 +99,6 @@
     let isSection2Collapsed = false;
     let monthCollapsedState = {};
 
-    const presetPalette = [
-      '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
-      '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706',
-      '#EC4899', '#0891B2'
-    ];
-
     const customStatusColors = {
       apply: '#6B7280',
       select: '#111827',
@@ -158,7 +150,6 @@
       }
     };
 
-    // 날짜 안전 파싱 보정
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       const str = String(dateVal).trim();
@@ -655,123 +646,110 @@
       }
     }
 
-    // 데이터 복구 핵심 로직
+    // 2중 안전 호출 방식 데이터 가져오기 (멈춤 방지 가드)
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
       try {
-        const q = query(
-          collection(db, "campaigns"), 
-          where("userId", "==", targetUserId)
-        );
-        const querySnapshot = await getDocs(q);
-        
+        let querySnapshot;
+        try {
+          const q = query(
+            collection(db, "campaigns"), 
+            where("userId", "==", targetUserId)
+          );
+          querySnapshot = await getDocs(q);
+        } catch (err) {
+          console.warn("where 쿼리 실패, 전체 스캔 2차 시도:", err);
+          querySnapshot = await getDocs(collection(db, "campaigns"));
+        }
+
         rawCampaignList = [];
         const now = new Date();
 
-        const autoVisitPromises = [];
-
         querySnapshot.forEach((docSnap) => {
           const d = docSnap.data();
-          const item = { 
-            id: docSnap.id, 
-            ...d,
-            applyDate: formatCleanDate(d.applyDate || ''),
-            visitDate: formatCleanDate(d.visitDate || ''),
-            deadlineDate: formatCleanDate(d.deadlineDate || '')
-          };
-
-          if (item.status === '선정' && item.visitDate) {
-            const vTimeStr = item.visitTime || '23:59';
-            const visitDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
-            if (visitDateTime < now && currentUser && !isReadOnly) {
-              item.status = '방문';
-              autoVisitPromises.push(updateDoc(doc(db, "campaigns", item.id), { status: '방문' }));
-            }
+          if (d.userId === targetUserId || !d.userId) {
+            const item = { 
+              id: docSnap.id, 
+              ...d,
+              applyDate: formatCleanDate(d.applyDate || ''),
+              visitDate: formatCleanDate(d.visitDate || ''),
+              deadlineDate: formatCleanDate(d.deadlineDate || '')
+            };
+            rawCampaignList.push(item);
           }
-
-          rawCampaignList.push(item);
         });
-
-        if (autoVisitPromises.length > 0) {
-          await Promise.all(autoVisitPromises);
-        }
 
         populateYearFilter();
         filterAndRender();
         renderDashboardView();
         renderSettlementView();
       } catch (e) {
-        console.error("데이터 로드 실패:", e);
+        console.error("최종 데이터 로드 실패:", e);
       }
     }
 
     function renderDashboardView() {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      document.getElementById('dashMonthTitle').innerText = `${year}년 ${month}월`;
+      try {
+        const year = currentCalDate.getFullYear();
+        const month = currentCalDate.getMonth() + 1;
+        const titleElem = document.getElementById('dashMonthTitle');
+        if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
 
-      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
-      const monthlyCampaigns = rawCampaignList.filter(item => {
-        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
-        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
-      });
+        const monthlyCampaigns = rawCampaignList.filter(item => {
+          const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
+          const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
+          const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
+          return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+        });
 
-      let cntSelect = 0;     
-      let cntVisitWait = 0;  
-      let cntVisitPlan = 0;  
-      let cntSubmitWait = 0; 
-      let cntSubmitDone = 0; 
+        let cntSelect = 0;     
+        let cntVisitWait = 0;  
+        let cntVisitPlan = 0;  
+        let cntSubmitWait = 0; 
+        let cntSubmitDone = 0; 
 
-      const now = new Date();
+        const now = new Date();
 
-      monthlyCampaigns.forEach(item => {
-        const st = item.status;
-        if (st === '선정' || st === '배송' || st === '원고료') {
-          if (st === '선정' && !item.visitDate) {
-            cntSelect++;
-            cntVisitWait++;
-          } else if (st === '배송' || st === '원고료') {
-            cntSelect++;
-          } else if (st === '선정' && item.visitDate) {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            const vTime = new Date(visitDateTimeStr);
-            if (vTime >= now) {
-              cntVisitPlan++;
+        monthlyCampaigns.forEach(item => {
+          const st = item.status;
+          if (st === '선정' || st === '배송' || st === '원고료') {
+            if (st === '선정' && !item.visitDate) {
+              cntSelect++;
+              cntVisitWait++;
+            } else if (st === '배송' || st === '원고료') {
+              cntSelect++;
+            } else if (st === '선정' && item.visitDate) {
+              const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
+              const vTime = new Date(visitDateTimeStr);
+              if (vTime >= now) {
+                cntVisitPlan++;
+              }
             }
           }
-        }
-        else if (st === '미제출') {
-          cntSubmitWait++;
-        }
-        else if (st === '방문') {
-          if (item.visitDate) {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            if (new Date(visitDateTimeStr) < now) {
-              cntSubmitWait++; 
-            }
-          } else {
-            cntSubmitWait++;
-          }
-        }
-        else if (st === '제출' || st === '완료') cntSubmitDone++;
-      });
+          else if (st === '미제출') cntSubmitWait++;
+          else if (st === '방문') cntSubmitWait++;
+          else if (st === '제출' || st === '완료') cntSubmitDone++;
+        });
 
-      document.getElementById('cntSelect').innerText = cntSelect + '건';
-      document.getElementById('cntVisitWait').innerText = cntVisitWait + '건';
-      document.getElementById('cntVisitPlan').innerText = cntVisitPlan + '건';
-      document.getElementById('cntSubmitWait').innerText = cntSubmitWait + '건';
-      document.getElementById('cntSubmitDone').innerText = cntSubmitDone + '건';
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        setTxt('cntSelect', cntSelect + '건');
+        setTxt('cntVisitWait', cntVisitWait + '건');
+        setTxt('cntVisitPlan', cntVisitPlan + '건');
+        setTxt('cntSubmitWait', cntSubmitWait + '건');
+        setTxt('cntSubmitDone', cntSubmitDone + '건');
 
-      renderCalendar(year, month);
-      renderUpcomingDeadlines();
-      renderAllScheduledVisits();
+        renderCalendar(year, month);
+        renderUpcomingDeadlines();
+        renderAllScheduledVisits();
+      } catch (err) {
+        console.error("대시보드 연산 에러 예외 무시:", err);
+      }
     }
 
-    // 정산 리포트 구동 (예외 방지 가드)
+    // 정산 리포트 구동 (완벽 예외 보호가드)
     function renderSettlementView() {
       try {
         const selectedYear = document.getElementById('settlementYearSelect')?.value || new Date().getFullYear().toString();
@@ -779,7 +757,7 @@
         const yearFilteredItems = rawCampaignList.filter(item => {
           if (selectedYear === 'ALL') return true;
           const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
-          return refDate.startsWith(selectedYear);
+          return typeof refDate === 'string' && refDate.startsWith(selectedYear);
         });
 
         let yearSettledSum = 0;
@@ -801,11 +779,8 @@
           const inputRev = Number(item.revenue || 0);
 
           let calcRev = 0;
-          if (paid === 0) {
-            calcRev = sponsored > 0 ? sponsored : inputRev;
-          } else {
-            calcRev = (sponsored - paid) + inputRev;
-          }
+          if (paid === 0) calcRev = sponsored > 0 ? sponsored : inputRev;
+          else calcRev = (sponsored - paid) + inputRev;
 
           const refDate = item.deadlineDate || item.visitDate || item.applyDate || '';
           let monthNum = 0;
@@ -822,11 +797,8 @@
           }
 
           if (monthNum >= 1 && monthNum <= 12) {
-            if (isCompleted || item.status === '방문') {
-              monthlyVisitData[monthNum].done++;
-            } else {
-              monthlyVisitData[monthNum].plan++;
-            }
+            if (isCompleted || item.status === '방문') monthlyVisitData[monthNum].done++;
+            else monthlyVisitData[monthNum].plan++;
           }
 
           const pName = item.platformName || '개별';
@@ -957,7 +929,7 @@
               return typeof refDate === 'string' && refDate.length >= 7 && Number(refDate.slice(5, 7)) === m;
             });
 
-            let monthNetBenefitSum = 0; 
+            let monthNetBenefitSum = 0;
 
             monthItems.forEach(item => {
               const sponsored = Number(item.sponsoredAmount || 0);
