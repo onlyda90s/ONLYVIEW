@@ -365,6 +365,7 @@
     };
 
     function applyCardToggleUI() {
+      const yearlyCard = document.getElementById('yearlyCardContainer');
       const yearlyBody = document.getElementById('yearlyCardBody');
       const yearlyArrow = document.getElementById('yearlyToggleArrow');
       const yearlySummary = document.getElementById('yearlySummaryText');
@@ -374,13 +375,16 @@
           yearlyBody.classList.add('hidden');
           yearlyArrow.innerText = '▼';
           if (yearlySummary) yearlySummary.classList.remove('hidden');
+          if (yearlyCard) yearlyCard.style.height = '52px';
         } else {
           yearlyBody.classList.remove('hidden');
           yearlyArrow.innerText = '▲';
           if (yearlySummary) yearlySummary.classList.add('hidden');
+          if (yearlyCard) yearlyCard.style.height = '290px';
         }
       }
 
+      const monthlyCard = document.getElementById('monthlyCardContainer');
       const monthlyBody = document.getElementById('monthlyCardBody');
       const monthlyArrow = document.getElementById('monthlyToggleArrow');
       const monthlySummary = document.getElementById('monthlySummaryText');
@@ -390,10 +394,12 @@
           monthlyBody.classList.add('hidden');
           monthlyArrow.innerText = '▼';
           if (monthlySummary) monthlySummary.classList.remove('hidden');
+          if (monthlyCard) monthlyCard.style.height = '52px';
         } else {
           monthlyBody.classList.remove('hidden');
           monthlyArrow.innerText = '▲';
           if (monthlySummary) monthlySummary.classList.add('hidden');
+          if (monthlyCard) monthlyCard.style.height = '290px';
         }
       }
     }
@@ -1018,7 +1024,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (독립 접기/펼치기 적용)
+    // 정산 탭 리포트 연동 (펼쳤을 때 동일 290px 높이, 접었을 때 슬림 52px 고정)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1773,7 +1779,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 탭 필터링 조건 교정: '진행중인 체험' 탭에서 '미제출' 상태도 정상 포함되도록 수정
+    // 미제출 상태 건도 '진행중인 체험' 탭에 표출되도록 교정
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -1800,9 +1806,7 @@
           const effSt = getEffectiveStatus(item);
           const isCompleted = (effSt === '제출' || effSt === '완료');
           
-          // '진행중인 체험' 탭: '제출'/'완료'가 아닌 모든 건(미제출 포함) 표출
           if (listSubTab === 'ongoing' && isCompleted) return false;
-          // '완료된 체험' 탭: '제출'/'완료' 건만 표출
           if (listSubTab === 'submitted' && !isCompleted) return false;
 
           const matchesName = (item.storeName || '').toLowerCase().includes(searchText) || 
@@ -2500,7 +2504,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (독립 높이 items-start 적용) -->
+      <!-- 4. 체험단 정산 탭 (높이 동적 고정 및 독립적 토글 스펙 연동) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2511,11 +2515,11 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 (items-start 적용으로 1개만 접을 때 반대편 높이에 간섭하지 않음) -->
+        <!-- 1줄: 연간 수익 / 월간 수익 (items-start로 1개 접힘 시 개별 52px 높이 유지) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
-          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
             <!-- 제목줄 (43px) -->
             <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
@@ -2528,7 +2532,7 @@
             </div>
 
             <!-- 내용 구역 -->
-            <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-3">
+            <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-3 flex-1">
               
               <!-- 좌측: 도넛 차트 중앙 텍스트 표기 (너비 2/5) -->
               <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
@@ -2583,7 +2587,7 @@
           </div>
 
           <!-- 1줄 2번: 월간 수익 카드 -->
-          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
             <!-- 제목줄 (43px) -->
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
@@ -2767,8 +2771,8 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
