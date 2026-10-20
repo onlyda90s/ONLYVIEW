@@ -224,7 +224,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(0, 4); // 앞의 4자리 연도만 잘라냄
+        if (year.length > 4) year = year.slice(0, 4);
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -971,7 +971,7 @@
       }
     }
 
-    // 데이터 아예 없을 시 '이번 달' 예외 표기 정산 탭 리포트 연동
+    // 소수점 1자리(0.5만) 정밀 계산 반영 정산 탭 리포트 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1112,7 +1112,7 @@
           });
         }
 
-        // --- [2] 월간 수익 막대 차트 연동 ---
+        // --- [2] 월간 수익 막대 차트 연동 (소수점 1자리 precision 연동) ---
         let maxMonthIdx = 0;
         let maxRevVal = 0;
         monthlyRevenues.forEach((val, idx) => {
@@ -1122,7 +1122,8 @@
           }
         });
 
-        const monthlyDataTenThousand = monthlyRevenues.map(v => Math.round(v / 10000));
+        // 만원 단위 변환 시 반올림 대신 소수점 첫째자리 정밀 계산 적용
+        const monthlyDataTenThousand = monthlyRevenues.map(v => Number((v / 10000).toFixed(1)));
 
         // 월별 막대 색상 분기
         const barColors = monthlyRevenues.map((_, idx) => {
@@ -1200,7 +1201,10 @@
                   offset: 2,
                   font: { size: 10, weight: 'bold' },
                   color: (context) => barColors[context.dataIndex],
-                  formatter: (value) => (value > 0 ? value : '')
+                  formatter: (value) => {
+                    if (!value || value <= 0) return '';
+                    return Number.isInteger(value) ? value : value.toFixed(1);
+                  }
                 }
               }
             }
@@ -1819,7 +1823,6 @@
           }
 
           if (isBatchEditing) {
-            // 연도 왜곡 방지가 적용된 4자리 정제 날짜
             const cleanVisitDate = formatCleanDate(item.visitDate || '');
             const cleanDeadlineDate = formatCleanDate(item.deadlineDate || '');
 
@@ -2691,7 +2694,7 @@
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
