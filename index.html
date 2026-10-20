@@ -216,7 +216,6 @@
       });
     }
 
-    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622) 앞에서부터 4자리(2026)로 강제 정제
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
@@ -224,7 +223,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(0, 4); // 앞의 4자리 연도만 추출
+        if (year.length > 4) year = year.slice(0, 4);
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -247,7 +246,6 @@
       return str;
     }
 
-    // 방문일시 및 마감일 경과 시 시스템 자동 미제출 판별
     function getEffectiveStatus(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return rawSt;
@@ -971,7 +969,7 @@
       }
     }
 
-    // 연간 수익 + 선택 연도에 맞춘 '이번 달' 예외 보정 정산 탭 리포트 연동
+    // 데이터 아예 없을 시 '이번 달' 예외 표기 완벽 보정 정산 탭 리포트 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1001,7 +999,7 @@
           
           const calcRevenue = sponsored - paid;
 
-          const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
+          const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
           if (!refDate || refDate.length < 7) return;
           
           const itemYear = parseInt(refDate.slice(0, 4));
@@ -1124,7 +1122,7 @@
 
         const monthlyDataTenThousand = monthlyRevenues.map(v => Math.round(v / 10000));
 
-        // 월별 막대 색상 분기 (올해일 경우 이번달 주황, 그 외 연도는 전체 파랑/회색)
+        // 월별 막대 색상 분기
         const barColors = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear) {
@@ -1147,9 +1145,9 @@
           }
         }
 
-        // 올해(현재 연도)가 아니면 '이번 달' 영역을 '-' 로 출력
+        // 데이터가 아예 없거나 올해가 아닐 경우 '이번 달' 영역을 '-' 로 출력
         if (currentMonthText) {
-          if (isCurrentYear) {
+          if (isCurrentYear && totalAmount > 0) {
             const curVal = monthlyRevenues[actualRealMonth - 1] || 0;
             currentMonthText.innerText = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
           } else {
@@ -2688,4 +2686,88 @@
           <div class="flex flex-wrap gap-1.5">
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
-            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-60
+            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
+          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
+            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
+            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
+          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 컬러 팔레트 모달 -->
+  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
+        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+      <p class="text-xs text-gray-500">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
+      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
+    </div>
+  </div>
+
+</body>
+</html>
