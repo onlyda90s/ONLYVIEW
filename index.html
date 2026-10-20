@@ -111,6 +111,9 @@
     let yearlyChartInstance = null;
     let monthlyChartInstance = null;
 
+    let isYearlyCollapsed = localStorage.getItem('onlyview_yearlyCollapsed') === 'true';
+    let isMonthlyCollapsed = localStorage.getItem('onlyview_monthlyCollapsed') === 'true';
+
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
 
@@ -216,7 +219,6 @@
       });
     }
 
-    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622-10-15) 앞 4자리(2026)만 자르고 YYYY-MM-DD 강제 보정
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
@@ -224,7 +226,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(0, 4); // 앞 4자리 연도 자르기
+        if (year.length > 4) year = year.slice(0, 4);
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -349,6 +351,52 @@
 
     const savedTheme = localStorage.getItem('onlyview_theme') || 'orange';
     window.changeTheme(savedTheme);
+
+    window.toggleYearlyCard = function() {
+      isYearlyCollapsed = !isYearlyCollapsed;
+      localStorage.setItem('onlyview_yearlyCollapsed', isYearlyCollapsed);
+      applyCardToggleUI();
+    };
+
+    window.toggleMonthlyCard = function() {
+      isMonthlyCollapsed = !isMonthlyCollapsed;
+      localStorage.setItem('onlyview_monthlyCollapsed', isMonthlyCollapsed);
+      applyCardToggleUI();
+    };
+
+    function applyCardToggleUI() {
+      const yearlyBody = document.getElementById('yearlyCardBody');
+      const yearlyArrow = document.getElementById('yearlyToggleArrow');
+      const yearlySummary = document.getElementById('yearlySummaryText');
+
+      if (yearlyBody && yearlyArrow) {
+        if (isYearlyCollapsed) {
+          yearlyBody.classList.add('hidden');
+          yearlyArrow.innerText = '▼';
+          if (yearlySummary) yearlySummary.classList.remove('hidden');
+        } else {
+          yearlyBody.classList.remove('hidden');
+          yearlyArrow.innerText = '▲';
+          if (yearlySummary) yearlySummary.classList.add('hidden');
+        }
+      }
+
+      const monthlyBody = document.getElementById('monthlyCardBody');
+      const monthlyArrow = document.getElementById('monthlyToggleArrow');
+      const monthlySummary = document.getElementById('monthlySummaryText');
+
+      if (monthlyBody && monthlyArrow) {
+        if (isMonthlyCollapsed) {
+          monthlyBody.classList.add('hidden');
+          monthlyArrow.innerText = '▼';
+          if (monthlySummary) monthlySummary.classList.remove('hidden');
+        } else {
+          monthlyBody.classList.remove('hidden');
+          monthlyArrow.innerText = '▲';
+          if (monthlySummary) monthlySummary.classList.add('hidden');
+        }
+      }
+    }
 
     window.switchTab = function(tabName, pushState = true) {
       if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
@@ -970,9 +1018,11 @@
       }
     }
 
-    // 소수점 1자리(0.5만) 정밀 계산 반영 정산 탭 리포트 연동
+    // 정산 탭 리포트 연동 (접기/펼치기 UI 대응 및 소수점 1자리 정밀 계산)
     function renderSettlementView() {
       try {
+        applyCardToggleUI();
+
         const yearSelect = document.getElementById('settlementYearSelect');
         const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
         
@@ -1035,6 +1085,11 @@
         const totalRevElem = document.getElementById('yearlyTotalRevenueText');
         if (totalRevElem) {
           totalRevElem.innerText = totalAmount.toLocaleString();
+        }
+
+        const yearlySummaryVal = document.getElementById('yearlySummaryVal');
+        if (yearlySummaryVal) {
+          yearlySummaryVal.innerText = `${totalAmount.toLocaleString()}원`;
         }
 
         const doneCntElem = document.getElementById('yearlyDoneCount');
@@ -1121,10 +1176,8 @@
           }
         });
 
-        // 만원 단위 변환 시 반올림 대신 소수점 첫째자리 정밀 계산 적용
         const monthlyDataTenThousand = monthlyRevenues.map(v => Number((v / 10000).toFixed(1)));
 
-        // 월별 막대 색상 분기
         const barColors = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear) {
@@ -1138,6 +1191,7 @@
 
         const bestMonthText = document.getElementById('monthlyBestMonthText');
         const currentMonthText = document.getElementById('monthlyCurrentMonthText');
+        const monthlySummaryVal = document.getElementById('monthlySummaryVal');
 
         if (bestMonthText) {
           if (maxRevVal === 0) {
@@ -1147,13 +1201,15 @@
           }
         }
 
-        // 데이터가 아예 없거나 올해가 아닐 경우 '이번 달' 영역을 '-' 로 출력
         if (currentMonthText) {
           if (isCurrentYear && totalAmount > 0) {
             const curVal = monthlyRevenues[actualRealMonth - 1] || 0;
-            currentMonthText.innerText = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
+            const curTxt = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
+            currentMonthText.innerText = curTxt;
+            if (monthlySummaryVal) monthlySummaryVal.innerText = curTxt;
           } else {
             currentMonthText.innerText = '-';
+            if (monthlySummaryVal) monthlySummaryVal.innerText = '-';
           }
         }
 
@@ -1822,7 +1878,6 @@
           }
 
           if (isBatchEditing) {
-            // 일괄 수정 시 4자리 정제 연도 강제 적용
             const cleanVisitDate = formatCleanDate(item.visitDate);
             const cleanDeadlineDate = formatCleanDate(item.deadlineDate);
 
@@ -2442,7 +2497,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
+      <!-- 4. 체험단 정산 탭 (접기/펼치기 UI 1안 연동) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2453,20 +2508,24 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <!-- 1줄: 연간 수익 / 월간 수익 (각각 개별 접기/펼치기 지원) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
-          <!-- 1줄 1번: 연간 수익 -->
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
-            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
+          <!-- 1줄 1번: 연간 수익 카드 -->
+          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between transition-all duration-300">
+            <!-- 카드 제목줄 (높이 48px) -->
+            <div onclick="toggleYearlyCard()" class="flex justify-between items-center border-b pb-3 border-gray-50 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
-              <span class="text-[11px] text-gray-400">정산 상태별</span>
+              <div class="flex items-center gap-2">
+                <span id="yearlySummaryText" class="hidden text-xs font-black text-theme">
+                  총 <span id="yearlySummaryVal">0원</span>
+                </span>
+                <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+              </div>
             </div>
 
-            <!-- 좌우 1:1 콤팩트 컨테이너 -->
-            <div class="grid grid-cols-2 gap-4 items-center my-2">
-              
-              <!-- 좌측: 도넛 차트 및 실수익 단독 수치 -->
+            <!-- 접힘 구역 (도넛 차트 192px + 범례) -->
+            <div id="yearlyCardBody" class="grid grid-cols-2 gap-4 items-center mt-3">
               <div class="relative flex items-center justify-center h-48 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -2474,10 +2533,7 @@
                 </div>
               </div>
 
-              <!-- 우측: 30% 오른쪽 이동된 범례 -->
               <div class="space-y-3.5 text-xs text-left pl-8 ml-4">
-                
-                <!-- 1단: 정산 완료 -->
                 <div class="space-y-0.5">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
@@ -2488,7 +2544,6 @@
                   </div>
                 </div>
 
-                <!-- 2단: 정산 예정 -->
                 <div class="space-y-0.5">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
@@ -2499,7 +2554,6 @@
                   </div>
                 </div>
 
-                <!-- 3단: 전년 대비 증가 -->
                 <div id="yearlyCompareContainer" class="space-y-0.5 pt-1.5 border-t border-gray-100">
                   <div class="flex items-center gap-1.5 font-bold text-gray-800 text-xs">
                     <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block"></span>
@@ -2509,36 +2563,40 @@
                     비교 데이터가 없습니다
                   </div>
                 </div>
-
               </div>
-
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 카탈로그 -->
-          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[300px]">
-            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
+          <!-- 1줄 2번: 월간 수익 카드 -->
+          <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between transition-all duration-300">
+            <!-- 카드 제목줄 (높이 48px) -->
+            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center border-b pb-3 border-gray-50 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
-              <span class="text-[11px] text-gray-400">단위: 만원</span>
-            </div>
-
-            <!-- 12개월 막대 차트 구역 -->
-            <div class="relative h-44 w-full my-1">
-              <canvas id="monthlyBarChart"></canvas>
-            </div>
-
-            <!-- 하단 2분할 요약 박스 -->
-            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-              <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
-                <div class="text-[10px] text-gray-400 font-bold mb-0.5">최고 수익 달</div>
-                <div id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</div>
-              </div>
-              <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
-                <div class="text-[10px] text-gray-400 font-bold mb-0.5">이번 달</div>
-                <div id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</div>
+              <div class="flex items-center gap-2">
+                <span id="monthlySummaryText" class="hidden text-xs font-black text-theme">
+                  이번 달 <span id="monthlySummaryVal">-</span>
+                </span>
+                <span id="monthlyToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
               </div>
             </div>
 
+            <!-- 접힘 구역 (막대 그래프 176px + 하단 요약 박스 52px) -->
+            <div id="monthlyCardBody" class="space-y-3 mt-3">
+              <div class="relative h-44 w-full">
+                <canvas id="monthlyBarChart"></canvas>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
+                <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
+                  <div class="text-[10px] text-gray-400 font-bold mb-0.5">최고 수익 달</div>
+                  <div id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</div>
+                </div>
+                <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
+                  <div class="text-[10px] text-gray-400 font-bold mb-0.5">이번 달</div>
+                  <div id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</div>
+                </div>
+              </div>
+            </div>
           </div>
 
         </div>
