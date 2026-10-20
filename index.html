@@ -736,7 +736,7 @@
 
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      yearSelect.innerHTML = '<Option value="ALL">연도 전체</option>';
+      yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
       if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
 
       sortedYears.forEach(y => {
@@ -1018,7 +1018,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (건수/금액 정렬, 금액 확대, 우측 30% 이동, 수평 1:1 대칭 완벽 보정)
+    // 정산 탭 리포트 연동 (요청 5가지 수정 사항 모두 완벽 반영)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1032,6 +1032,12 @@
 
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
+
+        // 도넛 차트 중앙 연도 라벨 동적 변경
+        const yearlyDonutYearLabel = document.getElementById('yearlyDonutYearLabel');
+        if (yearlyDonutYearLabel) {
+          yearlyDonutYearLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 총수익`;
+        }
 
         // --- [1] 연간 수익 계산 ---
         let doneCount = 0;
@@ -1108,8 +1114,10 @@
         if (compareContainer) {
           if (!hasPrevYearData) {
             compareContainer.innerHTML = `
-              <div class="text-[11px] text-gray-400 font-bold mb-0.5">전년 대비 증가</div>
-              <div class="text-xs text-gray-400 font-medium">비교 데이터 없음</div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
+                <span class="text-xs text-gray-400 font-medium">비교 데이터 없음</span>
+              </div>
             `;
           } else {
             const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
@@ -1118,8 +1126,8 @@
             let badgeClass = diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
 
             compareContainer.innerHTML = `
-              <div class="text-[11px] text-gray-400 font-bold mb-0.5">전년 대비 증가</div>
               <div class="flex items-center gap-2">
+                <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
                 <span class="font-black text-gray-900 text-lg">${diffStr}</span>
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}">${rateStr}</span>
               </div>
@@ -2489,7 +2497,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (요청 5가지 완벽 반영) -->
+      <!-- 4. 체험단 정산 탭 (요청 5가지 개별 수정 사항 완벽 반영) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2500,7 +2508,7 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 (수평 동일 세로 높이 min-h-[290px] 통일) -->
+        <!-- 1줄: 연간 수익 / 월간 수익 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
@@ -2516,25 +2524,23 @@
               </div>
             </div>
 
-            <!-- 연간 수익 내용 구역 (오른쪽 30% 이동 및 수평 열 맞춤) -->
+            <!-- 내용 구역 -->
             <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-3 flex-1">
               
-              <!-- 좌측: 도넛 차트 (너비 2/5) -->
+              <!-- 1. 도넛 차트 중앙 텍스트/금액 표기 (너비 2/5) -->
               <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                  <span id="yearlyDonutYearLabel" class="text-[11px] font-bold text-gray-400 mb-0.5">2026년 총수익</span>
+                  <span id="yearlyTotalRevenueText" class="text-xl font-black text-gray-900 tracking-tight">0원</span>
+                </div>
               </div>
 
-              <!-- 우측: 텍스트 정보 (너비 3/5, pl-10 적용하여 오른쪽으로 30% 이동) -->
+              <!-- 3. 오른쪽 30% 이동 구역 (너비 3/5, pl-10 ml-2 적용) -->
               <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
                 
-                <!-- 1단: 총 수익 -->
-                <div>
-                  <div class="text-[11px] text-gray-400 font-bold mb-0.5">총 수익</div>
-                  <div id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0원</div>
-                </div>
-
-                <!-- 2단: 정산 완료 / 정산 예정 (건수와 금액 열 완벽 일치) -->
-                <div class="space-y-1.5 border-t border-b border-gray-100 py-2">
+                <!-- 2 & 3. 범례 경계선 제거 및 간격 30% 축소 (space-y-1) -->
+                <div class="space-y-1 py-1">
                   <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
                     <span class="flex items-center gap-1.5">
                       <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
@@ -2560,10 +2566,12 @@
                   </div>
                 </div>
 
-                <!-- 3단: 전년 대비 증가 (금액 폰트 30% 확대: text-lg) -->
+                <!-- 4. 전년 대비 증가 금액과 백분율 나란히 가로 표기 -->
                 <div id="yearlyCompareContainer" class="pt-0.5">
-                  <div class="text-[11px] text-gray-400 font-bold mb-0.5">전년 대비 증가</div>
-                  <div class="text-xs text-gray-400 font-medium">비교 데이터 없음</div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
+                    <span class="text-xs text-gray-400 font-medium">비교 데이터 없음</span>
+                  </div>
                 </div>
 
               </div>
@@ -2571,7 +2579,7 @@
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 카드 (연간 수익과 동일 세로 크기 min-h-[290px] 적용) -->
+          <!-- 1줄 2번: 월간 수익 카드 (동일 세로 높이 min-h-[290px] 통일) -->
           <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[290px]">
             <!-- 제목줄 (43px) -->
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
@@ -2584,20 +2592,21 @@
               </div>
             </div>
 
-            <!-- 막대 그래프 및 하단 2분할 박스 (최고 수익 달/이번 달) -->
+            <!-- 막대 그래프 및 5. 수평(가로) 요약 박스 -->
             <div id="monthlyCardBody" class="space-y-3 mt-3 flex-1 flex flex-col justify-between">
               <div class="relative h-40 w-full flex-1">
                 <canvas id="monthlyBarChart"></canvas>
               </div>
 
+              <!-- 5. 월간 수익 하단 요약 박스 (가로 수평 정렬) -->
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-                <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
-                  <div class="text-[10px] text-gray-400 font-bold mb-0.5">최고 수익 달</div>
-                  <div id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</div>
+                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                  <span class="text-[10px] text-gray-400 font-bold">최고 수익 달</span>
+                  <span id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</span>
                 </div>
-                <div class="bg-gray-50/80 p-2 rounded-xl text-center border border-gray-100/60">
-                  <div class="text-[10px] text-gray-400 font-bold mb-0.5">이번 달</div>
-                  <div id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</div>
+                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                  <span class="text-[10px] text-gray-400 font-bold">이번 달</span>
+                  <span id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</span>
                 </div>
               </div>
             </div>
