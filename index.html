@@ -76,7 +76,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } 
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } 
       from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } 
       from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -97,9 +97,31 @@
       auth = getAuth(app);
       db = getFirestore(app);
       provider = new GoogleAuthProvider();
+
+      // 브라우저 닫을 때 자동 로그아웃 (세션 만료)
+      setPersistence(auth, browserSessionPersistence).catch(e => console.error("세션 설정 에러:", e));
     } catch (e) {
       console.error("Firebase 초기화 에러:", e);
     }
+
+    // 2시간 무조작 시 자동 로그아웃 타임아웃 로직
+    let autoLogoutTimer;
+    function resetAutoLogoutTimer() {
+      clearTimeout(autoLogoutTimer);
+      // 2시간 = 2 * 60 * 60 * 1000 ms
+      autoLogoutTimer = setTimeout(() => {
+        if (auth && auth.currentUser) {
+          signOut(auth);
+          alert("2시간 동안 활동이 없어 안전하게 자동 로그아웃 되었습니다.");
+          window.location.reload();
+        }
+      }, 2 * 60 * 60 * 1000);
+    }
+
+    ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+      window.addEventListener(evt, resetAutoLogoutTimer);
+    });
+    resetAutoLogoutTimer();
 
     let currentUser = null;
     let targetUserId = null;
@@ -1024,8 +1046,9 @@
           const targetYear = now.getFullYear(); 
           const yearGroup = {};
           
+          // 오직 방문일(visitDate)만 기준으로 연도/월 수치 분류
           rawCampaignList.forEach(item => {
-            const date = item.visitDate || item.deadlineDate || item.applyDate || '';
+            const date = item.visitDate || '';
             if (date && date.length >= 7) {
               const y = date.slice(0, 4);
               const m = parseInt(date.slice(5, 7));
@@ -1059,6 +1082,7 @@
       }
     }
 
+    // 대시보드 현황: 오직 방문일(visitDate) 기준 당월 건수만 집계
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
@@ -1068,11 +1092,10 @@
 
         const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
+        // 신청일 및 마감일 집계 제외 ➔ 오직 방문일(visitDate)이 해당 월인 데이터만 필터링
         const monthlyCampaigns = rawCampaignList.filter(item => {
-          const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
           const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-          const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-          return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+          return visitM === monthPrefix;
         });
 
         let cntSelect = 0;     
@@ -1119,7 +1142,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (2열 레이아웃 고정 및 세로 높이/간격 고정)
+    // 정산 리포트: 오직 방문일(visitDate) 기준 단일 일통 집계
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1169,8 +1192,9 @@
             calcRevenue = (sponsored - paid) + inputRev;
           }
 
-          const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-          if (!refDate || refDate.length < 7) return;
+          // 오직 방문일(visitDate)만 기준으로 정산 월 지정
+          const refDate = formatCleanDate(item.visitDate || '');
+          if (!refDate || refDate.length < 7) return; // 방문일이 없는 항목은 정산 완료 내역에서 제외
           
           const itemYear = parseInt(refDate.slice(0, 4));
           const itemMonth = parseInt(refDate.slice(5, 7));
@@ -1488,7 +1512,6 @@
           });
         }
 
-        // --- 플랫폼 분석 카드 (w-16, mx-1 보정 적용) ---
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -1548,7 +1571,7 @@
           }
         }
 
-        // --- [5] 월간 세부 내역 (2열 그리드 고정 & 세로 높이/간격 일정 유지) ---
+        // --- [5] 월간 세부 내역 (N월 타이틀 간소화 및 2열 고정) ---
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1572,9 +1595,10 @@
               summaryInlineHtml = `<span class="text-xs text-[#C85A17] font-bold">${totalMCount}건 · ${totalMRevenue.toLocaleString()}원</span>`;
             }
 
+            // 헤더 타이틀을 '${m}월'로 축소 간소화
             let html = `
               <div onclick="toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-8 cursor-pointer select-none pb-2 border-b border-gray-50 mb-1 shrink-0">
-                <span class="text-xs font-black text-gray-900">월간 세부 내역 (${m}월)</span>
+                <span class="text-xs font-black text-gray-900">${m}월</span>
                 <div class="flex items-center gap-2">
                   ${summaryInlineHtml}
                   <span class="text-xs text-gray-400 font-bold transition-all">${isCollapsed ? '▼' : '▲'}</span>
@@ -1635,10 +1659,8 @@
       const now = new Date();
 
       const monthlyCampaigns = rawCampaignList.filter(item => {
-        const applyM = item.applyDate ? item.applyDate.slice(0, 7) : '';
         const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        const deadM = item.deadlineDate ? item.deadlineDate.slice(0, 7) : '';
-        return applyM === monthPrefix || visitM === monthPrefix || deadM === monthPrefix;
+        return visitM === monthPrefix;
       });
 
       let matchedItems = [];
@@ -2937,7 +2959,7 @@
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 카드 -->
+          <!-- 1줄 2번: 월간 수익 카드 (차트 리사이즈 덜컹거림 고정) -->
           <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
@@ -2949,7 +2971,7 @@
               </div>
             </div>
 
-            <div id="monthlyCardBody" class="space-y-3 mt-3">
+            <div id="monthlyCardBody" class="space-y-3 mt-3 h-[225px] flex-none">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyBarChart"></canvas>
               </div>
@@ -2995,7 +3017,7 @@
             </div>
           </div>
 
-          <!-- 2줄 2번: 월간 분석 카드 -->
+          <!-- 2줄 2번: 월간 분석 카드 (차트 리사이즈 덜컹거림 고정) -->
           <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
             <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <div class="flex items-center gap-2">
@@ -3010,7 +3032,7 @@
               </div>
             </div>
 
-            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-3">
+            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-3 h-[225px] flex-none">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyAnalysisLineChart"></canvas>
               </div>
