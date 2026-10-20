@@ -1079,7 +1079,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (Null 방어 구문 보강)
+    // 정산 탭 리포트 연동 (플랫폼 분석 텍스트 폭 조정 및 whitespace-nowrap 적용)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1433,7 +1433,7 @@
           });
         }
 
-        // --- [4] 플랫폼 분석 카드 (안전 방어 코드 및 좌우 균형 정렬) ---
+        // --- [4] 플랫폼 분석 카드 (플랫폼명 텍스트 너비 및 줄바꿈 차단 보정) ---
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -1468,16 +1468,17 @@
               const barPercent = Math.max(10, Math.round((p.doneCount / maxDoneCnt) * 100));
 
               const itemDiv = document.createElement('div');
-              itemDiv.className = "flex items-center justify-between text-xs py-1 px-1";
+              itemDiv.className = "flex items-center justify-between text-xs py-1 px-0.5";
 
+              // 플랫폼 라벨 폭 줄임(w-16) 및 우측 금액 영역 줄바꿈 금지(whitespace-nowrap)
               itemDiv.innerHTML = `
-                <span class="font-bold text-gray-800 truncate w-20 shrink-0">${p.pName}</span>
-                <div class="flex-1 mx-2 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <span class="font-bold text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
+                <div class="flex-1 mx-1.5 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: ${barPercent}%"></div>
                 </div>
-                <div class="flex items-center gap-1 shrink-0 text-right">
-                  <span class="text-gray-400 font-bold text-[11px] w-6 text-right">${p.doneCount}건</span>
-                  <span class="text-gray-900 font-black text-xs w-16 text-right">${p.doneAmount.toLocaleString()}원</span>
+                <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
+                  <span class="text-gray-400 font-bold text-[10px] text-right">${p.doneCount}건</span>
+                  <span class="text-gray-900 font-black text-[11px] text-right">${p.doneAmount.toLocaleString()}원</span>
                 </div>
               `;
 
@@ -2150,10 +2151,10 @@
                 <input type="date" id="batch_deadlineDate_${item.id}" value="${cleanDeadlineDate}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
               </td>
               <td class="p-2 text-center col-fixed-sponsored">
-                <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
               </td>
               <td class="p-2 text-center col-fixed-paid">
-                <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
               </td>
               <td class="p-2 text-center font-bold text-gray-700 col-fixed-revenue">
                 ${formatRevenueDisplay(calcRevenue)}
@@ -2294,8 +2295,8 @@
       
       const payload = {
         userId: currentUser.uid,
-        storeName: document.getElementById('storeName').value,
-        platformName: document.getElementById('platformName').value,
+        storeName: document.getElementById('storeName')?.value || '',
+        platformName: document.getElementById('platformName')?.value || '',
         status: selectedStatus,
         applyDate: formatCleanDate(document.getElementById('applyDate')?.value || ''),
         deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
@@ -2313,7 +2314,7 @@
       try {
         await addDoc(collection(db, "campaigns"), payload);
         alert('성공적으로 등록되었습니다!');
-        document.getElementById('campaignForm').reset();
+        document.getElementById('campaignForm')?.reset();
         setStatusBtn('신청');
         selectPlatformChip('개별');
         loadCampaigns();
@@ -3032,10 +3033,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
@@ -3070,7 +3071,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
           </div>
         </div>
 
