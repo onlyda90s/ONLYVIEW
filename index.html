@@ -98,17 +98,14 @@
       db = getFirestore(app);
       provider = new GoogleAuthProvider();
 
-      // 브라우저 닫을 때 자동 로그아웃 (세션 만료)
       setPersistence(auth, browserSessionPersistence).catch(e => console.error("세션 설정 에러:", e));
     } catch (e) {
       console.error("Firebase 초기화 에러:", e);
     }
 
-    // 2시간 무조작 시 자동 로그아웃 타임아웃 로직
     let autoLogoutTimer;
     function resetAutoLogoutTimer() {
       clearTimeout(autoLogoutTimer);
-      // 2시간 = 2 * 60 * 60 * 1000 ms
       autoLogoutTimer = setTimeout(() => {
         if (auth && auth.currentUser) {
           signOut(auth);
@@ -213,7 +210,7 @@
           const isSelected = currentColor.toLowerCase() === hex.toLowerCase();
           const btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = `w-10 h-10 rounded-full border-2 transition hover:scale-110 shadow-sm flex items-center justify-center ${isSelected ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
+          btn.className = `w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center ${isSelected ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
           btn.style.backgroundColor = hex;
           if (isSelected) {
             btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
@@ -527,8 +524,8 @@
         const btnOngoing = document.getElementById('subTabOngoing');
         const btnSubmitted = document.getElementById('subTabSubmitted');
         if (btnOngoing && btnSubmitted) {
-          btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
-          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
+          btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
         }
         document.getElementById('searchInput').value = '';
         document.getElementById('filterStatus').value = 'ALL';
@@ -600,9 +597,9 @@
         const btn = document.getElementById(`btnStatus_${s}`);
         if (btn) {
           if (s === status) {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -666,9 +663,9 @@
         const btn = document.getElementById(`btnEditStatus_${s}`);
         if (btn) {
           if (s === status) {
-            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -686,9 +683,9 @@
         btn.type = 'button';
         btn.innerText = name;
         if (name === currentVal) {
-          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition";
+          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors";
         } else {
-          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition";
+          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition-colors";
         }
         btn.onclick = () => selectPlatformChip(name);
         container.appendChild(btn);
@@ -697,7 +694,7 @@
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-bold text-xs hover:bg-gray-100 transition";
+      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-bold text-xs hover:bg-gray-100 transition-colors";
       addBtn.onclick = addCustomPlatform;
       container.appendChild(addBtn);
     }
@@ -741,9 +738,9 @@
         const btn = document.getElementById(`btnDeadlineDay_${d}`);
         if (btn) {
           if (d === deadlineAlertDays) {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -1046,7 +1043,6 @@
           const targetYear = now.getFullYear(); 
           const yearGroup = {};
           
-          // 오직 방문일(visitDate)만 기준으로 연도/월 수치 분류
           rawCampaignList.forEach(item => {
             const date = item.visitDate || '';
             if (date && date.length >= 7) {
@@ -1082,7 +1078,6 @@
       }
     }
 
-    // 대시보드 현황: 오직 방문일(visitDate) 기준 당월 건수만 집계
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
@@ -1092,7 +1087,6 @@
 
         const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
 
-        // 신청일 및 마감일 집계 제외 ➔ 오직 방문일(visitDate)이 해당 월인 데이터만 필터링
         const monthlyCampaigns = rawCampaignList.filter(item => {
           const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
           return visitM === monthPrefix;
@@ -1142,7 +1136,6 @@
       }
     }
 
-    // 정산 리포트: 오직 방문일(visitDate) 기준 단일 일통 집계
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1192,9 +1185,8 @@
             calcRevenue = (sponsored - paid) + inputRev;
           }
 
-          // 오직 방문일(visitDate)만 기준으로 정산 월 지정
           const refDate = formatCleanDate(item.visitDate || '');
-          if (!refDate || refDate.length < 7) return; // 방문일이 없는 항목은 정산 완료 내역에서 제외
+          if (!refDate || refDate.length < 7) return; 
           
           const itemYear = parseInt(refDate.slice(0, 4));
           const itemMonth = parseInt(refDate.slice(5, 7));
@@ -1311,6 +1303,7 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              animation: false, 
               cutout: '68%',
               plugins: {
                 legend: { display: false },
@@ -1386,6 +1379,7 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              animation: false, 
               layout: {
                 padding: { top: 22 }
               },
@@ -1482,6 +1476,7 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              animation: false, 
               layout: {
                 padding: { top: 22 }
               },
@@ -1551,7 +1546,7 @@
               itemDiv.innerHTML = `
                 <span class="font-bold text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
                 <div class="flex-1 mx-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                  <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: ${barPercent}%"></div>
+                  <div class="bg-blue-600 h-full rounded-full transition-colors" style="width: ${barPercent}%"></div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
                   <span class="text-gray-400 font-bold text-[10px] text-right">${p.doneCount}건</span>
@@ -1571,7 +1566,6 @@
           }
         }
 
-        // --- [5] 월간 세부 내역 (N월 타이틀 간소화 및 2열 고정) ---
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1588,20 +1582,19 @@
 
             const cardDiv = document.createElement('div');
             cardDiv.id = cardId;
-            cardDiv.className = "bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300 min-h-[52px]";
+            cardDiv.className = "bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[52px]";
 
             let summaryInlineHtml = '';
             if (isCollapsed) {
               summaryInlineHtml = `<span class="text-xs text-[#C85A17] font-bold">${totalMCount}건 · ${totalMRevenue.toLocaleString()}원</span>`;
             }
 
-            // 헤더 타이틀을 '${m}월'로 축소 간소화
             let html = `
               <div onclick="toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-8 cursor-pointer select-none pb-2 border-b border-gray-50 mb-1 shrink-0">
                 <span class="text-xs font-black text-gray-900">${m}월</span>
                 <div class="flex items-center gap-2">
                   ${summaryInlineHtml}
-                  <span class="text-xs text-gray-400 font-bold transition-all">${isCollapsed ? '▼' : '▲'}</span>
+                  <span class="text-xs text-gray-400 font-bold">${isCollapsed ? '▼' : '▲'}</span>
                 </div>
               </div>
             `;
@@ -1701,7 +1694,7 @@
           matchedItems.forEach(item => {
             const effSt = getEffectiveStatus(item);
             const div = document.createElement('div');
-            div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
+            div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
             div.onclick = () => openDetailItemModal(item.id);
 
             div.innerHTML = `
@@ -1748,7 +1741,7 @@
       for (let date = 1; date <= lastDate; date++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
         const dayCell = document.createElement('div');
-        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[40px] flex flex-col justify-start cursor-pointer hover:border-theme transition ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
+        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[40px] flex flex-col justify-start cursor-pointer hover:border-theme transition-colors ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
         
         let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
         
@@ -1788,7 +1781,7 @@
           sortedItems.forEach(item => {
             const isVisit = formatCleanDate(item.visitDate) === dateStr;
             const div = document.createElement('div');
-            div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
+            div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
             div.onclick = () => openDetailItemModal(item.id);
 
             const timeBadge = (isVisit && item.visitTime) ? `<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-normal">${item.visitTime}</span>` : '';
@@ -1840,7 +1833,7 @@
 
       deadlineList.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition';
+        card.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition-colors';
         card.onclick = () => openDetailItemModal(item.id);
 
         let dText = `D-${item.diffDays}`;
@@ -1887,7 +1880,7 @@
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 space-y-0.5 text-xs cursor-pointer hover:border-theme transition';
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 space-y-0.5 text-xs cursor-pointer hover:border-theme transition-colors';
           div.onclick = () => openDetailItemModal(item.id);
 
           const timeText = item.visitTime ? ` (${item.visitTime})` : '';
@@ -1912,7 +1905,7 @@
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition';
+          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition-colors';
           div.onclick = () => openDetailItemModal(item.id);
 
           div.innerHTML = `
@@ -1920,7 +1913,7 @@
               <span class="font-bold text-gray-900">${item.storeName}</span>
               <span class="text-[11px] text-gray-400 ml-1 font-normal">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
-            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition">일정 잡기</button>` : ''}
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition-colors">일정 잡기</button>` : ''}
           `;
           unscheduledContainer.appendChild(div);
         });
@@ -1979,11 +1972,11 @@
       const btnSubmitted = document.getElementById('subTabSubmitted');
       
       if (type === 'ongoing') {
-        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
-        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
+        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
       } else {
-        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition";
-        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition";
+        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
       }
       filterAndRender();
     };
@@ -2175,11 +2168,11 @@
 
         if (batchBtn) {
           if (isBatchEditing) {
-            batchBtn.className = "tab-fixed-btn text-center py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition mr-1";
+            batchBtn.className = "tab-fixed-btn text-center py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition-colors mr-1";
             batchBtn.innerText = "취소";
             document.getElementById('saveBatchBtn')?.classList.remove('hidden');
           } else {
-            batchBtn.className = "tab-fixed-btn text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition hover:bg-theme-hover mr-1";
+            batchBtn.className = "tab-fixed-btn text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1";
             batchBtn.innerText = "수정";
             document.getElementById('saveBatchBtn')?.classList.add('hidden');
           }
@@ -2231,14 +2224,14 @@
         const thead = document.querySelector('#sectionList table thead tr');
         if (thead) {
           thead.innerHTML = `
-            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
-            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
-            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
-            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
-            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
-            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
-            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
+            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
+            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
+            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
+            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
+            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
+            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
+            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
             <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
           `;
         }
@@ -2294,7 +2287,7 @@
               <td class="p-2 text-center col-fixed-visit">
                 <div class="flex items-center gap-1 justify-center">
                   <input type="date" id="batch_visitDate_${item.id}" value="${cleanVisitDate}" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24">
-                  <button type="button" onclick="openEditModalFromId('${item.id}')" class="p-1 text-gray-500 hover:text-theme transition" title="시간/세부 정보 수정">🕒</button>
+                  <button type="button" onclick="openEditModalFromId('${item.id}')" class="p-1 text-gray-500 hover:text-theme transition-colors" title="시간/세부 정보 수정">🕒</button>
                 </div>
                 <input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}">
               </td>
@@ -2394,7 +2387,7 @@
               <td class="p-2 text-center col-fixed-visit">
                 <div class="flex items-center gap-1 justify-center">
                   <input type="date" id="new_batch_visitDate_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24 focus:border-theme">
-                  <button type="button" onclick="toggleNewRowTimeInput(${idx})" class="p-1 text-gray-500 hover:text-gray-800 transition" title="시간 설정">🕒</button>
+                  <button type="button" onclick="toggleNewRowTimeInput(${idx})" class="p-1 text-gray-500 hover:text-gray-800 transition-colors" title="시간 설정">🕒</button>
                 </div>
                 <div id="newTimeContainer_${idx}" class="hidden mt-1">
                   <input type="time" id="new_batch_visitTime_${idx}" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-20 focus:border-theme">
@@ -2422,7 +2415,7 @@
           const addBtnRow = document.createElement('tr');
           addBtnRow.innerHTML = `
             <td colspan="9" class="p-3 text-center bg-gray-50/80">
-              <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+              <button onclick="addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors">
                 + 새 체험 추가
               </button>
             </td>
@@ -2563,7 +2556,7 @@
     <div class="w-full space-y-3 mb-6">
       <div class="space-y-2">
         <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
-        <button onclick="enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition">
+        <button onclick="enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition-colors">
           초대 코드로 대시보드 보기
         </button>
       </div>
@@ -2574,7 +2567,7 @@
         <div class="flex-grow border-t border-gray-200"></div>
       </div>
 
-      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition text-sm cursor-pointer">
+      <button id="loginBtn" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">
         Google로 계속하기
       </button>
@@ -2600,19 +2593,19 @@
         </div>
 
         <nav class="space-y-1 text-sm font-bold">
-          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition text-left bg-theme text-white">
+          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
             대시보드
           </button>
-          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors text-left">
             체험단 등록
           </button>
-          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors text-left">
             체험단 목록
           </button>
-          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors text-left">
             체험단 정산
           </button>
-          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition text-left">
+          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors text-left">
             설정 및 공유
           </button>
         </nav>
@@ -2638,7 +2631,7 @@
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
           <div class="flex items-center gap-2">
-            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition">
+            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition-colors">
               + 체험 등록
             </button>
             <div class="flex gap-1">
@@ -2649,23 +2642,23 @@
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
-          <div onclick="openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
+          <div onclick="openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
             <div class="text-[11px] text-gray-900 font-bold">선정 현황</div>
             <div id="cntSelect" class="text-lg font-black text-gray-900 mt-0.5">0건</div>
           </div>
-          <div onclick="openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
+          <div onclick="openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
             <div class="text-[11px] text-gray-500 font-bold">예약 대기</div>
             <div id="cntVisitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div onclick="openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
+          <div onclick="openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
             <div class="text-[11px] text-orange-500 font-bold">방문 예정</div>
             <div id="cntVisitPlan" class="text-lg font-black text-orange-500 mt-0.5">0건</div>
           </div>
-          <div onclick="openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition">
+          <div onclick="openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
             <div class="text-[11px] text-gray-500 font-bold">미제출</div>
             <div id="cntSubmitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
           </div>
-          <div onclick="openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition">
+          <div onclick="openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition-colors">
             <div class="text-[11px] text-emerald-600 font-bold">제출 완료</div>
             <div id="cntSubmitDone" class="text-lg font-black text-emerald-600 mt-0.5">0건</div>
           </div>
@@ -2713,16 +2706,16 @@
             <div class="space-y-1.5">
               <label class="block text-xs font-bold text-gray-900">진행 상태</label>
               <div class="flex gap-1.5">
-                <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">
+                <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">
                   신청
                 </button>
-                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   선정
                 </button>
-                <button type="button" id="btnStatus_배송" onclick="setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_배송" onclick="setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   배송
                 </button>
-                <button type="button" id="btnStatus_원고료" onclick="setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">
+                <button type="button" id="btnStatus_원고료" onclick="setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   원고료
                 </button>
               </div>
@@ -2792,7 +2785,7 @@
             </div>
 
             <div class="flex justify-end pt-3 border-t border-gray-100">
-              <button id="submitBtn" type="submit" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-8 rounded-xl transition shadow-sm text-sm">
+              <button id="submitBtn" type="submit" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-8 rounded-xl transition-colors shadow-sm text-sm">
                 등록하기
               </button>
             </div>
@@ -2808,7 +2801,7 @@
             <h2 class="text-2xl font-black text-theme">체험단 목록</h2>
             
             <div class="relative group cursor-pointer">
-              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition shadow-sm">?</span>
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 group-hover:bg-theme group-hover:text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm">?</span>
               <div class="absolute left-0 top-7 hidden group-hover:block z-30 w-96 p-4 bg-white border border-gray-100 rounded-2xl shadow-xl space-y-2.5 text-xs">
                 <div class="font-bold text-gray-800 border-b pb-2 flex items-center gap-1">
                   <span>💡</span> 체험단 진행 상태 가이드
@@ -2826,12 +2819,12 @@
 
         <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap pr-3">
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
-            <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition">진행중인 체험</button>
-            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition">완료된 체험</button>
+            <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">진행중인 체험</button>
+            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">완료된 체험</button>
           </div>
 
-          <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700 mr-1">전체 저장</button>
-          <button id="batchEditBtn" onclick="toggleBatchEdit()" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition hover:bg-theme-hover mr-1">수정</button>
+          <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1">전체 저장</button>
+          <button id="batchEditBtn" onclick="toggleBatchEdit()" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1">수정</button>
 
           <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
           
@@ -2869,14 +2862,14 @@
           <table class="w-full text-left border-collapse table-auto">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
                 <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
               </tr>
             </thead>
@@ -2902,14 +2895,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
-          <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
+          <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
             <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="yearlySummaryText" class="hidden text-xs font-black text-theme">
                   총 <span id="yearlySummaryVal">0원</span>
                 </span>
-                <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+                <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
 
@@ -2959,15 +2952,15 @@
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 카드 (차트 리사이즈 덜컹거림 고정) -->
-          <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
+          <!-- 1줄 2번: 월간 수익 카드 -->
+          <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="monthlySummaryText" class="hidden text-xs font-black text-theme">
                   이번 달 <span id="monthlySummaryVal">-</span>
                 </span>
-                <span id="monthlyToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+                <span id="monthlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
 
@@ -2995,7 +2988,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 2줄 1번: 플랫폼 분석 카드 -->
-          <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-all duration-300">
+          <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors">
             <div onclick="togglePlatformAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
@@ -3005,7 +2998,7 @@
                 <span id="platformAnalysisSummaryText" class="hidden text-xs font-black text-theme">
                   상위 <span id="platformAnalysisSummaryVal">-</span>
                 </span>
-                <span id="platformAnalysisToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+                <span id="platformAnalysisToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
 
@@ -3017,8 +3010,8 @@
             </div>
           </div>
 
-          <!-- 2줄 2번: 월간 분석 카드 (차트 리사이즈 덜컹거림 고정) -->
-          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
+          <!-- 2줄 2번: 월간 분석 카드 -->
+          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
             <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-800">월간 분석</span>
@@ -3028,7 +3021,7 @@
                 <span id="monthlyAnalysisSummaryText" class="hidden text-xs font-black text-theme">
                   이번 달 <span id="monthlyAnalysisSummaryVal">-</span>
                 </span>
-                <span id="monthlyAnalysisToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+                <span id="monthlyAnalysisToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
 
@@ -3052,7 +3045,7 @@
 
         </div>
 
-        <!-- 3줄: 12개월 개별 접기/펴기 카드 그리드 (2열 대칭 레이아웃 및 세로 간격 고정) -->
+        <!-- 3줄: 12개월 개별 접기/펴기 카드 그리드 (2열 대칭 레이아웃 & 독립 items-start) -->
         <div class="space-y-2">
           <div class="flex items-center justify-between px-1">
             <span class="text-xs font-bold text-gray-700">월간 세부 내역</span>
@@ -3075,22 +3068,22 @@
             <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
             <div class="flex items-center gap-2">
               <span class="text-xs text-gray-600 font-medium mr-2">D-Day 범위:</span>
-              <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition shadow-sm">7일 전</button>
-              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">10일 전</button>
-              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition">14일 전</button>
+              <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">7일 전</button>
+              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
+              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
             </div>
           </div>
 
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
             <div class="flex items-center gap-3">
-              <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition" title="빨강"></button>
-              <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition" title="주황"></button>
-              <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition" title="노랑"></button>
-              <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition" title="초록"></button>
-              <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition" title="파랑"></button>
-              <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition" title="보라"></button>
-              <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition" title="검정"></button>
+              <button onclick="changeTheme('red')" class="w-8 h-8 rounded-full bg-[#E63946] border-2 border-white shadow-md hover:scale-110 transition-transform" title="빨강"></button>
+              <button onclick="changeTheme('orange')" class="w-8 h-8 rounded-full bg-[#F4A261] border-2 border-white shadow-md hover:scale-110 transition-transform" title="주황"></button>
+              <button onclick="changeTheme('yellow')" class="w-8 h-8 rounded-full bg-[#E9C46A] border-2 border-white shadow-md hover:scale-110 transition-transform" title="노랑"></button>
+              <button onclick="changeTheme('green')" class="w-8 h-8 rounded-full bg-[#2A9D8F] border-2 border-white shadow-md hover:scale-110 transition-transform" title="초록"></button>
+              <button onclick="changeTheme('blue')" class="w-8 h-8 rounded-full bg-[#457B9D] border-2 border-white shadow-md hover:scale-110 transition-transform" title="파랑"></button>
+              <button onclick="changeTheme('purple')" class="w-8 h-8 rounded-full bg-[#9D4EDD] border-2 border-white shadow-md hover:scale-110 transition-transform" title="보라"></button>
+              <button onclick="changeTheme('black')" class="w-8 h-8 rounded-full bg-[#2B2D42] border-2 border-white shadow-md hover:scale-110 transition-transform" title="검정"></button>
             </div>
           </div>
 
@@ -3119,31 +3112,31 @@
           <div class="grid grid-cols-2 md:grid-cols-7 gap-3 text-xs">
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">신청</span>
-              <button type="button" onclick="openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_apply"></button>
+              <button type="button" onclick="openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_apply"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">선정</span>
-              <button type="button" onclick="openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_select"></button>
+              <button type="button" onclick="openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_select"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">방문</span>
-              <button type="button" onclick="openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_visit"></button>
+              <button type="button" onclick="openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_visit"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">미제출</span>
-              <button type="button" onclick="openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_unsubmitted"></button>
+              <button type="button" onclick="openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_unsubmitted"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">제출</span>
-              <button type="button" onclick="openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_submit"></button>
+              <button type="button" onclick="openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_submit"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">배송</span>
-              <button type="button" onclick="openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_delivery"></button>
+              <button type="button" onclick="openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_delivery"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
               <span class="block font-bold text-gray-700">원고료</span>
-              <button type="button" onclick="openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition hover:scale-110" id="picker_badge_fee"></button>
+              <button type="button" onclick="openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_fee"></button>
             </div>
           </div>
         </div>
@@ -3153,111 +3146,4 @@
   </div>
 
   <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
-        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
-    </div>
-  </div>
-
-  <!-- 체험 정보 수정 팝업 -->
-  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3>
-        <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-
-      <form id="editForm" class="space-y-4 text-sm">
-        <div class="space-y-1.5">
-          <label class="block text-xs font-bold text-gray-900">진행 상태 변경</label>
-          <div class="flex flex-wrap gap-1.5">
-            <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
-            <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
-            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
-          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
-            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
-              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
-          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 컬러 팔레트 모달 -->
-  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
-        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <p class="text-xs text-gray-500">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
-      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+    <div class="bg-white rounded-3
