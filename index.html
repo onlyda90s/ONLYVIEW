@@ -216,6 +216,7 @@
       });
     }
 
+    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622) 앞 4자리(2026)만 추출
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
@@ -223,7 +224,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(0, 4);
+        if (year.length > 4) year = year.slice(0, 4); // 앞의 4자리 연도만 잘라냄
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -246,6 +247,7 @@
       return str;
     }
 
+    // 방문일시 및 마감일 경과 시 시스템 자동 미제출 판별
     function getEffectiveStatus(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return rawSt;
@@ -969,7 +971,7 @@
       }
     }
 
-    // 데이터 아예 없을 시 '이번 달' 예외 표기 완벽 보정 정산 탭 리포트 연동
+    // 데이터 아예 없을 시 '이번 달' 예외 표기 정산 탭 리포트 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1817,7 +1819,7 @@
           }
 
           if (isBatchEditing) {
-            // 연도 왜곡 방지 적용된 날짜
+            // 연도 왜곡 방지가 적용된 4자리 정제 날짜
             const cleanVisitDate = formatCleanDate(item.visitDate || '');
             const cleanDeadlineDate = formatCleanDate(item.deadlineDate || '');
 
