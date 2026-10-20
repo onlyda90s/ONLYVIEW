@@ -216,14 +216,15 @@
       });
     }
 
+    // 6자리 연도(YYYYYY-MM-DD) 방지 및 4자리 연도(YYYY-MM-DD) 보정 포맷
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
-      const str = String(dateVal).trim();
+      let str = String(dateVal).trim();
       if (!str) return "";
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0];
-        if (year.length > 4) year = year.substring(0, 4);
+        if (year.length > 4) year = year.slice(-4);
         const month = String(parts[1]).padStart(2, '0');
         const day = String(parts[2]).padStart(2, '0');
         return `${year}-${month}-${day}`;
@@ -245,7 +246,7 @@
       return str;
     }
 
-    // 방문 일시 및 마감일 경과 시 시스템 자동 판별 함수
+    // 방문일시 및 마감일 경과 시 시스템 자동 미제출 판별
     function getEffectiveStatus(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return rawSt;
@@ -963,7 +964,7 @@
       }
     }
 
-    // 연간 수익 + 선택 연도 연동 '이번 달' 오류 해결 정산 탭 리포트 연동
+    // 연간 수익 + 선택 연도에 맞춘 '이번 달' 예외 보정 정산 탭 리포트 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -973,9 +974,8 @@
         const actualRealYear = now.getFullYear();
         const actualRealMonth = now.getMonth() + 1;
 
-        // 선택한 연도가 현재 연도이면 실제 월, 과거/기타 연도 선택 시 기본 12월 또는 기준월 연동
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
-        const displayCurrentMonthNum = (targetYear === actualRealYear) ? actualRealMonth : 12;
+        const isCurrentYear = (targetYear === actualRealYear);
 
         // --- [1] 연간 수익 계산 ---
         let doneCount = 0;
@@ -1117,12 +1117,16 @@
 
         const monthlyDataTenThousand = monthlyRevenues.map(v => Math.round(v / 10000));
 
-        // 월별 막대 색상 분기 (과거: 파랑, 선택월/이번달: 주황, 미래: 회색)
+        // 월별 막대 색상 분기 (올해일 경우 이번달 주황, 그 외 연도는 전체 파랑/회색)
         const barColors = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
-          if (monthNum === displayCurrentMonthNum) return '#F4A261'; 
-          if (monthNum < displayCurrentMonthNum) return '#2563EB';   
-          return '#CBD5E1';                                  
+          if (isCurrentYear) {
+            if (monthNum === actualRealMonth) return '#F4A261'; // 이번 달 (주황)
+            if (monthNum < actualRealMonth) return '#2563EB';   // 지나간 달 (파랑)
+            return '#CBD5E1';                                  // 예정 달 (회색)
+          } else {
+            return '#2563EB'; // 과거/타 연도는 모두 확정 달로 처리 (파랑)
+          }
         });
 
         const bestMonthText = document.getElementById('monthlyBestMonthText');
@@ -1136,9 +1140,14 @@
           }
         }
 
+        // 올해(현재 연도)가 아니면 '이번 달' 영역을 '-' 로 출력
         if (currentMonthText) {
-          const curVal = monthlyRevenues[displayCurrentMonthNum - 1] || 0;
-          currentMonthText.innerText = `${displayCurrentMonthNum}월 · ${curVal.toLocaleString()}원`;
+          if (isCurrentYear) {
+            const curVal = monthlyRevenues[actualRealMonth - 1] || 0;
+            currentMonthText.innerText = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
+          } else {
+            currentMonthText.innerText = '-';
+          }
         }
 
         const ctxMonthly = document.getElementById('monthlyBarChart')?.getContext('2d');
@@ -1800,6 +1809,10 @@
           }
 
           if (isBatchEditing) {
+            // 목록 수정 모드에서 4자리 연도(YYYY-MM-DD) 보정 출력
+            const cleanVisitDate = formatCleanDate(item.visitDate || '');
+            const cleanDeadlineDate = formatCleanDate(item.deadlineDate || '');
+
             const row = document.createElement('tr');
             row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
             row.innerHTML = `
@@ -1822,13 +1835,13 @@
               </td>
               <td class="p-2 text-center col-fixed-visit">
                 <div class="flex items-center gap-1 justify-center">
-                  <input type="date" id="batch_visitDate_${item.id}" value="${item.visitDate || ''}" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24">
+                  <input type="date" id="batch_visitDate_${item.id}" value="${cleanVisitDate}" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-24">
                   <button type="button" onclick="openEditModalFromId('${item.id}')" class="p-1 text-gray-500 hover:text-theme transition" title="시간/세부 정보 수정">🕒</button>
                 </div>
                 <input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}">
               </td>
               <td class="p-2 text-center col-fixed-deadline">
-                <input type="date" id="batch_deadlineDate_${item.id}" value="${item.deadlineDate || ''}" class="w-full border p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
+                <input type="date" id="batch_deadlineDate_${item.id}" value="${cleanDeadlineDate}" class="w-full border p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
               </td>
               <td class="p-2 text-center col-fixed-sponsored">
                 <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
