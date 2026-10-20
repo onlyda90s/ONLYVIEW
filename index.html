@@ -736,7 +736,7 @@
 
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
+      yearSelect.innerHTML = '<Option value="ALL">연도 전체</option>';
       if (settlementYearSelect) settlementYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
 
       sortedYears.forEach(y => {
@@ -1018,7 +1018,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (여백 최소화, 1:1 수평 대칭 및 정돈된 레이아웃 반영)
+    // 정산 탭 리포트 연동 (건수/금액 정렬, 금액 확대, 우측 30% 이동, 수평 1:1 대칭 완벽 보정)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1119,9 +1119,9 @@
 
             compareContainer.innerHTML = `
               <div class="text-[11px] text-gray-400 font-bold mb-0.5">전년 대비 증가</div>
-              <div class="flex items-center gap-1.5">
-                <span class="font-black text-gray-900 text-sm">${diffStr}</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${rateStr}</span>
+              <div class="flex items-center gap-2">
+                <span class="font-black text-gray-900 text-lg">${diffStr}</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}">${rateStr}</span>
               </div>
             `;
           }
@@ -2489,7 +2489,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (여백 최소화, 수평 1:1 대칭 및 정돈된 레이아웃 반영) -->
+      <!-- 4. 체험단 정산 탭 (요청 5가지 완벽 반영) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2500,12 +2500,12 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 (수평 1:1 대칭 및 패딩 최적화) -->
+        <!-- 1줄: 연간 수익 / 월간 수익 (수평 동일 세로 높이 min-h-[290px] 통일) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
-          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-full">
-            <!-- 제목줄 (높이 43px 고정, 상단 여백 최소화) -->
+          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[290px]">
+            <!-- 제목줄 (43px) -->
             <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <div class="flex items-center gap-2">
@@ -2516,16 +2516,16 @@
               </div>
             </div>
 
-            <!-- 내용 구역 (도넛 h-44: 176px 및 텍스트 레이아웃) -->
+            <!-- 연간 수익 내용 구역 (오른쪽 30% 이동 및 수평 열 맞춤) -->
             <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-3 flex-1">
               
-              <!-- 좌측: 도넛 차트 (전체 너비의 2/5 차지) -->
+              <!-- 좌측: 도넛 차트 (너비 2/5) -->
               <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
               </div>
 
-              <!-- 우측: 텍스트 정보 (전체 너비의 3/5 차지, 깔끔하게 정돈) -->
-              <div class="col-span-3 space-y-3.5 text-xs text-left pl-2">
+              <!-- 우측: 텍스트 정보 (너비 3/5, pl-10 적용하여 오른쪽으로 30% 이동) -->
+              <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
                 
                 <!-- 1단: 총 수익 -->
                 <div>
@@ -2533,14 +2533,18 @@
                   <div id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0원</div>
                 </div>
 
-                <!-- 2단: 정산 완료 / 정산 예정 (건수 | 금액 구분) -->
+                <!-- 2단: 정산 완료 / 정산 예정 (건수와 금액 열 완벽 일치) -->
                 <div class="space-y-1.5 border-t border-b border-gray-100 py-2">
                   <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
                     <span class="flex items-center gap-1.5">
                       <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
                       <span>정산 완료</span>
                     </span>
-                    <span><span id="yearlyDoneCount">0건</span> <span class="text-gray-300 font-normal">|</span> <span id="yearlyDoneAmount">0원</span></span>
+                    <span class="flex items-center gap-1.5">
+                      <span id="yearlyDoneCount" class="w-8 text-right">0건</span>
+                      <span class="text-gray-300 font-normal">|</span>
+                      <span id="yearlyDoneAmount" class="w-20 text-right">0원</span>
+                    </span>
                   </div>
 
                   <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
@@ -2548,11 +2552,15 @@
                       <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
                       <span>정산 예정</span>
                     </span>
-                    <span><span id="yearlyPlanCount">0건</span> <span class="text-gray-300 font-normal">|</span> <span id="yearlyPlanAmount">0원</span></span>
+                    <span class="flex items-center gap-1.5">
+                      <span id="yearlyPlanCount" class="w-8 text-right">0건</span>
+                      <span class="text-gray-300 font-normal">|</span>
+                      <span id="yearlyPlanAmount" class="w-20 text-right">0원</span>
+                    </span>
                   </div>
                 </div>
 
-                <!-- 3단: 전년 대비 증가 및 비중 (%) -->
+                <!-- 3단: 전년 대비 증가 (금액 폰트 30% 확대: text-lg) -->
                 <div id="yearlyCompareContainer" class="pt-0.5">
                   <div class="text-[11px] text-gray-400 font-bold mb-0.5">전년 대비 증가</div>
                   <div class="text-xs text-gray-400 font-medium">비교 데이터 없음</div>
@@ -2563,9 +2571,9 @@
             </div>
           </div>
 
-          <!-- 1줄 2번: 월간 수익 카드 -->
-          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-full">
-            <!-- 제목줄 (높이 43px 고정, 상단 여백 최소화) -->
+          <!-- 1줄 2번: 월간 수익 카드 (연간 수익과 동일 세로 크기 min-h-[290px] 적용) -->
+          <div class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[290px]">
+            <!-- 제목줄 (43px) -->
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
               <div class="flex items-center gap-2">
@@ -2576,7 +2584,7 @@
               </div>
             </div>
 
-            <!-- 내용 구역 (막대 그래프 h-40: 160px 및 하단 요약 박스) -->
+            <!-- 막대 그래프 및 하단 2분할 박스 (최고 수익 달/이번 달) -->
             <div id="monthlyCardBody" class="space-y-3 mt-3 flex-1 flex flex-col justify-between">
               <div class="relative h-40 w-full flex-1">
                 <canvas id="monthlyBarChart"></canvas>
@@ -2747,8 +2755,8 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
