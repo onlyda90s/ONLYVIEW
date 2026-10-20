@@ -110,9 +110,11 @@
     let newBatchRows = []; 
     let yearlyChartInstance = null;
     let monthlyChartInstance = null;
+    let monthlyAnalysisChartInstance = null;
 
     let isYearlyCollapsed = localStorage.getItem('onlyview_yearlyCollapsed') === 'true';
     let isMonthlyCollapsed = localStorage.getItem('onlyview_monthlyCollapsed') === 'true';
+    let isMonthlyAnalysisCollapsed = localStorage.getItem('onlyview_monthlyAnalysisCollapsed') === 'true';
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -364,6 +366,12 @@
       applyCardToggleUI();
     };
 
+    window.toggleMonthlyAnalysisCard = function() {
+      isMonthlyAnalysisCollapsed = !isMonthlyAnalysisCollapsed;
+      localStorage.setItem('onlyview_monthlyAnalysisCollapsed', isMonthlyAnalysisCollapsed);
+      applyCardToggleUI();
+    };
+
     function applyCardToggleUI() {
       const yearlyCard = document.getElementById('yearlyCardContainer');
       const yearlyBody = document.getElementById('yearlyCardBody');
@@ -400,6 +408,25 @@
           monthlyArrow.innerText = '▲';
           if (monthlySummary) monthlySummary.classList.add('hidden');
           if (monthlyCard) monthlyCard.style.height = '290px';
+        }
+      }
+
+      const maCard = document.getElementById('monthlyAnalysisCardContainer');
+      const maBody = document.getElementById('monthlyAnalysisCardBody');
+      const maArrow = document.getElementById('monthlyAnalysisToggleArrow');
+      const maSummary = document.getElementById('monthlyAnalysisSummaryText');
+
+      if (maBody && maArrow) {
+        if (isMonthlyAnalysisCollapsed) {
+          maBody.classList.add('hidden');
+          maArrow.innerText = '▼';
+          if (maSummary) maSummary.classList.remove('hidden');
+          if (maCard) maCard.style.height = '52px';
+        } else {
+          maBody.classList.remove('hidden');
+          maArrow.innerText = '▲';
+          if (maSummary) maSummary.classList.add('hidden');
+          if (maCard) maCard.style.height = '290px';
         }
       }
     }
@@ -1024,7 +1051,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (펼쳤을 때 동일 290px 높이, 접었을 때 슬림 52px 고정)
+    // 정산 탭 리포트 연동 (월간 분석 라인 차트 포함)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1044,7 +1071,7 @@
           yearlyDonutYearLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 총수익`;
         }
 
-        // --- [1] 연간 수익 계산 ---
+        // --- [1] 연간 수익 및 월별 건수 계산 ---
         let doneCount = 0;
         let doneAmount = 0;
         let planCount = 0;
@@ -1054,6 +1081,7 @@
         let hasPrevYearData = false;
 
         const monthlyRevenues = new Array(12).fill(0);
+        const monthlyCounts = new Array(12).fill(0);
 
         rawCampaignList.forEach(item => {
           const sponsored = Number(item.sponsoredAmount || 0);
@@ -1071,6 +1099,10 @@
           const isCompleted = (effectiveSt === '제출' || effectiveSt === '완료');
 
           if (selectedYearVal === 'ALL' || itemYear === targetYear) {
+            if (itemMonth >= 1 && itemMonth <= 12) {
+              monthlyCounts[itemMonth - 1]++;
+            }
+
             if (isCompleted) {
               doneCount++;
               doneAmount += calcRevenue;
@@ -1265,6 +1297,100 @@
                     if (!value || value <= 0) return '';
                     return Number.isInteger(value) ? value : value.toFixed(1);
                   }
+                }
+              }
+            }
+          });
+        }
+
+        // --- [3] 월간 분석 꺾은선(Line) 차트 연동 ---
+        let maxCountMonthIdx = 0;
+        let maxCountVal = 0;
+        monthlyCounts.forEach((val, idx) => {
+          if (val > maxCountVal) {
+            maxCountVal = val;
+            maxCountMonthIdx = idx;
+          }
+        });
+
+        const maBestText = document.getElementById('monthlyAnalysisBestText');
+        const maCurrentText = document.getElementById('monthlyAnalysisCurrentText');
+        const maSummaryVal = document.getElementById('monthlyAnalysisSummaryVal');
+
+        if (maBestText) {
+          if (maxCountVal === 0) {
+            maBestText.innerText = '-';
+          } else {
+            maBestText.innerText = `${maxCountMonthIdx + 1}월 · ${maxCountVal}건`;
+          }
+        }
+
+        if (maCurrentText) {
+          if (isCurrentYear) {
+            const curCnt = monthlyCounts[actualRealMonth - 1] || 0;
+            const curCntTxt = `${curCnt}건`;
+            maCurrentText.innerText = `${actualRealMonth}월 · ${curCntTxt}`;
+            if (maSummaryVal) maSummaryVal.innerText = curCntTxt;
+          } else {
+            maCurrentText.innerText = '-';
+            if (maSummaryVal) maSummaryVal.innerText = '-';
+          }
+        }
+
+        const pointColors = monthlyCounts.map((_, idx) => {
+          const monthNum = idx + 1;
+          if (isCurrentYear && monthNum === actualRealMonth) return '#C85A17'; // 현재 달 주황 강조
+          return '#3B82F6'; // 일반 달 파랑
+        });
+
+        const ctxMonthlyAnalysis = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
+        if (ctxMonthlyAnalysis) {
+          if (monthlyAnalysisChartInstance) monthlyAnalysisChartInstance.destroy();
+
+          monthlyAnalysisChartInstance = new Chart(ctxMonthlyAnalysis, {
+            type: 'line',
+            data: {
+              labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+              datasets: [{
+                data: monthlyCounts,
+                borderColor: '#3B82F6',
+                borderWidth: 2.5,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.25,
+                fill: false
+              }]
+            },
+            plugins: [ChartDataLabels],
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              layout: {
+                padding: { top: 22 }
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: { font: { size: 10, weight: 'bold' }, color: '#6B7280' }
+                },
+                y: { display: false }
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (context) => `${context.raw}건`
+                  }
+                },
+                datalabels: {
+                  anchor: 'end',
+                  align: 'end',
+                  offset: 2,
+                  font: { size: 10, weight: 'bold' },
+                  color: (context) => pointColors[context.dataIndex],
+                  formatter: (value) => (value > 0 ? value : '')
                 }
               }
             }
@@ -1779,7 +1905,6 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 미제출 상태 건도 '진행중인 체험' 탭에 표출되도록 교정
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -1916,13 +2041,13 @@
                 <input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}">
               </td>
               <td class="p-2 text-center col-fixed-deadline">
-                <input type="date" id="batch_deadlineDate_${item.id}" value="${cleanDeadlineDate}" class="w-full border p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
+                <input type="date" id="batch_deadlineDate_${item.id}" value="${cleanDeadlineDate}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal">
               </td>
               <td class="p-2 text-center col-fixed-sponsored">
-                <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(item.sponsoredAmount || 0)}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
               </td>
               <td class="p-2 text-center col-fixed-paid">
-                <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
+                <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
               </td>
               <td class="p-2 text-center font-bold text-gray-700 col-fixed-revenue">
                 ${formatRevenueDisplay(calcRevenue)}
@@ -2504,7 +2629,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (높이 동적 고정 및 독립적 토글 스펙 연동) -->
+      <!-- 4. 체험단 정산 탭 (월간 분석 라인 차트 연동) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2515,12 +2640,11 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 (items-start로 1개 접힘 시 개별 52px 높이 유지) -->
+        <!-- 1줄: 연간 수익 / 월간 수익 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
           <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
-            <!-- 제목줄 (43px) -->
             <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <div class="flex items-center gap-2">
@@ -2531,10 +2655,7 @@
               </div>
             </div>
 
-            <!-- 내용 구역 -->
             <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-3 flex-1">
-              
-              <!-- 좌측: 도넛 차트 중앙 텍스트 표기 (너비 2/5) -->
               <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
@@ -2543,10 +2664,7 @@
                 </div>
               </div>
 
-              <!-- 우측: 텍스트 정보 (너비 3/5, pl-10 ml-2 적용) -->
               <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
-                
-                <!-- 범례 항목 (회색 구분선 제거 및 간격 축소) -->
                 <div class="space-y-1 py-1">
                   <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
                     <span class="flex items-center gap-1.5">
@@ -2573,22 +2691,18 @@
                   </div>
                 </div>
 
-                <!-- 전년 대비 증가 및 백분율 나란히 표기 -->
                 <div id="yearlyCompareContainer" class="pt-0.5">
                   <div class="flex items-center gap-2">
                     <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
                     <span class="text-xs text-gray-400 font-medium">비교 데이터 없음</span>
                   </div>
                 </div>
-
               </div>
-
             </div>
           </div>
 
           <!-- 1줄 2번: 월간 수익 카드 -->
           <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
-            <!-- 제목줄 (43px) -->
             <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
               <div class="flex items-center gap-2">
@@ -2599,13 +2713,11 @@
               </div>
             </div>
 
-            <!-- 막대 그래프 및 수평 가로 요약 박스 -->
             <div id="monthlyCardBody" class="space-y-3 mt-3">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyBarChart"></canvas>
               </div>
 
-              <!-- 월간 수익 하단 요약 박스 (수평 배치) -->
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
                   <span class="text-[10px] text-gray-400 font-bold">최고 수익 달</span>
@@ -2621,8 +2733,9 @@
 
         </div>
 
-        <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <!-- 2줄: 플랫폼 분석 / 월간 분석 (월간 분석 구현) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+          <!-- 2줄 1번: 플랫폼 분석 -->
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
@@ -2630,11 +2743,40 @@
             <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal"></div>
           </div>
 
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
-            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
-              <span class="text-xs font-bold text-gray-800">월간 분석</span>
+          <!-- 2줄 2번: 월간 분석 카드 (꺾은선 차트 & 하단 가로 박스 연동) -->
+          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
+            <!-- 제목줄 (43px) -->
+            <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-800">월간 분석</span>
+                <span class="text-[10px] text-gray-400 font-normal">단위: 건</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="monthlyAnalysisSummaryText" class="hidden text-xs font-black text-theme">
+                  이번 달 <span id="monthlyAnalysisSummaryVal">-</span>
+                </span>
+                <span id="monthlyAnalysisToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+              </div>
             </div>
-            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal"></div>
+
+            <!-- 내용 구역 (라인 차트 h-40 + 하단 요약 박스) -->
+            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-3">
+              <div class="relative h-40 w-full">
+                <canvas id="monthlyAnalysisLineChart"></canvas>
+              </div>
+
+              <!-- 하단 가로 수평 배치 요약 박스 -->
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
+                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                  <span class="text-[10px] text-gray-400 font-bold">최고 건의 달</span>
+                  <span id="monthlyAnalysisBestText" class="font-black text-gray-900 text-xs">-</span>
+                </div>
+                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                  <span class="text-[10px] text-gray-400 font-bold">이번 달</span>
+                  <span id="monthlyAnalysisCurrentText" class="font-black text-gray-900 text-xs">-</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
