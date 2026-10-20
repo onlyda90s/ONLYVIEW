@@ -1119,6 +1119,7 @@
       }
     }
 
+    // 정산 탭 리포트 연동 (2열 레이아웃 고정 및 세로 높이/간격 고정)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1487,6 +1488,7 @@
           });
         }
 
+        // --- 플랫폼 분석 카드 (w-16, mx-1 보정 적용) ---
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -1525,7 +1527,7 @@
 
               itemDiv.innerHTML = `
                 <span class="font-bold text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
-                <div class="flex-1 mx-1.5 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div class="flex-1 mx-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: ${barPercent}%"></div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
@@ -1546,7 +1548,7 @@
           }
         }
 
-        // --- [5] 월간 세부 내역 (12개월 개별 접기/펴기 카드 그리드 렌더링) ---
+        // --- [5] 월간 세부 내역 (2열 그리드 고정 & 세로 높이/간격 일정 유지) ---
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1581,10 +1583,11 @@
             `;
 
             if (!isCollapsed) {
-              html += `<div class="flex-1 overflow-y-auto widget-scroll max-h-[180px] my-1 pr-1 space-y-1.5">`;
+              html += `<div class="flex-1 flex flex-col justify-between min-h-[160px]">`;
+              html += `<div class="flex-1 overflow-y-auto widget-scroll max-h-[160px] my-1 pr-1 space-y-1.5">`;
               
               if (list.length === 0) {
-                html += `<div class="text-center text-gray-300 font-normal py-10 text-[11px]">이 달의 완료된 체험이 없습니다.</div>`;
+                html += `<div class="text-center text-gray-300 font-normal py-12 text-[11px]">이 달의 완료된 체험이 없습니다.</div>`;
               } else {
                 html += `
                   <div class="flex items-center justify-between font-bold text-gray-400 text-[10px] mb-1">
@@ -1612,6 +1615,7 @@
                   <span class="text-[11px] font-bold text-gray-600">실수익 <b class="text-[#C85A17] text-sm font-black ml-1">${totalMRevenue.toLocaleString()}원</b></span>
                 </div>
               `;
+              html += `</div>`;
             }
 
             cardDiv.innerHTML = html;
@@ -3026,14 +3030,14 @@
 
         </div>
 
-        <!-- 3줄: 12개월 개별 접기/펴기 카드 그리드 레이아웃 -->
+        <!-- 3줄: 12개월 개별 접기/펴기 카드 그리드 (2열 대칭 레이아웃 및 세로 간격 고정) -->
         <div class="space-y-2">
           <div class="flex items-center justify-between px-1">
-            <span class="text-xs font-bold text-gray-700">월간 세부 내역 (개별 월별 접기/펴기)</span>
+            <span class="text-xs font-bold text-gray-700">월간 세부 내역</span>
             <span class="text-[11px] text-gray-400 font-normal">클릭하여 해당 월의 정산 내역을 펼쳐보세요</span>
           </div>
           
-          <div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 items-start"></div>
+          <div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div>
         </div>
 
       </div>
