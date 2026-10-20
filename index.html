@@ -1077,7 +1077,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (플랫폼 분석: 균형 정렬 Math.ceil(N / 2) 적용)
+    // 정산 탭 리포트 연동 (플랫폼 분석: Math.ceil(N/2) 균형 정렬 및 렌더링 정상화 완료)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1431,7 +1431,7 @@
           });
         }
 
-        // --- [4] 플랫폼 분석 카드 (좌우 균형 정렬: Math.ceil(N / 2) 개는 왼쪽, 나머지는 오른쪽) ---
+        // --- [4] 플랫폼 분석 카드 (Math.ceil(N / 2) 기준 좌우 균형 배치 안전 반영) ---
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -1460,7 +1460,6 @@
             if (paSummaryVal) paSummaryVal.innerText = `${sortedPlatforms[0].pName} (${sortedPlatforms[0].doneCount}건)`;
 
             const maxDoneCnt = sortedPlatforms[0].doneCount || 1;
-            // 전체 개수의 절반(올림)을 왼쪽 열에 배치
             const leftThreshold = Math.ceil(totalPlatformNum / 2);
 
             sortedPlatforms.forEach((p, idx) => {
@@ -1480,7 +1479,6 @@
                 </div>
               `;
 
-              // 전체 균형 정렬 분할 (상위 절반은 왼쪽, 나머지는 오른쪽)
               if (idx < leftThreshold) {
                 platformColLeft.appendChild(itemDiv);
               } else {
@@ -2643,4 +2641,4 @@
         
         <div class="flex items-center h-10 shrink-0">
           <div class="flex items-center gap-1.5">
-            <h2
+            <h2 class="text-2xl font-black text-theme">체험단
