@@ -216,7 +216,7 @@
       });
     }
 
-    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622) 앞 4자리(2026)만 추출
+    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622-10-15) 앞 4자리(2026)만 자르고 YYYY-MM-DD 강제 보정
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
@@ -224,7 +224,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(0, 4);
+        if (year.length > 4) year = year.slice(0, 4); // 앞 4자리 연도 자르기
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -247,7 +247,6 @@
       return str;
     }
 
-    // 방문일시 및 마감일 경과 시 시스템 자동 미제출 판별
     function getEffectiveStatus(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return rawSt;
@@ -1112,7 +1111,7 @@
           });
         }
 
-        // --- [2] 월간 수익 막대 차트 연동 (소수점 1자리 precision 연동) ---
+        // --- [2] 월간 수익 막대 차트 연동 ---
         let maxMonthIdx = 0;
         let maxRevVal = 0;
         monthlyRevenues.forEach((val, idx) => {
@@ -1823,8 +1822,9 @@
           }
 
           if (isBatchEditing) {
-            const cleanVisitDate = formatCleanDate(item.visitDate || '');
-            const cleanDeadlineDate = formatCleanDate(item.deadlineDate || '');
+            // 일괄 수정 시 4자리 정제 연도 강제 적용
+            const cleanVisitDate = formatCleanDate(item.visitDate);
+            const cleanDeadlineDate = formatCleanDate(item.deadlineDate);
 
             const row = document.createElement('tr');
             row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
@@ -2693,7 +2693,7 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
