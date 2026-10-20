@@ -1051,7 +1051,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (월간 분석 라인 차트 포함)
+    // 정산 탭 리포트 연동 (월간 분석 수치를 '제출/완료(정산 완료)' 건수로 보정)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1071,7 +1071,7 @@
           yearlyDonutYearLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 총수익`;
         }
 
-        // --- [1] 연간 수익 및 월별 건수 계산 ---
+        // --- [1] 연간 수익 및 '정산 완료' 월별 건수 계산 ---
         let doneCount = 0;
         let doneAmount = 0;
         let planCount = 0;
@@ -1081,7 +1081,7 @@
         let hasPrevYearData = false;
 
         const monthlyRevenues = new Array(12).fill(0);
-        const monthlyCounts = new Array(12).fill(0);
+        const monthlyCounts = new Array(12).fill(0); // 월간 분석 건수 배열
 
         rawCampaignList.forEach(item => {
           const sponsored = Number(item.sponsoredAmount || 0);
@@ -1099,15 +1099,13 @@
           const isCompleted = (effectiveSt === '제출' || effectiveSt === '완료');
 
           if (selectedYearVal === 'ALL' || itemYear === targetYear) {
-            if (itemMonth >= 1 && itemMonth <= 12) {
-              monthlyCounts[itemMonth - 1]++;
-            }
-
+            // '제출/완료(정산 완료)' 건에 대해서만 월간 수익 및 월간 분석 건수 반영
             if (isCompleted) {
               doneCount++;
               doneAmount += calcRevenue;
               if (itemMonth >= 1 && itemMonth <= 12) {
                 monthlyRevenues[itemMonth - 1] += calcRevenue;
+                monthlyCounts[itemMonth - 1]++; // 정산 완료 건수만 반영
               }
             } else {
               planCount++;
@@ -1303,7 +1301,7 @@
           });
         }
 
-        // --- [3] 월간 분석 꺾은선(Line) 차트 연동 ---
+        // --- [3] 월간 분석 꺾은선(Line) 차트 연동 (정산 완료 건수 동기화) ---
         let maxCountMonthIdx = 0;
         let maxCountVal = 0;
         monthlyCounts.forEach((val, idx) => {
@@ -2629,7 +2627,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (월간 분석 라인 차트 연동) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2733,9 +2731,8 @@
 
         </div>
 
-        <!-- 2줄: 플랫폼 분석 / 월간 분석 (월간 분석 구현) -->
+        <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-          <!-- 2줄 1번: 플랫폼 분석 -->
           <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div class="flex justify-between items-center border-b pb-2 border-gray-50">
               <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
@@ -2743,9 +2740,8 @@
             <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal"></div>
           </div>
 
-          <!-- 2줄 2번: 월간 분석 카드 (꺾은선 차트 & 하단 가로 박스 연동) -->
+          <!-- 2줄 2번: 월간 분석 카드 (정산 완료 건수 기준 집계) -->
           <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
-            <!-- 제목줄 (43px) -->
             <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-800">월간 분석</span>
@@ -2759,13 +2755,11 @@
               </div>
             </div>
 
-            <!-- 내용 구역 (라인 차트 h-40 + 하단 요약 박스) -->
             <div id="monthlyAnalysisCardBody" class="space-y-3 mt-3">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyAnalysisLineChart"></canvas>
               </div>
 
-              <!-- 하단 가로 수평 배치 요약 박스 -->
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
                   <span class="text-[10px] text-gray-400 font-bold">최고 건의 달</span>
@@ -2915,7 +2909,7 @@
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
