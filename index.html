@@ -1018,7 +1018,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (접기/펼치기 UI 대응 및 소수점 1자리 정밀 계산)
+    // 정산 탭 리포트 연동 (요청 수치 규격: 헤더 43px, 도넛 h-44, 막대 h-40 적용)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1181,9 +1181,9 @@
         const barColors = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear) {
-            if (monthNum === actualRealMonth) return '#F4A261'; // 이번 달 (주황)
-            if (monthNum < actualRealMonth) return '#2563EB';   // 지나간 달 (파랑)
-            return '#CBD5E1';                                  // 예정 달 (회색)
+            if (monthNum === actualRealMonth) return '#F4A261'; 
+            if (monthNum < actualRealMonth) return '#2563EB';   
+            return '#CBD5E1';                                  
           } else {
             return '#2563EB'; 
           }
@@ -2497,7 +2497,7 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (접기/펼치기 UI 1안 연동) -->
+      <!-- 4. 체험단 정산 탭 (제목줄 43px 고정, 도넛 h-44, 막대 h-40 수치 보정 적용) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
@@ -2508,13 +2508,13 @@
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 (각각 개별 접기/펼치기 지원) -->
+        <!-- 1줄: 연간 수익 / 월간 수익 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
           <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between transition-all duration-300">
-            <!-- 카드 제목줄 (높이 48px) -->
-            <div onclick="toggleYearlyCard()" class="flex justify-between items-center border-b pb-3 border-gray-50 cursor-pointer select-none">
+            <!-- 제목줄 고정 높이 43px 적용 -->
+            <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b pb-2 border-gray-50 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="yearlySummaryText" class="hidden text-xs font-black text-theme">
@@ -2524,9 +2524,9 @@
               </div>
             </div>
 
-            <!-- 접힘 구역 (도넛 차트 192px + 범례) -->
+            <!-- 도넛 차트 및 범례 구역 (높이 h-44: 176px 적용) -->
             <div id="yearlyCardBody" class="grid grid-cols-2 gap-4 items-center mt-3">
-              <div class="relative flex items-center justify-center h-48 w-full">
+              <div class="relative flex items-center justify-center h-44 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span id="yearlyTotalRevenueText" class="text-2xl font-black text-gray-900 tracking-tight">0</span>
@@ -2569,8 +2569,8 @@
 
           <!-- 1줄 2번: 월간 수익 카드 -->
           <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between transition-all duration-300">
-            <!-- 카드 제목줄 (높이 48px) -->
-            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center border-b pb-3 border-gray-50 cursor-pointer select-none">
+            <!-- 제목줄 고정 높이 43px 적용 -->
+            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b pb-2 border-gray-50 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="monthlySummaryText" class="hidden text-xs font-black text-theme">
@@ -2580,9 +2580,9 @@
               </div>
             </div>
 
-            <!-- 접힘 구역 (막대 그래프 176px + 하단 요약 박스 52px) -->
+            <!-- 막대 그래프 구역 (높이 h-40: 160px 적용) + 하단 요약 박스 -->
             <div id="monthlyCardBody" class="space-y-3 mt-3">
-              <div class="relative h-44 w-full">
+              <div class="relative h-40 w-full">
                 <canvas id="monthlyBarChart"></canvas>
               </div>
 
