@@ -216,17 +216,18 @@
       });
     }
 
-    // 6자리 연도(YYYYYY-MM-DD) 방지 및 4자리 연도(YYYY-MM-DD) 보정 포맷
+    // 연도 부분이 4자리를 초과하거나 왜곡된 경우 (예: 202622) 앞에서부터 4자리(2026)로 강제 정제
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
       if (!str) return "";
       const parts = str.split("-");
       if (parts.length === 3) {
-        let year = parts[0];
-        if (year.length > 4) year = year.slice(-4);
-        const month = String(parts[1]).padStart(2, '0');
-        const day = String(parts[2]).padStart(2, '0');
+        let year = parts[0].replace(/[^0-9]/g, '');
+        if (year.length > 4) year = year.slice(0, 4); // 앞의 4자리 연도만 추출
+        const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
+        const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
+        if (!year || !month || !day) return "";
         return `${year}-${month}-${day}`;
       }
       return str;
@@ -254,17 +255,23 @@
       const now = new Date();
 
       if (item.visitDate) {
-        const vTimeStr = item.visitTime || '23:59';
-        const vDateTime = new Date(`${item.visitDate}T${vTimeStr}:00`);
-        if (vDateTime < now) {
-          return '미제출';
+        const cleanVDate = formatCleanDate(item.visitDate);
+        if (cleanVDate) {
+          const vTimeStr = item.visitTime || '23:59';
+          const vDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
+          if (!isNaN(vDateTime.getTime()) && vDateTime < now) {
+            return '미제출';
+          }
         }
       }
 
       if (item.deadlineDate) {
-        const dDateTime = new Date(`${item.deadlineDate}T23:59:59`);
-        if (dDateTime < now) {
-          return '미제출';
+        const cleanDDate = formatCleanDate(item.deadlineDate);
+        if (cleanDDate) {
+          const dDateTime = new Date(`${cleanDDate}T23:59:59`);
+          if (!isNaN(dDateTime.getTime()) && dDateTime < now) {
+            return '미제출';
+          }
         }
       }
 
@@ -1125,7 +1132,7 @@
             if (monthNum < actualRealMonth) return '#2563EB';   // 지나간 달 (파랑)
             return '#CBD5E1';                                  // 예정 달 (회색)
           } else {
-            return '#2563EB'; // 과거/타 연도는 모두 확정 달로 처리 (파랑)
+            return '#2563EB'; 
           }
         });
 
@@ -1307,8 +1314,8 @@
         
         let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
         
-        const visitMatches = rawCampaignList.filter(c => c.visitDate === dateStr);
-        const deadlineMatches = rawCampaignList.filter(c => c.deadlineDate === dateStr && c.status !== '신청');
+        const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
+        const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
           html += `<div class="text-[9px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
@@ -1317,7 +1324,7 @@
           html += `<div class="text-[9px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
         }
 
-        const allMatched = rawCampaignList.filter(c => c.visitDate === dateStr || (c.deadlineDate === dateStr && c.status !== '신청'));
+        const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
 
         dayCell.innerHTML = html;
         dayCell.onclick = () => openDayModal(dateStr, allMatched);
@@ -1340,7 +1347,7 @@
         });
 
         sortedItems.forEach(item => {
-          const isVisit = item.visitDate === dateStr;
+          const isVisit = formatCleanDate(item.visitDate) === dateStr;
           const div = document.createElement('div');
           div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition';
           div.onclick = () => openDetailItemModal(item.id);
@@ -1375,10 +1382,12 @@
       let deadlineList = rawCampaignList.filter(c => {
         const effSt = getEffectiveStatus(c);
         if (!c.deadlineDate || effSt === '제출' || effSt === '완료' || effSt === '신청') return false;
-        const parts = c.deadlineDate.split('-');
-        return parts.length === 3 && !isNaN(new Date(c.deadlineDate).getTime());
+        const cleanDDate = formatCleanDate(c.deadlineDate);
+        const parts = cleanDDate.split('-');
+        return parts.length === 3 && !isNaN(new Date(cleanDDate).getTime());
       }).map(c => {
-        const dDate = new Date(c.deadlineDate);
+        const cleanDDate = formatCleanDate(c.deadlineDate);
+        const dDate = new Date(cleanDDate);
         dDate.setHours(0,0,0,0);
         const diffDays = Math.ceil((dDate - today) / (1000 * 60 * 60 * 24));
         return { ...c, diffDays };
@@ -1423,12 +1432,13 @@
       const scheduledItems = rawCampaignList.filter(c => {
         const effSt = getEffectiveStatus(c);
         if (!c.visitDate || effSt === '방문' || effSt === '제출' || effSt === '완료' || effSt === '미제출') return false;
+        const cleanVDate = formatCleanDate(c.visitDate);
         const vTimeStr = c.visitTime || '23:59';
-        const visitDateTime = new Date(`${c.visitDate}T${vTimeStr}:00`);
+        const visitDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
         return visitDateTime >= now;
       }).sort((a, b) => {
-        const keyA = `${a.visitDate} ${a.visitTime || '00:00'}`;
-        const keyB = `${b.visitDate} ${b.visitTime || '00:00'}`;
+        const keyA = `${formatCleanDate(a.visitDate)} ${a.visitTime || '00:00'}`;
+        const keyB = `${formatCleanDate(b.visitDate)} ${b.visitTime || '00:00'}`;
         return keyA.localeCompare(keyB);
       });
 
@@ -1482,7 +1492,7 @@
       if (!item) return;
 
       const effSt = getEffectiveStatus(item);
-      const visitFormatted = item.visitDate ? `${item.visitDate}${item.visitTime ? ` (${item.visitTime})` : ''}` : '미정';
+      const visitFormatted = item.visitDate ? `${formatCleanDate(item.visitDate)}${item.visitTime ? ` (${item.visitTime})` : ''}` : '미정';
 
       document.getElementById('modalDateTitle').innerText = `${item.storeName} 상세 정보`;
       const modalList = document.getElementById('modalItemList');
@@ -1494,9 +1504,9 @@
           </div>
           <div class="grid grid-cols-2 gap-2 text-gray-600">
             <div>체험단 사이트: <span class="font-bold text-gray-800">${item.platformName || '-'}</span></div>
-            <div>신청일: <span class="font-bold text-gray-800">${item.applyDate || '-'}</span></div>
+            <div>신청일: <span class="font-bold text-gray-800">${formatCleanDate(item.applyDate) || '-'}</span></div>
             <div>방문일시: <span class="font-bold text-gray-800">${visitFormatted}</span></div>
-            <div>포스팅 마감일: <span class="font-bold text-gray-800">${item.deadlineDate || '미정'}</span></div>
+            <div>포스팅 마감일: <span class="font-bold text-gray-800">${formatCleanDate(item.deadlineDate) || '미정'}</span></div>
             <div>제공금액: <span class="font-bold text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div>
             <div>동반인원: <span class="font-bold text-gray-800">${item.companions || '없음'}</span></div>
             <div>결제금액: <span class="font-bold text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
@@ -1737,7 +1747,7 @@
                               (item.platformName || '').toLowerCase().includes(searchText);
           const matchesStatus = (filterStatus === 'ALL') || (effSt === filterStatus);
 
-          const refDate = item.visitDate || item.deadlineDate || item.applyDate || '';
+          const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
           let matchesYear = true;
           let matchesMonth = true;
 
@@ -1809,7 +1819,7 @@
           }
 
           if (isBatchEditing) {
-            // 목록 수정 모드에서 4자리 연도(YYYY-MM-DD) 보정 출력
+            // 연도 왜곡 방지 적용된 날짜
             const cleanVisitDate = formatCleanDate(item.visitDate || '');
             const cleanDeadlineDate = formatCleanDate(item.deadlineDate || '');
 
@@ -2046,7 +2056,7 @@
 
       for (let day = 1; day <= lastDate; day++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const matched = rawCampaignList.filter(c => c.visitDate === dateStr || c.deadlineDate === dateStr);
+        const matched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || formatCleanDate(c.deadlineDate) === dateStr);
         
         let cellText = `${day}일`;
         if (matched.length > 0) {
@@ -2070,11 +2080,11 @@
         '매장명': item.storeName,
         '사이트명': item.platformName,
         '진행상황': displayStatusName(getEffectiveStatus(item)),
-        '신청일': item.applyDate,
-        '방문일': item.visitDate,
+        '신청일': formatCleanDate(item.applyDate),
+        '방문일': formatCleanDate(item.visitDate),
         '방문시간': item.visitTime,
         '동반인원': item.companions,
-        '마감일': item.deadlineDate,
+        '마감일': formatCleanDate(item.deadlineDate),
         '제공금액': item.sponsoredAmount,
         '추가결제금액': item.paidAmount,
         '실수익·원고료': item.revenue,
@@ -2678,88 +2688,4 @@
           <div class="flex flex-wrap gap-1.5">
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
-            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
-          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
-            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
-              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
-          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 컬러 팔레트 모달 -->
-  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
-        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <p class="text-xs text-gray-500">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
-      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-60
