@@ -115,6 +115,7 @@
     let isYearlyCollapsed = localStorage.getItem('onlyview_yearlyCollapsed') === 'true';
     let isMonthlyCollapsed = localStorage.getItem('onlyview_monthlyCollapsed') === 'true';
     let isMonthlyAnalysisCollapsed = localStorage.getItem('onlyview_monthlyAnalysisCollapsed') === 'true';
+    let isPlatformAnalysisCollapsed = localStorage.getItem('onlyview_platformAnalysisCollapsed') === 'true';
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
     let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true'; 
@@ -372,6 +373,12 @@
       applyCardToggleUI();
     };
 
+    window.togglePlatformAnalysisCard = function() {
+      isPlatformAnalysisCollapsed = !isPlatformAnalysisCollapsed;
+      localStorage.setItem('onlyview_platformAnalysisCollapsed', isPlatformAnalysisCollapsed);
+      applyCardToggleUI();
+    };
+
     function applyCardToggleUI() {
       const yearlyCard = document.getElementById('yearlyCardContainer');
       const yearlyBody = document.getElementById('yearlyCardBody');
@@ -427,6 +434,25 @@
           maArrow.innerText = '▲';
           if (maSummary) maSummary.classList.add('hidden');
           if (maCard) maCard.style.height = '290px';
+        }
+      }
+
+      const paCard = document.getElementById('platformAnalysisCardContainer');
+      const paBody = document.getElementById('platformAnalysisCardBody');
+      const paArrow = document.getElementById('platformAnalysisToggleArrow');
+      const paSummary = document.getElementById('platformAnalysisSummaryText');
+
+      if (paBody && paArrow) {
+        if (isPlatformAnalysisCollapsed) {
+          paBody.classList.add('hidden');
+          paArrow.innerText = '▼';
+          if (paSummary) paSummary.classList.remove('hidden');
+          if (paCard) paCard.style.height = '52px';
+        } else {
+          paBody.classList.remove('hidden');
+          paArrow.innerText = '▲';
+          if (paSummary) paSummary.classList.add('hidden');
+          if (paCard) paCard.style.height = '290px';
         }
       }
     }
@@ -1051,7 +1077,7 @@
       }
     }
 
-    // 정산 탭 리포트 연동 (월간 분석 수치를 '제출/완료(정산 완료)' 건수로 보정)
+    // 정산 탭 리포트 연동 (플랫폼 분석 카드 연동 완료)
     function renderSettlementView() {
       try {
         applyCardToggleUI();
@@ -1071,7 +1097,7 @@
           yearlyDonutYearLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 총수익`;
         }
 
-        // --- [1] 연간 수익 및 '정산 완료' 월별 건수 계산 ---
+        // --- [1] 연간 수익 및 플랫폼별 실적 계산 ---
         let doneCount = 0;
         let doneAmount = 0;
         let planCount = 0;
@@ -1081,7 +1107,10 @@
         let hasPrevYearData = false;
 
         const monthlyRevenues = new Array(12).fill(0);
-        const monthlyCounts = new Array(12).fill(0); // 월간 분석 건수 배열
+        const monthlyCounts = new Array(12).fill(0);
+
+        // 플랫폼 분석 데이터 맵 { platformName: { doneCount, doneAmount, planCount, planAmount } }
+        const platformMap = {};
 
         rawCampaignList.forEach(item => {
           const sponsored = Number(item.sponsoredAmount || 0);
@@ -1097,19 +1126,28 @@
 
           const effectiveSt = getEffectiveStatus(item);
           const isCompleted = (effectiveSt === '제출' || effectiveSt === '완료');
+          const platformName = item.platformName || '개별';
 
           if (selectedYearVal === 'ALL' || itemYear === targetYear) {
-            // '제출/완료(정산 완료)' 건에 대해서만 월간 수익 및 월간 분석 건수 반영
+            if (!platformMap[platformName]) {
+              platformMap[platformName] = { doneCount: 0, doneAmount: 0, planCount: 0, planAmount: 0 };
+            }
+
             if (isCompleted) {
               doneCount++;
               doneAmount += calcRevenue;
+              platformMap[platformName].doneCount++;
+              platformMap[platformName].doneAmount += calcRevenue;
+
               if (itemMonth >= 1 && itemMonth <= 12) {
                 monthlyRevenues[itemMonth - 1] += calcRevenue;
-                monthlyCounts[itemMonth - 1]++; // 정산 완료 건수만 반영
+                monthlyCounts[itemMonth - 1]++;
               }
             } else {
               planCount++;
               planAmount += calcRevenue;
+              platformMap[platformName].planCount++;
+              platformMap[platformName].planAmount += calcRevenue;
             }
           }
 
@@ -1301,7 +1339,7 @@
           });
         }
 
-        // --- [3] 월간 분석 꺾은선(Line) 차트 연동 (정산 완료 건수 동기화) ---
+        // --- [3] 월간 분석 꺾은선(Line) 차트 연동 ---
         let maxCountMonthIdx = 0;
         let maxCountVal = 0;
         monthlyCounts.forEach((val, idx) => {
@@ -1337,8 +1375,8 @@
 
         const pointColors = monthlyCounts.map((_, idx) => {
           const monthNum = idx + 1;
-          if (isCurrentYear && monthNum === actualRealMonth) return '#C85A17'; // 현재 달 주황 강조
-          return '#3B82F6'; // 일반 달 파랑
+          if (isCurrentYear && monthNum === actualRealMonth) return '#C85A17';
+          return '#3B82F6';
         });
 
         const ctxMonthlyAnalysis = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
@@ -1393,6 +1431,76 @@
               }
             }
           });
+        }
+
+        // --- [4] 플랫폼 분석 카드 데이터 렌더링 (0건 제외 및 완료/예정 표출) ---
+        const platformListElem = document.getElementById('platformAnalysisList');
+        const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
+        const paSummaryVal = document.getElementById('platformAnalysisSummaryVal');
+
+        if (platformListElem) {
+          platformListElem.innerHTML = '';
+
+          // 건수 합산(doneCount + planCount) 기준으로 내림차순 정렬, 0건인 플랫폼은 제외
+          const sortedPlatforms = Object.keys(platformMap)
+            .map(pName => {
+              const data = platformMap[pName];
+              const totalCnt = data.doneCount + data.planCount;
+              const totalRev = data.doneAmount + data.planAmount;
+              return { pName, ...data, totalCnt, totalRev };
+            })
+            .filter(p => p.totalCnt > 0)
+            .sort((a, b) => b.totalCnt - a.totalCnt || b.totalRev - a.totalRev);
+
+          const totalPlatformNum = sortedPlatforms.length;
+          if (platformCountInfo) {
+            platformCountInfo.innerText = selectedYearVal === 'ALL'
+              ? `누적 (전체 ${totalPlatformNum}개)`
+              : `올해 건수 · 실수익 (전체 ${totalPlatformNum}개)`;
+          }
+
+          if (sortedPlatforms.length > 0) {
+            if (paSummaryVal) paSummaryVal.innerText = `${sortedPlatforms[0].pName} (${sortedPlatforms[0].totalCnt}건)`;
+
+            const maxTotalCnt = sortedPlatforms[0].totalCnt || 1;
+
+            sortedPlatforms.forEach(p => {
+              const barPercent = Math.max(12, Math.round((p.totalCnt / maxTotalCnt) * 100));
+
+              const itemDiv = document.createElement('div');
+              itemDiv.className = "p-2 bg-gray-50/80 rounded-xl border border-gray-100 flex flex-col justify-between text-xs space-y-1";
+
+              let detailsText = '';
+              if (p.doneCount > 0 && p.planCount > 0) {
+                detailsText = `완료 ${p.doneCount}건 (${p.doneAmount.toLocaleString()}원) · 예정 ${p.planCount}건 (${p.planAmount.toLocaleString()}원)`;
+              } else if (p.doneCount > 0) {
+                detailsText = `완료 ${p.doneCount}건 (${p.doneAmount.toLocaleString()}원)`;
+              } else {
+                detailsText = `예정 ${p.planCount}건 (${p.planAmount.toLocaleString()}원)`;
+              }
+
+              itemDiv.innerHTML = `
+                <div class="flex items-center justify-between font-bold">
+                  <span class="text-gray-800 text-xs truncate max-w-[120px]">${p.pName}</span>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-blue-600 font-extrabold text-xs">${p.totalCnt}건</span>
+                    <span class="text-gray-300 font-normal">|</span>
+                    <span class="text-gray-900 font-black text-xs">${p.totalRev.toLocaleString()}원</span>
+                  </div>
+                </div>
+                <div class="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-theme h-full rounded-full transition-all duration-500" style="width: ${barPercent}%"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 text-right font-medium pt-0.5">
+                  ${detailsText}
+                </div>
+              `;
+              platformListElem.appendChild(itemDiv);
+            });
+          } else {
+            if (paSummaryVal) paSummaryVal.innerText = '-';
+            platformListElem.innerHTML = `<div class="text-xs text-gray-400 py-10 text-center font-normal col-span-2">해당 기간의 플랫폼 실적 데이터가 없습니다.</div>`;
+          }
         }
 
       } catch (err) {
@@ -2733,14 +2841,28 @@
 
         <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-          <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[160px]">
-            <div class="flex justify-between items-center border-b pb-2 border-gray-50">
-              <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
+          
+          <!-- 2줄 1번: 플랫폼 분석 카드 (0건 제외, 프로그래스 바 및 완료/예정 상세 표출) -->
+          <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
+            <div onclick="togglePlatformAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
+                <span id="platformAnalysisCountInfo" class="text-[10px] text-gray-400 font-normal">올해 건수 · 실수익</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="platformAnalysisSummaryText" class="hidden text-xs font-black text-theme">
+                  상위 <span id="platformAnalysisSummaryVal">-</span>
+                </span>
+                <span id="platformAnalysisToggleArrow" class="text-xs text-gray-400 font-bold transition">▲</span>
+              </div>
             </div>
-            <div class="flex items-center justify-center py-6 text-xs text-gray-400 font-normal"></div>
+
+            <div id="platformAnalysisCardBody" class="mt-3">
+              <div id="platformAnalysisList" class="grid grid-cols-2 gap-2.5 max-h-48 overflow-y-auto widget-scroll pr-1"></div>
+            </div>
           </div>
 
-          <!-- 2줄 2번: 월간 분석 카드 (정산 완료 건수 기준 집계) -->
+          <!-- 2줄 2번: 월간 분석 카드 -->
           <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-all duration-300">
             <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
               <div class="flex items-center gap-2">
@@ -2772,6 +2894,7 @@
               </div>
             </div>
           </div>
+
         </div>
 
         <!-- 3줄: 월간 세부 내역 (홀수달 / 짝수달) -->
@@ -2909,7 +3032,7 @@
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
 
