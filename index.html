@@ -90,7 +90,6 @@
     .col-fixed-revenue    { width: 120px !important; min-width: 120px !important; }
     .col-fixed-note       { width: 72px !important; min-width: 72px !important; }
 
-    /* 달력 셀 크기 완전 동일화 스타일 */
     .cal-cell-fixed {
       height: 100% !important;
       min-height: 0 !important;
@@ -906,6 +905,54 @@
       document.getElementById('dashRegisterModal')?.classList.add('hidden');
     };
 
+    // 엑셀 내보내기 다운로드 함수 구현
+    window.downloadExcel = function() {
+      if (!rawCampaignList || rawCampaignList.length === 0) {
+        return alert("내보낼 체험단 데이터가 없습니다.");
+      }
+
+      try {
+        const excelData = rawCampaignList.map(item => {
+          const effSt = getEffectiveStatus(item);
+          const sponsored = Number(item.sponsoredAmount || 0);
+          const paid = Number(item.paidAmount || 0);
+          const inputRev = Number(item.revenue || 0);
+
+          let calcRevenue = 0;
+          if (paid === 0) {
+            calcRevenue = sponsored > 0 ? sponsored : inputRev;
+          } else {
+            calcRevenue = (sponsored - paid) + inputRev;
+          }
+
+          return {
+            "매장명": item.storeName || "",
+            "상태": effSt,
+            "사이트(플랫폼)": item.platformName || "개별",
+            "신청일": formatCleanDate(item.applyDate),
+            "방문일": formatCleanDate(item.visitDate),
+            "방문시간": item.visitTime || "",
+            "마감일": formatCleanDate(item.deadlineDate),
+            "제공금액(원)": sponsored,
+            "결제금액(원)": paid,
+            "실수익(원)": calcRevenue,
+            "동반인원": item.companions || "",
+            "연락처": item.contact || "",
+            "메모": item.memo || ""
+          };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "체험단목록");
+
+        const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        XLSX.writeFile(workbook, "온리뷰_체험단목록_" + todayStr + ".xlsx");
+      } catch (err) {
+        alert("엑셀 내보내기 도중 오류가 발생했습니다: " + err.message);
+      }
+    };
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
         try { await signInWithPopup(auth, provider); } 
@@ -920,6 +967,9 @@
         signOut(auth);
         window.location.reload();
       });
+
+      // 엑셀 내보내기 버튼 이벤트 바인딩
+      document.getElementById('downloadExcelBtn')?.addEventListener('click', window.downloadExcel);
 
       document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
       document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
@@ -1917,7 +1967,6 @@
       for (let date = 1; date <= lastDate; date++) {
         const dateStr = year + "-" + String(month).padStart(2, '0') + "-" + String(date).padStart(2, '0');
         const dayCell = document.createElement('div');
-        // aspect-square 및 cal-cell-fixed로 모든 칸 크기 100% 동일 고정
         dayCell.className = "bg-white p-1 rounded-xl border border-gray-100 aspect-square w-full cal-cell-fixed flex flex-col justify-start cursor-pointer hover:border-theme transition-colors " + (dateStr === todayStr ? 'ring-2 ring-theme' : '');
         
         const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
@@ -2892,7 +2941,7 @@
           </select>
         </div>
 
-        <!-- 정적 HTML 구조로 thead 선언하여 자바스크립트 템플릿 오류 완벽 예방 -->
+        <!-- 정적 HTML 구조로 thead 선언 -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table class="w-full text-left border-collapse table-auto">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
