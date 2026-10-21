@@ -149,6 +149,8 @@
     let monthlyChartInstance = null;
     let monthlyAnalysisChartInstance = null;
 
+    let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
+
     let isYearlyCollapsed = localStorage.getItem('onlyview_yearlyCollapsed') === 'true';
     let isMonthlyCollapsed = localStorage.getItem('onlyview_monthlyCollapsed') === 'true';
     let isMonthlyAnalysisCollapsed = localStorage.getItem('onlyview_monthlyAnalysisCollapsed') === 'true';
@@ -402,6 +404,31 @@
 
     const savedTheme = localStorage.getItem('onlyview_theme') || 'slate';
     window.changeTheme(savedTheme);
+
+    // 사이드바 접기/펴기 토글 핸들러
+    window.toggleSidebar = function() {
+      isSidebarCollapsed = !isSidebarCollapsed;
+      localStorage.setItem('onlyview_sidebarCollapsed', isSidebarCollapsed.toString());
+      applySidebarUI();
+    };
+
+    function applySidebarUI() {
+      const sidebar = document.getElementById('mainSidebar');
+      const toggleBtn = document.getElementById('sidebarToggleBtn');
+      const textElems = document.querySelectorAll('.sidebar-text-label');
+      
+      if (isSidebarCollapsed) {
+        sidebar?.classList.remove('md:w-64');
+        sidebar?.classList.add('md:w-20');
+        if (toggleBtn) toggleBtn.innerText = '▶';
+        textElems.forEach(el => el.classList.add('hidden'));
+      } else {
+        sidebar?.classList.remove('md:w-20');
+        sidebar?.classList.add('md:w-64');
+        if (toggleBtn) toggleBtn.innerText = '◀';
+        textElems.forEach(el => el.classList.remove('hidden'));
+      }
+    }
 
     window.toggleYearlyCard = function() {
       isYearlyCollapsed = !isYearlyCollapsed;
@@ -721,7 +748,6 @@
       }
     };
 
-    // 대시보드 내 모달 등록용 상태 버튼
     window.setModalStatusBtn = function(status) {
       modalSelectedStatus = status;
       const statuses = ['신청', '선정', '배송', '원고료'];
@@ -890,7 +916,6 @@
       });
     }
 
-    // 대시보드 체험 등록 모달 열기/닫기
     window.openDashRegisterModal = function() {
       if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
       document.getElementById('modalCampaignForm')?.reset();
@@ -967,6 +992,7 @@
         });
       });
 
+      applySidebarUI();
       renderPlatformChips();
       updateDeadlineButtons();
       populateYearFilter();
@@ -1880,7 +1906,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 캘린더 렌더링: 명확한 '방문 N건', '마감 N건' 직관적 표기
+    // 캘린더 렌더링: 요일 굵은 글씨체 적용 및 🔴 마감 N건 / 🟢 방문 N건 직관적 구별 표기
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1892,7 +1918,7 @@
       const days = ['일', '월', '화', '수', '목', '금', '토'];
       days.forEach((d, idx) => {
         const dh = document.createElement('div');
-        dh.className = `text-center text-[11px] font-normal py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
+        dh.className = `text-center text-[11px] font-bold py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500'}`;
         dh.innerText = d;
         calGrid.appendChild(dh);
       });
@@ -2300,7 +2326,6 @@
       }
     });
 
-    // 대시보드 팝업 모달을 통한 체험 등록 핸들러
     document.getElementById('modalCampaignForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isReadOnly || !currentUser) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
@@ -2781,39 +2806,57 @@
   <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
-    <aside class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-colors">
+    <!-- 접기/펴기 가능한 반응형 사이드바 -->
+    <aside id="mainSidebar" class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-all duration-200 relative">
       <div class="space-y-5">
-        <div>
-          <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
-          <p class="text-[10px] text-sidebar-muted font-normal uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
-          <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
-            <span id="userName" class="text-xs font-normal text-theme truncate"></span>
+        <div class="flex items-center justify-between">
+          <div class="sidebar-text-label">
+            <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
+            <p class="text-[10px] text-sidebar-muted font-normal uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
           </div>
+          <button id="sidebarToggleBtn" onclick="toggleSidebar()" class="hidden md:flex p-1.5 rounded-lg bg-black/5 text-sidebar text-xs hover:bg-black/10 transition" title="사이드바 접기/펴기">◀</button>
+        </div>
+
+        <div class="sidebar-text-label p-2 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
+          <span id="userName" class="text-xs font-normal text-theme truncate"></span>
         </div>
 
         <nav class="space-y-1 text-sm font-bold">
-          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
-            대시보드
+          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
+            <span class="text-base shrink-0">📊</span>
+            <span class="sidebar-text-label">대시보드</span>
           </button>
-          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            체험단 등록
+          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <span class="text-base shrink-0">➕</span>
+            <span class="sidebar-text-label">체험단 등록</span>
           </button>
-          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            체험단 목록
+          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <span class="text-base shrink-0">📋</span>
+            <span class="sidebar-text-label">체험단 목록</span>
           </button>
-          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            체험단 정산
+          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <span class="text-base shrink-0">📈</span>
+            <span class="sidebar-text-label">체험단 정산</span>
           </button>
-          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            설정 및 공유
+          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <span class="text-base shrink-0">⚙️</span>
+            <span class="sidebar-text-label">설정 및 공유</span>
           </button>
         </nav>
       </div>
 
-      <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0">
-        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
-        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
-        <button id="logoutBtn" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center">로그아웃</button>
+      <!-- 하단 액셀 내보내기 & 로그아웃 위치 보정 (약 20% 위로 고정) -->
+      <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-16">
+        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">
+          <span class="sidebar-text-label">내 목록으로 돌아가기</span>
+        </button>
+        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1">
+          <span>📥</span>
+          <span class="sidebar-text-label">엑셀 내보내기</span>
+        </button>
+        <button id="logoutBtn" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center">
+          <span class="sidebar-text-label">로그아웃</span>
+        </button>
       </div>
     </aside>
 
@@ -2836,7 +2879,6 @@
               <button id="todayMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">오늘</button>
               <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">다음달</button>
             </div>
-            <!-- 대시보드 위에서 바로 팝업(모달) 오픈 -->
             <button id="dashRegisterBtn" onclick="openDashRegisterModal()" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition-colors">
               + 체험 등록
             </button>
@@ -2869,7 +2911,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
             <!-- 요일과 셀 사이 밀착 여백 적용 -->
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden pt-1"></div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
 
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
@@ -3254,7 +3296,7 @@
 
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (레이어드 서브탭 2개 적용 & 최하단 구역 배치) -->
+      <!-- 5. 설정 및 공유 탭 -->
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
@@ -3431,158 +3473,4 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label>
-            <input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-
-          <div id="modalRowApplyDate">
-            <label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label>
-            <input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal">
-          </div>
-
-          <div id="modalRowDeadlineDate" class="hidden">
-            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-              <input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowContact" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div id="modalRowMemo" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
-          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 체험 정보 수정 팝업 -->
-  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3>
-        <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-
-      <form id="editForm" class="space-y-4 text-sm">
-        <div class="space-y-1.5">
-          <label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
-          <div class="flex flex-wrap gap-1.5">
-            <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
-            <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
-            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label>
-          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
-            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
-              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
-          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 컬러 팔레트 모달 -->
-  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
-        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <p class="text-xs text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
-      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+            <input type="text" id="modalSponsoredAmount
