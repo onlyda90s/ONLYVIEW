@@ -153,7 +153,6 @@
     let monthlyAnalysisChartInstance = null;
 
     let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
-
     let monthlyDetailsCollapseState = {}; 
 
     let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none'; 
@@ -292,26 +291,41 @@
       return str;
     }
 
-    // 상태 자동 판별 로직 수정 (미래 날짜 건의 미제출 오판정 방지)
-    function getEffectiveStatus(item) {
+    // 원본 상태 보존 및 지연 여부 실시간 판별 함수
+    function isItemOverdue(item) {
       const rawSt = item.status;
-      if (rawSt === '제출' || rawSt === '완료') return rawSt;
+      if (rawSt === '제출' || rawSt === '완료') return false;
 
       const now = new Date();
 
-      // 마감일이 완전히 지난 경우에만 '미제출'로 자동 변경
+      // 마감일 경과 체크
       if (item.deadlineDate) {
         const cleanDDate = formatCleanDate(item.deadlineDate);
         if (cleanDDate) {
           const dDateTime = new Date(`${cleanDDate}T23:59:59`);
           if (!isNaN(dDateTime.getTime()) && dDateTime < now) {
-            return '미제출';
+            return true;
           }
         }
       }
 
-      // 방문일과 마감일이 아직 지나지 않은 미래 일정인 경우 원본 저장 상태 반환
-      return rawSt;
+      // 방문일 경과 체크 (방문 후 리뷰 미작성 건)
+      if (item.visitDate) {
+        const cleanVDate = formatCleanDate(item.visitDate);
+        if (cleanVDate) {
+          const vTimeStr = item.visitTime || '23:59';
+          const vDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
+          if (!isNaN(vDateTime.getTime()) && vDateTime < now) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    function getEffectiveStatus(item) {
+      return item.status || '신청';
     }
 
     function displayStatusName(status) { return status || '신청'; }
@@ -596,7 +610,6 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
-        updateChartModeButtonsUI();
         renderStatusColorPickers();
       }
     };
@@ -1157,7 +1170,6 @@
       }
     }
 
-    // 데이터 로드 및 렌더링 호출
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -1219,37 +1231,26 @@
         checkCollapsePreset();
 
         populateYearFilter();
-        
-        try { filterAndRender(); } catch(e) { console.error("목록 예외 처리:", e); }
-        try { renderDashboardView(); } catch(e) { console.error("대시보드 예외 처리:", e); }
-        try { renderSettlementView(); } catch(e) { console.error("정산 예외 처리:", e); }
+        refreshAllViews();
 
       } catch (e) {
         console.error("데이터 로드 실패:", e);
       }
     }
 
-    // 통합 갱신 함수 (목록 수정/추가 시 대시보드 및 정산 리포트 즉시 갱신)
     function refreshAllViews() {
       filterAndRender();
       renderDashboardView();
       renderSettlementView();
     }
 
-    // 대시보드 뷰 렌더링 (카운터 수치 및 위젯 실시간 연동)
+    // 대시보드 뷰 렌더링 (요청된 5가지 수식 상시 반영)
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
         const month = currentCalDate.getMonth() + 1;
         const titleElem = document.getElementById('dashMonthTitle');
         if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
-
-        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
-
-        const monthlyCampaigns = rawCampaignList.filter(item => {
-          const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-          return visitM === monthPrefix;
-        });
 
         let cntSelect = 0;     
         let cntVisitWait = 0;  
@@ -1258,32 +1259,42 @@
         let cntSubmitDone = 0; 
 
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // 오늘 날짜 00:00:00 세팅
 
-        monthlyCampaigns.forEach(item => {
+        rawCampaignList.forEach(item => {
           const st = getEffectiveStatus(item);
-          if (st === '선정' || st === '배송' || st === '원고료') {
-            cntSelect++;
-            if (!item.visitDate) {
-              cntVisitWait++;
-            } else {
-              const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-              const vTime = new Date(visitDateTimeStr);
-              if (vTime >= now) {
+          const isOverdue = isItemOverdue(item);
+
+          // 1. 제출 완료 건수
+          if (st === '제출' || st === '완료') {
+            cntSubmitDone++;
+            return;
+          }
+
+          // 2. 현재 진행 중인 체험 전체 (선정 현황)
+          cntSelect++;
+
+          // 3. 미제출 건수 (방문일이 오늘 이전이거나, 마감일이 지났는데 제출 안 한 건)
+          if (isOverdue) {
+            cntSubmitWait++;
+          }
+
+          // 4. 예약 대기 건수 (상태가 선정 또는 방문이면서 방문일자가 없는 건)
+          if ((st === '선정' || st === '방문') && !item.visitDate) {
+            cntVisitWait++;
+          }
+
+          // 5. 방문 예정 건수 (상태가 선정 또는 방문이면서 방문일이 오늘 이후인 건 - 오늘 포함)
+          if ((st === '선정' || st === '방문') && item.visitDate) {
+            const cleanVDate = formatCleanDate(item.visitDate);
+            if (cleanVDate) {
+              const vDateObj = new Date(cleanVDate);
+              vDateObj.setHours(0, 0, 0, 0);
+              if (vDateObj >= now) {
                 cntVisitPlan++;
               }
             }
           }
-          else if (st === '방문') {
-            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
-            const vTime = new Date(visitDateTimeStr);
-            if (vTime >= now) {
-              cntVisitPlan++;
-            } else {
-              cntSubmitWait++;
-            }
-          }
-          else if (st === '미제출') cntSubmitWait++;
-          else if (st === '제출' || st === '완료') cntSubmitDone++;
         });
 
         const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
@@ -1844,7 +1855,7 @@
           return new Date(visitDateTimeStr) >= now;
         });
       } else if (counterType === 'submitWait') {
-        matchedItems = monthlyCampaigns.filter(c => getEffectiveStatus(c) === '미제출');
+        matchedItems = monthlyCampaigns.filter(c => isItemOverdue(c));
       } else if (counterType === 'submitDone') {
         matchedItems = monthlyCampaigns.filter(c => {
           const st = getEffectiveStatus(c);
@@ -1865,13 +1876,17 @@
         } else {
           matchedItems.forEach(item => {
             const effSt = getEffectiveStatus(item);
+            const overdue = isItemOverdue(item);
             const div = document.createElement('div');
             div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
             div.onclick = () => openDetailItemModal(item.id);
 
             div.innerHTML = `
               <div class="flex justify-between items-center">
-                <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
+                  ${overdue ? '<span class="text-rose-500 font-bold text-[11px]">[상태확인]</span>' : ''}
+                </div>
                 <span class="${getStatusTextClass(effSt)} font-normal">${displayStatusName(effSt)}</span>
               </div>
               <div class="flex justify-between text-gray-500 text-[11px] font-normal">
@@ -1952,6 +1967,7 @@
 
           sortedItems.forEach(item => {
             const isVisit = formatCleanDate(item.visitDate) === dateStr;
+            const overdue = isItemOverdue(item);
             const div = document.createElement('div');
             div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
             div.onclick = () => openDetailItemModal(item.id);
@@ -1963,6 +1979,7 @@
                 <div class="flex items-center gap-1.5">
                   ${timeBadge}
                   <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
+                  ${overdue ? '<span class="text-rose-500 font-bold text-[11px]">[상태확인]</span>' : ''}
                 </div>
                 <span class="text-xs font-normal text-gray-400">${item.platformName || '개별'}</span>
               </div>
@@ -2023,7 +2040,6 @@
       });
     }
 
-    // 미래 방문 예정건 표출 정상 연동
     function renderAllScheduledVisits() {
       const visitContainer = document.getElementById('scheduledVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
@@ -2034,14 +2050,15 @@
       unscheduledContainer.innerHTML = '';
 
       const now = new Date();
+      now.setHours(0, 0, 0, 0);
 
       const scheduledItems = rawCampaignList.filter(c => {
         const effSt = getEffectiveStatus(c);
         if (!c.visitDate || effSt === '제출' || effSt === '완료') return false;
         const cleanVDate = formatCleanDate(c.visitDate);
-        const vTimeStr = c.visitTime || '23:59';
-        const visitDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
-        return visitDateTime >= now;
+        const vDateObj = new Date(cleanVDate);
+        vDateObj.setHours(0, 0, 0, 0);
+        return vDateObj >= now;
       }).sort((a, b) => {
         const keyA = `${formatCleanDate(a.visitDate)} ${a.visitTime || '00:00'}`;
         const keyB = `${formatCleanDate(b.visitDate)} ${b.visitTime || '00:00'}`;
@@ -2071,7 +2088,7 @@
         });
       }
 
-      const unscheduledItems = rawCampaignList.filter(c => getEffectiveStatus(c) === '선정' && !c.visitDate);
+      const unscheduledItems = rawCampaignList.filter(c => (getEffectiveStatus(c) === '선정' || getEffectiveStatus(c) === '방문') && !c.visitDate);
 
       if (unscheduledItems.length === 0) {
         unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">일정 미지정 항목이 없습니다.</div>';
@@ -2233,7 +2250,6 @@
       }
     };
 
-    // 상태 빠른 변경 시 전체 뷰 실시간 동기화
     window.quickUpdateStatus = async function(id, newStatus) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
       try {
@@ -2360,6 +2376,7 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
+    // 체험단 목록 렌더링 (매장명 옆 🔴 [상태확인] 표시 연동)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -2448,6 +2465,7 @@
 
         filteredList.forEach((item) => {
           const effSt = getEffectiveStatus(item);
+          const overdue = isItemOverdue(item);
           const isCompleted = (effSt === '제출' || effSt === '완료');
           const sponsored = Number(item.sponsoredAmount || 0);
           const paid = Number(item.paidAmount || 0);
@@ -2467,6 +2485,8 @@
             revDisplayHtml = `<span class="font-normal text-gray-400">${formatRevenueDisplay(calcRevenue)} (예상)</span>`;
           }
 
+          const overdueBadgeHtml = overdue ? `<span class="text-rose-500 font-bold text-[11px] ml-1.5 shrink-0">[상태확인]</span>` : '';
+
           if (isBatchEditing) {
             const cleanVisitDate = formatCleanDate(item.visitDate);
             const cleanDeadlineDate = formatCleanDate(item.deadlineDate);
@@ -2475,7 +2495,10 @@
             row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
             row.innerHTML = `
               <td class="p-2 text-left">
-                <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+                <div class="flex items-center">
+                  <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
+                  ${overdueBadgeHtml}
+                </div>
               </td>
               <td class="p-2 text-center col-fixed-status">
                 <select id="batch_status_${item.id}" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
@@ -2535,7 +2558,12 @@
             const row = document.createElement('tr');
             row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
             row.innerHTML = `
-              <td class="p-3 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+              <td class="p-3 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">
+                <div class="flex items-center">
+                  <span class="truncate">${item.storeName}</span>
+                  ${overdueBadgeHtml}
+                </div>
+              </td>
               <td class="p-3 text-xs text-center col-fixed-status">${statusSelectHtml}</td>
               <td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-platform">${item.platformName || '-'}</td>
               <td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-visit">${formatShortDate(item.visitDate)}</td>
@@ -2555,7 +2583,10 @@
               <div>
                 <span class="${getStatusTextClass(effSt)} text-xs mr-1.5 font-normal">${displayStatusName(effSt)}</span>
                 <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
-                <h3 class="font-normal text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+                <div class="flex items-center mt-1">
+                  <h3 class="font-normal text-xs text-gray-900 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+                  ${overdueBadgeHtml}
+                </div>
               </div>
               <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? formatRevenueDisplay(calcRevenue) : `${formatRevenueDisplay(calcRevenue)}(예상)`}</span>
             </div>
@@ -2570,7 +2601,7 @@
         if (isBatchEditing) {
           newBatchRows.forEach((row, idx) => {
             const newRow = document.createElement('tr');
-            newRow.className = 'bg-gray-50/80 border-b border-gray-200 text-xs text-gray-900';
+            newRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
             const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
 
             newRow.innerHTML = `
@@ -3448,10 +3479,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
 
