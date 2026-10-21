@@ -905,22 +905,30 @@
       document.getElementById('dashRegisterModal')?.classList.add('hidden');
     };
 
-    // 올려주신 정산 리포트 양식(.xlsx) 템플릿 원본에 데이터만 삽입하여 100% 동일 양식 출력
+    // 엑셀 다운로드: 기존 4행 이하 예시 영역 완전히 덮어쓰기 & 연도 자동 매칭
     window.downloadExcel = async function() {
       if (!rawCampaignList || rawCampaignList.length === 0) {
         return alert("내보낼 체험단 데이터가 없습니다.");
       }
 
       try {
-        // 1. 저장소의 원본 템플릿 양식 파일 로드
+        // 1. GitHub에 저장된 원본 양식 파일 로드
         const response = await fetch('체험단_정산_리포트_양식.xlsx');
         if (!response.ok) {
-          throw new Error("템플릿 양식 파일(체험단_정산_리포트_양식.xlsx)을 찾을 수 없습니다. GitHub 저장소에 해당 엑셀 파일을 업로드해 주세요.");
+          throw new Error("양식 파일(체험단_정산_리포트_양식.xlsx)을 찾을 수 없습니다. GitHub 저장소에 최신 양식 파일이 업로드되었는지 확인해 주세요.");
         }
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-        // 2. [진행중 체험단] 시트 데이터 삽입 (4행부터 시작)
+        const targetYear = new Date().getFullYear();
+
+        // [대시보드] 시트 연도 설정 (C2 셀)
+        const dashSheet = workbook.Sheets['대시보드'];
+        if (dashSheet) {
+          XLSX.utils.sheet_add_aoa(dashSheet, [[targetYear]], { origin: 'C2' });
+        }
+
+        // 2. [진행중 체험단] 시트 데이터 덮어쓰기 (기존 4행 이하 예시 깨끗하게 대체)
         const ongoingSheet = workbook.Sheets['진행중 체험단'];
         if (ongoingSheet) {
           const ongoingItems = rawCampaignList.filter(item => {
@@ -928,26 +936,34 @@
             return st !== '제출' && st !== '완료';
           });
 
-          ongoingItems.forEach((item, idx) => {
-            const row = 4 + idx;
-            const sponsored = Number(item.sponsoredAmount || 0);
-            const paid = Number(item.paidAmount || 0);
-
-            XLSX.utils.sheet_add_aoa(ongoingSheet, [[
-              item.storeName || "",
-              getEffectiveStatus(item),
-              item.platformName || "개별",
-              formatCleanDate(item.visitDate),
-              formatCleanDate(item.deadlineDate),
-              sponsored,
-              paid,
-              "=IF(F" + row + "=\"\",\"\",F" + row + "-G" + row + ")",
-              item.memo || ""
-            ]], { origin: "A" + row });
-          });
+          // 4행 이하 영역 리셋을 위해 배열 재구성
+          const ongoingRows = [];
+          for (let i = 0; i < Math.max(ongoingItems.length, 10); i++) {
+            if (i < ongoingItems.length) {
+              const item = ongoingItems[i];
+              const sponsored = Number(item.sponsoredAmount || 0);
+              const paid = Number(item.paidAmount || 0);
+              const rowNum = 4 + i;
+              ongoingRows.push([
+                item.storeName || "",
+                getEffectiveStatus(item),
+                item.platformName || "개별",
+                formatCleanDate(item.visitDate),
+                formatCleanDate(item.deadlineDate),
+                sponsored,
+                paid,
+                "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")",
+                item.memo || ""
+              ]);
+            } else {
+              const rowNum = 4 + i;
+              ongoingRows.push(["", "", "", "", "", "", "", "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", ""]);
+            }
+          }
+          XLSX.utils.sheet_add_aoa(ongoingSheet, ongoingRows, { origin: "A4" });
         }
 
-        // 3. [완료 체험단] 시트 데이터 삽입 (4행부터 시작)
+        // 3. [완료 체험단] 시트 데이터 덮어쓰기 (기존 4행 이하 예시 깨끗하게 대체)
         const completedSheet = workbook.Sheets['완료 체험단'];
         if (completedSheet) {
           const completedItems = rawCampaignList.filter(item => {
@@ -955,31 +971,38 @@
             return st === '제출' || st === '완료';
           });
 
-          completedItems.forEach((item, idx) => {
-            const row = 4 + idx;
-            const sponsored = Number(item.sponsoredAmount || 0);
-            const paid = Number(item.paidAmount || 0);
-
-            XLSX.utils.sheet_add_aoa(completedSheet, [[
-              item.storeName || "",
-              getEffectiveStatus(item),
-              item.platformName || "개별",
-              formatCleanDate(item.visitDate),
-              formatCleanDate(item.deadlineDate),
-              sponsored,
-              paid,
-              "=IF(F" + row + "=\"\",\"\",F" + row + "-G" + row + ")",
-              item.memo || "정산완료"
-            ]], { origin: "A" + row });
-          });
+          const completedRows = [];
+          for (let i = 0; i < Math.max(completedItems.length, 10); i++) {
+            if (i < completedItems.length) {
+              const item = completedItems[i];
+              const sponsored = Number(item.sponsoredAmount || 0);
+              const paid = Number(item.paidAmount || 0);
+              const rowNum = 4 + i;
+              completedRows.push([
+                item.storeName || "",
+                getEffectiveStatus(item),
+                item.platformName || "개별",
+                formatCleanDate(item.visitDate),
+                formatCleanDate(item.deadlineDate),
+                sponsored,
+                paid,
+                "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")",
+                item.memo || "정산완료"
+              ]);
+            } else {
+              const rowNum = 4 + i;
+              completedRows.push(["", "", "", "", "", "", "", "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", ""]);
+            }
+          }
+          XLSX.utils.sheet_add_aoa(completedSheet, completedRows, { origin: "A4" });
         }
 
-        // 4. 원본 양식 디자인 그대로 내려받기
+        // 4. 완성된 원고 내려받기
         const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         XLSX.writeFile(workbook, "체험단_정산_리포트_" + todayStr + ".xlsx");
 
       } catch (err) {
-        alert("엑셀 다운로드 오류: " + err.message);
+        alert("엑셀 다운로드 처리 실패: " + err.message);
       }
     };
 
