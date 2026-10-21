@@ -58,13 +58,13 @@
     .widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
     .widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-    .status-text-apply { color: var(--color-status-apply) !important; font-weight: 700; }
-    .status-text-select { color: var(--color-status-select) !important; font-weight: 700; }
-    .status-text-visit { color: var(--color-status-visit) !important; font-weight: 700; }
-    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 700; }
-    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 700; }
-    .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 700; }
-    .status-text-fee { color: var(--color-status-fee) !important; font-weight: 700; }
+    .status-text-apply { color: var(--color-status-apply) !important; font-weight: 500; }
+    .status-text-select { color: var(--color-status-select) !important; font-weight: 500; }
+    .status-text-visit { color: var(--color-status-visit) !important; font-weight: 500; }
+    .status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 500; }
+    .status-text-submit { color: var(--color-status-submit) !important; font-weight: 500; }
+    .status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 500; }
+    .status-text-fee { color: var(--color-status-fee) !important; font-weight: 500; }
 
     select.select-center {
       text-align: center;
@@ -90,7 +90,7 @@
     .col-fixed-note       { width: 72px !important; min-width: 72px !important; }
   </style>
 </head>
-<body class="text-[#333333] min-h-screen h-screen overflow-hidden">
+<body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal">
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -432,23 +432,25 @@
       renderSettlementView(); 
     };
 
-    // 보조 텍스트 조건부 표기 제어 (펼쳐졌을 때만 우측 상단 표시)
     function applyCardToggleUI() {
       const yearlyCard = document.getElementById('yearlyCardContainer');
       const yearlyBody = document.getElementById('yearlyCardBody');
       const yearlyArrow = document.getElementById('yearlyToggleArrow');
       const yearlySummary = document.getElementById('yearlySummaryText');
+      const yearlySubText = document.getElementById('yearlySubText');
 
       if (yearlyBody && yearlyArrow) {
         if (isYearlyCollapsed) {
           yearlyBody.classList.add('hidden');
           yearlyArrow.innerText = '▼';
           if (yearlySummary) yearlySummary.classList.remove('hidden');
+          if (yearlySubText) yearlySubText.classList.add('hidden');
           if (yearlyCard) yearlyCard.style.height = '48px';
         } else {
           yearlyBody.classList.remove('hidden');
           yearlyArrow.innerText = '▲';
           if (yearlySummary) yearlySummary.classList.add('hidden');
+          if (yearlySubText) yearlySubText.classList.remove('hidden');
           if (yearlyCard) yearlyCard.style.height = '280px';
         }
       }
@@ -561,7 +563,7 @@
         const btnSubmitted = document.getElementById('subTabSubmitted');
         if (btnOngoing && btnSubmitted) {
           btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
         }
         document.getElementById('searchInput').value = '';
         document.getElementById('filterStatus').value = 'ALL';
@@ -635,7 +637,7 @@
           if (s === status) {
             btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -701,7 +703,7 @@
           if (s === status) {
             btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+            btn.className = "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -721,7 +723,7 @@
         if (name === currentVal) {
           btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors";
         } else {
-          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-medium text-xs hover:border-gray-300 transition-colors";
+          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
         }
         btn.onclick = () => selectPlatformChip(name);
         container.appendChild(btn);
@@ -730,7 +732,7 @@
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-bold text-xs hover:bg-gray-100 transition-colors";
+      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
       addBtn.onclick = addCustomPlatform;
       container.appendChild(addBtn);
     }
@@ -776,7 +778,7 @@
           if (d === deadlineAlertDays) {
             btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
           } else {
-            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+            btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
           }
         }
       });
@@ -1186,7 +1188,6 @@
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
 
-        // 연간 누적 연도 표기 업데이트 (도넛 차트 오른쪽 상단)
         const yearlyAccumulatedLabel = document.getElementById('yearlyAccumulatedLabel');
         if (yearlyAccumulatedLabel) {
           yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 누적`;
@@ -1299,8 +1300,8 @@
           if (!hasPrevYearData) {
             compareContainer.innerHTML = `
               <div class="flex items-center gap-2">
-                <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
-                <span class="text-xs text-gray-400 font-medium">비교 데이터 없음</span>
+                <span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span>
+                <span class="text-xs text-gray-400 font-normal">비교 데이터 없음</span>
               </div>
             `;
           } else {
@@ -1311,9 +1312,9 @@
 
             compareContainer.innerHTML = `
               <div class="flex items-center gap-2">
-                <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
-                <span class="font-black text-gray-900 text-lg">${diffStr}</span>
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}">${rateStr}</span>
+                <span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span>
+                <span class="font-normal text-gray-900 text-lg">${diffStr}</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-normal ${badgeClass}">${rateStr}</span>
               </div>
             `;
           }
@@ -1423,7 +1424,7 @@
               scales: {
                 x: {
                   grid: { display: false },
-                  ticks: { font: { size: 10, weight: 'bold' }, color: '#6B7280' }
+                  ticks: { font: { size: 10, weight: 'normal' }, color: '#6B7280' }
                 },
                 y: { display: false }
               },
@@ -1438,7 +1439,7 @@
                   anchor: 'end',
                   align: 'end',
                   offset: 2,
-                  font: { size: 10, weight: 'bold' },
+                  font: { size: 10, weight: 'normal' },
                   color: (context) => barColors[context.dataIndex],
                   formatter: (value) => {
                     if (!value || value <= 0) return '';
@@ -1520,7 +1521,7 @@
               scales: {
                 x: {
                   grid: { display: false },
-                  ticks: { font: { size: 10, weight: 'bold' }, color: '#6B7280' }
+                  ticks: { font: { size: 10, weight: 'normal' }, color: '#6B7280' }
                 },
                 y: { display: false }
               },
@@ -1535,7 +1536,7 @@
                   anchor: 'end',
                   align: 'end',
                   offset: 2,
-                  font: { size: 10, weight: 'bold' },
+                  font: { size: 10, weight: 'normal' },
                   color: (context) => pointColors[context.dataIndex],
                   formatter: (value) => (value > 0 ? value : '')
                 }
@@ -1579,13 +1580,13 @@
               itemDiv.className = "flex items-center justify-between text-xs py-1 px-0.5";
 
               itemDiv.innerHTML = `
-                <span class="font-bold text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
+                <span class="font-normal text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
                 <div class="flex-1 mx-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div class="bg-blue-600 h-full rounded-full transition-colors" style="width: ${barPercent}%"></div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
-                  <span class="text-gray-400 font-bold text-[10px] text-right">${p.doneCount}건</span>
-                  <span class="text-gray-900 font-black text-[11px] text-right">${p.doneAmount.toLocaleString()}원</span>
+                  <span class="text-gray-400 font-normal text-[10px] text-right">${p.doneCount}건</span>
+                  <span class="text-gray-900 font-normal text-[11px] text-right">${p.doneAmount.toLocaleString()}원</span>
                 </div>
               `;
 
@@ -1642,7 +1643,7 @@
                 html += `<div class="text-center text-gray-300 font-normal py-12 text-[11px]">이 달의 완료된 체험이 없습니다.</div>`;
               } else {
                 html += `
-                  <div class="flex items-center justify-between font-bold text-gray-400 text-[10px] mb-1">
+                  <div class="flex items-center justify-between font-normal text-gray-400 text-[10px] mb-1">
                     <span class="w-1/2 text-left">매장명</span>
                     <span class="w-1/4 text-right">제공금액</span>
                     <span class="w-1/4 text-right">결제금액</span>
@@ -1652,9 +1653,9 @@
                 list.forEach(item => {
                   html += `
                     <div class="flex items-center justify-between text-[11px] py-0.5 border-b border-dashed border-gray-50">
-                      <span class="w-1/2 font-bold text-gray-800 truncate" title="${item.storeName}">${item.storeName}</span>
-                      <span class="w-1/4 text-right font-medium text-gray-500">${item.sponsoredAmount.toLocaleString()}원</span>
-                      <span class="w-1/4 text-right font-medium text-gray-400">${item.paidAmount > 0 ? item.paidAmount.toLocaleString() + '원' : '0원'}</span>
+                      <span class="w-1/2 font-normal text-gray-800 truncate" title="${item.storeName}">${item.storeName}</span>
+                      <span class="w-1/4 text-right font-normal text-gray-500">${item.sponsoredAmount.toLocaleString()}원</span>
+                      <span class="w-1/4 text-right font-normal text-gray-400">${item.paidAmount > 0 ? item.paidAmount.toLocaleString() + '원' : '0원'}</span>
                     </div>
                   `;
                 });
@@ -1663,8 +1664,8 @@
 
               html += `
                 <div class="mt-2 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
-                  <span class="text-[11px] font-bold text-gray-600">소계 <b class="text-theme text-xs font-black ml-1">${totalMCount}건</b></span>
-                  <span class="text-[11px] font-bold text-gray-600">실수익 <b class="text-theme text-sm font-black ml-1">${totalMRevenue.toLocaleString()}원</b></span>
+                  <span class="text-[11px] font-normal text-gray-600">소계 <b class="text-theme text-xs font-normal ml-1">${totalMCount}건</b></span>
+                  <span class="text-[11px] font-normal text-gray-600">실수익 <b class="text-theme text-sm font-normal ml-1">${totalMRevenue.toLocaleString()}원</b></span>
                 </div>
               `;
               html += `</div>`;
@@ -1734,8 +1735,8 @@
 
             div.innerHTML = `
               <div class="flex justify-between items-center">
-                <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
-                <span class="${getStatusTextClass(effSt)} font-bold">${displayStatusName(effSt)}</span>
+                <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
+                <span class="${getStatusTextClass(effSt)} font-normal">${displayStatusName(effSt)}</span>
               </div>
               <div class="flex justify-between text-gray-500 text-[11px] font-normal">
                 <span>사이트: ${item.platformName || '개별'}</span>
@@ -1761,7 +1762,7 @@
       const days = ['일', '월', '화', '수', '목', '금', '토'];
       days.forEach((d, idx) => {
         const dh = document.createElement('div');
-        dh.className = `text-center text-[11px] font-bold py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
+        dh.className = `text-center text-[11px] font-normal py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-400'}`;
         dh.innerText = d;
         calGrid.appendChild(dh);
       });
@@ -1778,16 +1779,16 @@
         const dayCell = document.createElement('div');
         dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[40px] flex flex-col justify-start cursor-pointer hover:border-theme transition-colors ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
         
-        let html = `<div class="text-[10px] font-bold text-gray-500 mb-0.5">${date}</div>`;
+        let html = `<div class="text-[10px] font-normal text-gray-500 mb-0.5">${date}</div>`;
         
         const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
         const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
-          html += `<div class="text-[9px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-emerald-600 font-normal mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
         }
         if (deadlineMatches.length > 0) {
-          html += `<div class="text-[9px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-rose-500 font-normal mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
         }
 
         const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
@@ -1825,11 +1826,11 @@
               <div class="flex justify-between items-center">
                 <div class="flex items-center gap-1.5">
                   ${timeBadge}
-                  <span class="font-bold text-sm text-gray-900">${item.storeName}</span>
+                  <span class="font-normal text-sm text-gray-900">${item.storeName}</span>
                 </div>
-                <span class="text-xs font-bold text-gray-400">${item.platformName || '개별'}</span>
+                <span class="text-xs font-normal text-gray-400">${item.platformName || '개별'}</span>
               </div>
-              ${item.memo ? `<div class="pt-1.5 text-gray-600 text-[11px] font-bold">비고: ${item.memo}</div>` : ''}
+              ${item.memo ? `<div class="pt-1.5 text-gray-600 text-[11px] font-normal">비고: ${item.memo}</div>` : ''}
             `;
             modalList.appendChild(div);
           });
@@ -1877,10 +1878,10 @@
 
         card.innerHTML = `
           <div>
-            <span class="font-bold text-gray-900">${item.storeName}</span>
+            <span class="font-normal text-gray-900">${item.storeName}</span>
             <span class="text-[11px] text-gray-400 ml-1.5 font-normal">(${formatShortDate(item.deadlineDate)})</span>
           </div>
-          <span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-bold">${dText}</span>
+          <span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-normal">${dText}</span>
         `;
         container.appendChild(card);
       });
@@ -1927,7 +1928,7 @@
               <span>${dateFormatted}</span>
               ${companionHtml}
             </div>
-            <div class="font-bold text-gray-900 text-sm truncate">${item.storeName}</div>
+            <div class="font-normal text-gray-900 text-sm truncate">${item.storeName}</div>
           `;
           visitContainer.appendChild(div);
         });
@@ -1945,10 +1946,10 @@
 
           div.innerHTML = `
             <div class="truncate mr-2">
-              <span class="font-bold text-gray-900">${item.storeName}</span>
+              <span class="font-normal text-gray-900">${item.storeName}</span>
               <span class="text-[11px] text-gray-400 ml-1 font-normal">(${formatShortDate(item.deadlineDate) || '마감미정'})</span>
             </div>
-            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-bold shadow-sm transition-colors">일정 잡기</button>` : ''}
+            ${!isReadOnly ? `<button onclick="event.stopPropagation(); openEditModalFromId('${item.id}')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-normal shadow-sm transition-colors">일정 잡기</button>` : ''}
           `;
           unscheduledContainer.appendChild(div);
         });
@@ -1971,22 +1972,22 @@
           <div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm">
             <div class="flex justify-between items-center border-b pb-2">
               <span class="text-sm font-bold text-gray-900">${item.storeName}</span>
-              <span class="${getStatusTextClass(effSt)} font-bold">${displayStatusName(effSt)}</span>
+              <span class="${getStatusTextClass(effSt)} font-normal">${displayStatusName(effSt)}</span>
             </div>
             <div class="grid grid-cols-2 gap-2 text-gray-600">
-              <div>체험단 사이트: <span class="font-bold text-gray-800">${item.platformName || '-'}</span></div>
-              <div>신청일: <span class="font-bold text-gray-800">${formatCleanDate(item.applyDate) || '-'}</span></div>
-              <div>방문일시: <span class="font-bold text-gray-800">${visitFormatted}</span></div>
-              <div>포스팅 마감일: <span class="font-bold text-gray-800">${formatCleanDate(item.deadlineDate) || '미정'}</span></div>
-              <div>제공금액: <span class="font-bold text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div>
-              <div>동반인원: <span class="font-bold text-gray-800">${item.companions || '없음'}</span></div>
-              <div>결제금액: <span class="font-bold text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
-              <div>실수익·원고료: <span class="font-bold text-gray-800">${formatRevenueDisplay(item.revenue || 0)}</span></div>
+              <div>체험단 사이트: <span class="font-normal text-gray-800">${item.platformName || '-'}</span></div>
+              <div>신청일: <span class="font-normal text-gray-800">${formatCleanDate(item.applyDate) || '-'}</span></div>
+              <div>방문일시: <span class="font-normal text-gray-800">${visitFormatted}</span></div>
+              <div>포스팅 마감일: <span class="font-normal text-gray-800">${formatCleanDate(item.deadlineDate) || '미정'}</span></div>
+              <div>제공금액: <span class="font-normal text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div>
+              <div>동반인원: <span class="font-normal text-gray-800">${item.companions || '없음'}</span></div>
+              <div>결제금액: <span class="font-normal text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
+              <div>실수익·원고료: <span class="font-normal text-gray-800">${formatRevenueDisplay(item.revenue || 0)}</span></div>
             </div>
             
             <div class="pt-2 border-t text-gray-600 space-y-1">
-              <div>업체 연락처: <span class="font-bold text-gray-800">${item.contact || '없음'}</span></div>
-              <div class="pt-0.5 text-gray-600">비고: <span class="font-bold text-gray-800">${item.memo || '없음'}</span></div>
+              <div>업체 연락처: <span class="font-normal text-gray-800">${item.contact || '없음'}</span></div>
+              <div class="pt-0.5 text-gray-600">비고: <span class="font-normal text-gray-800">${item.memo || '없음'}</span></div>
             </div>
             
             ${!isReadOnly ? `
@@ -2008,9 +2009,9 @@
       
       if (type === 'ongoing') {
         if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
       } else {
-        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
         if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
       }
       filterAndRender();
@@ -2303,7 +2304,7 @@
             row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
             row.innerHTML = `
               <td class="p-2 text-left">
-                <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-bold">
+                <input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">
               </td>
               <td class="p-2 text-center col-fixed-status">
                 <select id="batch_status_${item.id}" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
@@ -2335,7 +2336,7 @@
               <td class="p-2 text-center col-fixed-paid">
                 <input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(item.paidAmount || 0)}" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center">
               </td>
-              <td class="p-2 text-center font-bold text-gray-700 col-fixed-revenue">
+              <td class="p-2 text-center font-normal text-gray-700 col-fixed-revenue">
                 ${formatRevenueDisplay(calcRevenue)}
               </td>
               <td class="p-2 text-center col-fixed-note">
@@ -2349,7 +2350,7 @@
               : `<span class="text-gray-400 font-normal">미정산</span>`;
 
             const statusSelectHtml = `
-              <select onchange="quickUpdateStatus('${item.id}', this.value)" class="select-center border-0 bg-transparent text-xs font-bold ${getStatusTextClass(effSt)} outline-none cursor-pointer text-center">
+              <select onchange="quickUpdateStatus('${item.id}', this.value)" class="select-center border-0 bg-transparent text-xs font-normal ${getStatusTextClass(effSt)} outline-none cursor-pointer text-center">
                 <option value="신청" ${effSt === '신청' ? 'selected' : ''} class="text-gray-800 font-normal">신청</option>
                 <option value="선정" ${effSt === '선정' ? 'selected' : ''} class="text-gray-800 font-normal">선정</option>
                 <option value="방문" ${effSt === '방문' ? 'selected' : ''} class="text-gray-800 font-normal">방문</option>
@@ -2363,7 +2364,7 @@
             const row = document.createElement('tr');
             row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
             row.innerHTML = `
-              <td class="p-3 font-bold text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
+              <td class="p-3 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="openDetailItemModal('${item.id}')">${item.storeName}</td>
               <td class="p-3 text-xs text-center col-fixed-status">${statusSelectHtml}</td>
               <td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-platform">${item.platformName || '-'}</td>
               <td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-visit">${formatShortDate(item.visitDate)}</td>
@@ -2383,7 +2384,7 @@
               <div>
                 <span class="${getStatusTextClass(effSt)} text-xs mr-1.5 font-normal">${displayStatusName(effSt)}</span>
                 <span class="text-xs text-gray-400 font-normal">${item.platformName || ''}</span>
-                <h3 class="font-bold text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
+                <h3 class="font-normal text-xs text-gray-900 mt-1 cursor-pointer hover:text-theme" onclick="openDetailItemModal('${item.id}')">${item.storeName}</h3>
               </div>
               <span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">${isCompleted ? formatRevenueDisplay(calcRevenue) : `${formatRevenueDisplay(calcRevenue)}(예상)`}</span>
             </div>
@@ -2403,7 +2404,7 @@
 
             newRow.innerHTML = `
               <td class="p-2 text-left">
-                <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-bold focus:border-theme">
+                <input type="text" id="new_batch_store_${idx}" placeholder="+ 새 매장명 입력..." class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal focus:border-theme">
               </td>
               <td class="p-2 text-center col-fixed-status">
                 <select id="new_batch_status_${idx}" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
@@ -2437,7 +2438,7 @@
               <td class="p-2 text-center col-fixed-paid">
                 <input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme">
               </td>
-              <td class="p-2 text-center font-bold text-gray-400 col-fixed-revenue">
+              <td class="p-2 text-center font-normal text-gray-400 col-fixed-revenue">
                 자동계산
               </td>
               <td class="p-2 text-center col-fixed-note">
@@ -2582,15 +2583,15 @@
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
     <div class="text-center space-y-3 mb-12">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
-      <p class="text-xs tracking-widest text-gray-400 font-semibold uppercase">ONLYVIEW</p>
-      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-medium">
+      <p class="text-xs tracking-widest text-gray-400 font-normal uppercase">ONLYVIEW</p>
+      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-normal">
         체험단 방문, 마감, 정산을<br>한곳에서
       </p>
     </div>
 
     <div class="w-full space-y-3 mb-6">
       <div class="space-y-2">
-        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm">
+        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm font-normal">
         <button onclick="enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition-colors">
           초대 코드로 대시보드 보기
         </button>
@@ -2598,7 +2599,7 @@
 
       <div class="relative flex py-2 items-center">
         <div class="flex-grow border-t border-gray-200"></div>
-        <span class="flex-shrink mx-3 text-gray-400 text-xs font-semibold">또는</span>
+        <span class="flex-shrink mx-3 text-gray-400 text-xs font-normal">또는</span>
         <div class="flex-grow border-t border-gray-200"></div>
       </div>
 
@@ -2607,8 +2608,8 @@
         Google로 계속하기
       </button>
 
-      <p class="text-[11px] text-center text-gray-400 mt-3">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
-      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-2">
+      <p class="text-[11px] text-center text-gray-400 mt-3 font-normal">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
+      <div class="text-[10px] text-center text-gray-300 gap-2 flex justify-center mt-2 font-normal">
         <span>이용약관</span>, <span>개인정보 처리방침</span>
       </div>
     </div>
@@ -2621,9 +2622,9 @@
       <div class="space-y-5">
         <div>
           <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
-          <p class="text-[10px] text-sidebar-muted font-bold uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
+          <p class="text-[10px] text-sidebar-muted font-normal uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
           <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
-            <span id="userName" class="text-xs font-bold text-theme truncate"></span>
+            <span id="userName" class="text-xs font-normal text-theme truncate"></span>
           </div>
         </div>
 
@@ -2649,13 +2650,13 @@
       <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0">
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">내 목록으로 돌아가기</button>
         <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1">엑셀 내보내기</button>
-        <button id="logoutBtn" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-semibold text-center">로그아웃</button>
+        <button id="logoutBtn" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center">로그아웃</button>
       </div>
     </aside>
 
     <main class="flex-1 px-6 md:px-8 pr-4 py-4 pb-8 space-y-4 h-screen overflow-y-auto flex flex-col justify-between">
 
-      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-medium shrink-0">
+      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
@@ -2670,32 +2671,32 @@
               + 체험 등록
             </button>
             <div class="flex gap-1">
-              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-bold hover:bg-gray-50">이전달</button>
-              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-bold hover:bg-gray-50">다음달</button>
+              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
+              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">다음달</button>
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
           <div onclick="openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
-            <div class="text-[11px] text-gray-900 font-bold">선정 현황</div>
-            <div id="cntSelect" class="text-lg font-black text-gray-900 mt-0.5">0건</div>
+            <div class="text-[11px] text-gray-900 font-normal">선정 현황</div>
+            <div id="cntSelect" class="text-lg font-bold text-gray-900 mt-0.5">0건</div>
           </div>
           <div onclick="openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
-            <div class="text-[11px] text-gray-500 font-bold">예약 대기</div>
-            <div id="cntVisitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
+            <div class="text-[11px] text-gray-500 font-normal">예약 대기</div>
+            <div id="cntVisitWait" class="text-lg font-bold text-gray-500 mt-0.5">0건</div>
           </div>
           <div onclick="openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
-            <div class="text-[11px] text-orange-500 font-bold">방문 예정</div>
-            <div id="cntVisitPlan" class="text-lg font-black text-orange-500 mt-0.5">0건</div>
+            <div class="text-[11px] text-orange-500 font-normal">방문 예정</div>
+            <div id="cntVisitPlan" class="text-lg font-bold text-orange-500 mt-0.5">0건</div>
           </div>
           <div onclick="openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors">
-            <div class="text-[11px] text-gray-500 font-bold">미제출</div>
-            <div id="cntSubmitWait" class="text-lg font-black text-gray-500 mt-0.5">0건</div>
+            <div class="text-[11px] text-gray-500 font-normal">미제출</div>
+            <div id="cntSubmitWait" class="text-lg font-bold text-gray-500 mt-0.5">0건</div>
           </div>
           <div onclick="openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition-colors">
-            <div class="text-[11px] text-emerald-600 font-bold">제출 완료</div>
-            <div id="cntSubmitDone" class="text-lg font-black text-emerald-600 mt-0.5">0건</div>
+            <div class="text-[11px] text-emerald-600 font-normal">제출 완료</div>
+            <div id="cntSubmitDone" class="text-lg font-bold text-emerald-600 mt-0.5">0건</div>
           </div>
         </div>
 
@@ -2703,7 +2704,7 @@
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
             <div class="flex justify-between items-center mb-0.5 shrink-0">
               <h3 class="font-bold text-gray-800 text-xs">월별 일정 달력</h3>
-              <div class="flex items-center gap-3 text-[11px] font-semibold">
+              <div class="flex items-center gap-3 text-[11px] font-normal">
                 <span class="flex items-center gap-1 text-emerald-600"><span class="text-[9px]">🟢</span> 방문</span>
                 <span class="flex items-center gap-1 text-rose-500"><span class="text-[9px]">🔴</span> 마감</span>
               </div>
@@ -2739,84 +2740,84 @@
         <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
           <form id="campaignForm" class="space-y-4 text-sm">
             <div class="space-y-1.5">
-              <label class="block text-xs font-bold text-gray-900">진행 상태</label>
+              <label class="block text-xs font-normal text-gray-900">진행 상태</label>
               <div class="flex gap-1.5">
                 <button type="button" id="btnStatus_신청" onclick="setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">
                   신청
                 </button>
-                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
+                <button type="button" id="btnStatus_선정" onclick="setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   선정
                 </button>
-                <button type="button" id="btnStatus_배송" onclick="setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
+                <button type="button" id="btnStatus_배송" onclick="setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   배송
                 </button>
-                <button type="button" id="btnStatus_원고료" onclick="setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
+                <button type="button" id="btnStatus_원고료" onclick="setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">
                   원고료
                 </button>
               </div>
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-xs font-bold text-gray-900">체험단 사이트</label>
+              <label class="block text-xs font-normal text-gray-900">체험단 사이트</label>
               <div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div>
               <input type="hidden" id="platformName" value="개별">
             </div>
 
             <div>
-              <label id="storeNameLabel" class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
-              <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              <label id="storeNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
+              <input type="text" id="storeName" placeholder="예: 아서원1920 전주본점" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label id="sponsoredAmountLabel" class="block text-xs font-bold text-gray-900 mb-1">제공금액 (원)</label>
-                <input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <label id="sponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label>
+                <input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
               </div>
 
               <div id="rowApplyDate">
-                <label class="block text-xs font-bold text-gray-900 mb-1">신청일 (자동 세팅)</label>
-                <input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none">
+                <label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label>
+                <input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal">
               </div>
 
               <div id="rowDeadlineDate" class="hidden">
-                <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
-                <input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
+                <input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
               </div>
             </div>
 
             <div id="rowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+                <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
                 <div class="flex gap-1.5">
-                  <input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
-                  <input type="time" id="visitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+                  <input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+                  <input type="time" id="visitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
                 </div>
               </div>
               <div>
-                <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-                <input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+                <input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
               </div>
             </div>
 
             <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
-                <input type="text" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
+                <input type="text" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
               </div>
               <div>
-                <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
-                <input type="text" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+                <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
+                <input type="text" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
               </div>
             </div>
 
             <div id="rowContact" class="hidden">
-              <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
-              <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+              <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+              <input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
             </div>
 
             <div id="rowMemo" class="hidden">
-              <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
-              <textarea id="memo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
+              <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+              <textarea id="memo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
             </div>
 
             <div class="flex justify-end pt-3 border-t border-gray-100">
@@ -2841,11 +2842,11 @@
                 <div class="font-bold text-gray-800 border-b pb-2 flex items-center gap-1">
                   <span>💡</span> 체험단 진행 상태 가이드
                 </div>
-                <div class="space-y-2 text-gray-600 text-[11px] leading-relaxed">
-                  <div>• <b class="text-gray-900">선정</b>: 방문 날짜를 정하기 전을 포함한 전체 당첨 내역이에요.</div>
-                  <div>• <b class="text-gray-900">방문</b>: 방문 일정을 예약했거나 이미 방문을 마친 상태예요.</div>
-                  <div>• <b class="text-gray-900">미제출</b>: 방문 일시나 마감일이 지났는데 아직 리뷰를 제출하지 않은 상태예요.</div>
-                  <div>• <b class="text-gray-900">제출</b>: 포스팅 작성과 리뷰 제출까지 모두 끝난 마감 상태예요.</div>
+                <div class="space-y-2 text-gray-600 text-[11px] leading-relaxed font-normal">
+                  <div>• <b class="text-gray-900 font-bold">선정</b>: 방문 날짜를 정하기 전을 포함한 전체 당첨 내역이에요.</div>
+                  <div>• <b class="text-gray-900 font-bold">방문</b>: 방문 일정을 예약했거나 이미 방문을 마친 상태예요.</div>
+                  <div>• <b class="text-gray-900 font-bold">미제출</b>: 방문 일시나 마감일이 지났는데 아직 리뷰를 제출하지 않은 상태예요.</div>
+                  <div>• <b class="text-gray-900 font-bold">제출</b>: 포스팅 작성과 리뷰 제출까지 모두 끝난 마감 상태예요.</div>
                 </div>
               </div>
             </div>
@@ -2855,17 +2856,17 @@
         <div class="flex items-center justify-end gap-2 shrink-0 flex-wrap pr-3">
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">진행중인 체험</button>
-            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">완료된 체험</button>
+            <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">완료된 체험</button>
           </div>
 
           <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-3.5 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1">전체 저장</button>
           <button id="batchEditBtn" onclick="toggleBatchEdit()" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1">수정</button>
 
-          <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm">
+          <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm font-normal">
           
-          <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm"></select>
+          <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal"></select>
           
-          <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm">
+          <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal">
             <option value="ALL">월 전체</option>
             <option value="1">1월</option>
             <option value="2">2월</option>
@@ -2881,7 +2882,7 @@
             <option value="12">12월</option>
           </select>
           
-          <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm mr-2">
+          <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm mr-2 font-normal">
             <option value="ALL">상태 전체</option>
             <option value="신청">신청</option>
             <option value="선정">선정</option>
@@ -2897,15 +2898,15 @@
           <table class="w-full text-left border-collapse table-auto">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
               <tr>
-                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
-                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
-                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
-                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
-                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
-                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
-                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
-                <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
+                <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
+                <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
+                <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
+                <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
+                <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
+                <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+                <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
+                <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
+                <th class="p-3 font-normal text-xs text-center col-fixed-note">비고</th>
               </tr>
             </thead>
             <tbody id="campaignTableBody"></tbody>
@@ -2921,8 +2922,8 @@
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
           <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-500 font-bold">조회 연도:</span>
-            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-bold text-gray-800"></select>
+            <span class="text-xs text-gray-500 font-normal">조회 연도:</span>
+            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
           </div>
         </div>
 
@@ -2937,6 +2938,7 @@
                 <span id="yearlySummaryText" class="hidden text-xs text-gray-900 font-normal">
                   총 <span id="yearlySummaryVal">0원</span>
                 </span>
+                <span id="yearlySubText" class="text-[10px] text-gray-400 font-normal">조회년도 누적</span>
                 <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
@@ -2956,7 +2958,7 @@
                 </div>
 
                 <div class="space-y-1 py-1">
-                  <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
+                  <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
                     <span class="flex items-center gap-1.5">
                       <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
                       <span>정산 완료</span>
@@ -2968,7 +2970,7 @@
                     </span>
                   </div>
 
-                  <div class="flex items-center justify-between font-bold text-gray-800 text-xs">
+                  <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
                     <span class="flex items-center gap-1.5">
                       <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
                       <span>정산 예정</span>
@@ -2983,8 +2985,8 @@
 
                 <div id="yearlyCompareContainer" class="pt-0.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-[11px] text-gray-400 font-bold shrink-0">전년 대비 증가</span>
-                    <span class="text-xs text-gray-400 font-medium">비교 데이터 없음</span>
+                    <span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span>
+                    <span class="text-xs text-gray-400 font-normal">비교 데이터 없음</span>
                   </div>
                 </div>
               </div>
@@ -3011,12 +3013,12 @@
 
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-bold">최고 수익 달</span>
-                  <span id="monthlyBestMonthText" class="font-black text-gray-900 text-xs">-</span>
+                  <span class="text-[10px] text-gray-400 font-normal">최고 수익 달</span>
+                  <span id="monthlyBestMonthText" class="font-normal text-gray-900 text-xs">-</span>
                 </div>
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-bold">이번 달</span>
-                  <span id="monthlyCurrentMonthText" class="font-black text-gray-900 text-xs">-</span>
+                  <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
+                  <span id="monthlyCurrentMonthText" class="font-normal text-gray-900 text-xs">-</span>
                 </div>
               </div>
             </div>
@@ -3068,12 +3070,12 @@
 
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-bold">최고 건의 달</span>
-                  <span id="monthlyAnalysisBestText" class="font-black text-gray-900 text-xs">-</span>
+                  <span class="text-[10px] text-gray-400 font-normal">최고 건의 달</span>
+                  <span id="monthlyAnalysisBestText" class="font-normal text-gray-900 text-xs">-</span>
                 </div>
                 <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-bold">이번 달</span>
-                  <span id="monthlyAnalysisCurrentText" class="font-black text-gray-900 text-xs">-</span>
+                  <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
+                  <span id="monthlyAnalysisCurrentText" class="font-normal text-gray-900 text-xs">-</span>
                 </div>
               </div>
             </div>
@@ -3103,10 +3105,10 @@
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
             <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-600 font-medium mr-2">D-Day 범위:</span>
+              <span class="text-xs text-gray-600 font-normal mr-2">D-Day 범위:</span>
               <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">7일 전</button>
-              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
-              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
+              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
+              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
             </div>
           </div>
 
@@ -3115,43 +3117,43 @@
             <div class="grid grid-cols-5 gap-3 text-xs">
               <button onclick="changeTheme('slate')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="슬레이트 블루">
                 <span class="w-6 h-6 rounded-full bg-[#3B6FB6] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">슬레이트</span>
+                <span class="text-[10px] font-normal text-gray-700">슬레이트</span>
               </button>
               <button onclick="changeTheme('terracotta')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="테라코타 오렌지">
                 <span class="w-6 h-6 rounded-full bg-[#C2571F] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">테라코타</span>
+                <span class="text-[10px] font-normal text-gray-700">테라코타</span>
               </button>
               <button onclick="changeTheme('forest')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="포레스트 그린">
                 <span class="w-6 h-6 rounded-full bg-[#2E6B4A] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">포레스트</span>
+                <span class="text-[10px] font-normal text-gray-700">포레스트</span>
               </button>
               <button onclick="changeTheme('violet')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="바이올렛">
                 <span class="w-6 h-6 rounded-full bg-[#6D4FC2] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">바이올렛</span>
+                <span class="text-[10px] font-normal text-gray-700">바이올렛</span>
               </button>
               <button onclick="changeTheme('graphite')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="그래파이트">
                 <span class="w-6 h-6 rounded-full bg-[#2B2F36] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">그래파이트</span>
+                <span class="text-[10px] font-normal text-gray-700">그래파이트</span>
               </button>
               <button onclick="changeTheme('brick')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="브릭레드">
                 <span class="w-6 h-6 rounded-full bg-[#B2382F] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">브릭레드</span>
+                <span class="text-[10px] font-normal text-gray-700">브릭레드</span>
               </button>
               <button onclick="changeTheme('mustard')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="머스타드">
                 <span class="w-6 h-6 rounded-full bg-[#9C6A00] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">머스타드</span>
+                <span class="text-[10px] font-normal text-gray-700">머스타드</span>
               </button>
               <button onclick="changeTheme('indigo')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="인디고 네이비">
                 <span class="w-6 h-6 rounded-full bg-[#3446A8] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">인디고</span>
+                <span class="text-[10px] font-normal text-gray-700">인디고</span>
               </button>
               <button onclick="changeTheme('emerald')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="에메랄드 민트">
                 <span class="w-6 h-6 rounded-full bg-[#0E7C66] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">에메랄드</span>
+                <span class="text-[10px] font-normal text-gray-700">에메랄드</span>
               </button>
               <button onclick="changeTheme('ink')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="잉크 블랙">
                 <span class="w-6 h-6 rounded-full bg-[#232830] border border-white shadow-sm"></span>
-                <span class="text-[10px] font-bold text-gray-700">잉크블랙</span>
+                <span class="text-[10px] font-normal text-gray-700">잉크블랙</span>
               </button>
             </div>
           </div>
@@ -3160,17 +3162,17 @@
             <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
             <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
               <div>
-                <div class="text-xs text-gray-500 font-semibold">내 초대 코드</div>
-                <div id="myShareCode" class="text-xl font-mono font-black text-theme"></div>
+                <div class="text-xs text-gray-500 font-normal">내 초대 코드</div>
+                <div id="myShareCode" class="text-xl font-mono font-bold text-theme"></div>
               </div>
-              <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-bold hover:bg-gray-50">코드 변경 (4/6자리)</button>
+              <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-normal hover:bg-gray-50">코드 변경 (4/6자리)</button>
             </div>
           </div>
 
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
             <div class="flex gap-2">
-              <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2.5 rounded-xl text-xs w-full outline-none focus:ring-2 ring-theme">
+              <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2.5 rounded-xl text-xs w-full outline-none focus:ring-2 ring-theme font-normal">
               <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0">조회</button>
             </div>
           </div>
@@ -3180,31 +3182,31 @@
           <h3 class="font-bold text-gray-800 text-base">상태별 글자 색상 선택 (동그라미 클릭 시 팔레트 변경)</h3>
           <div class="grid grid-cols-2 md:grid-cols-7 gap-3 text-xs">
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">신청</span>
+              <span class="block font-normal text-gray-700">신청</span>
               <button type="button" onclick="openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_apply"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">선정</span>
+              <span class="block font-normal text-gray-700">선정</span>
               <button type="button" onclick="openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_select"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">방문</span>
+              <span class="block font-normal text-gray-700">방문</span>
               <button type="button" onclick="openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_visit"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">미제출</span>
+              <span class="block font-normal text-gray-700">미제출</span>
               <button type="button" onclick="openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_unsubmitted"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">제출</span>
+              <span class="block font-normal text-gray-700">제출</span>
               <button type="button" onclick="openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_submit"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">배송</span>
+              <span class="block font-normal text-gray-700">배송</span>
               <button type="button" onclick="openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_delivery"></button>
             </div>
             <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-              <span class="block font-bold text-gray-700">원고료</span>
+              <span class="block font-normal text-gray-700">원고료</span>
               <button type="button" onclick="openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_fee"></button>
             </div>
           </div>
@@ -3234,12 +3236,12 @@
 
       <form id="editForm" class="space-y-4 text-sm">
         <div class="space-y-1.5">
-          <label class="block text-xs font-bold text-gray-900">진행 상태 변경</label>
+          <label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
           <div class="flex flex-wrap gap-1.5">
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
@@ -3247,59 +3249,59 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          <label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">체험단 사이트</label>
-          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          <label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label>
+          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
-            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
+            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
           </div>
           <div>
-            <label class="block text-xs font-bold text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme">
+            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
+            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
             <div class="flex gap-1.5">
-              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
-              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none">
+              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
+              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
             </div>
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm">
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-900 mb-1">메모</label>
-          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none"></textarea>
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
         </div>
 
         <div class="flex gap-2 pt-2 border-t">
@@ -3316,7 +3318,7 @@
         <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
         <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
       </div>
-      <p class="text-xs text-gray-500">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
+      <p class="text-xs text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
       <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
     </div>
   </div>
