@@ -405,7 +405,6 @@
     const savedTheme = localStorage.getItem('onlyview_theme') || 'slate';
     window.changeTheme(savedTheme);
 
-    // 사이드바 접기/펴기 토글 핸들러
     window.toggleSidebar = function() {
       isSidebarCollapsed = !isSidebarCollapsed;
       localStorage.setItem('onlyview_sidebarCollapsed', isSidebarCollapsed.toString());
@@ -1906,7 +1905,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 캘린더 렌더링: 요일 굵은 글씨체 적용 및 🔴 마감 N건 / 🟢 방문 N건 직관적 구별 표기
+    // 캘린더 렌더링: 요일 상단 여백 축소 및 굵은 요일 표기 + 건수 굵게 2pt 확대한 구별 표기
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1918,7 +1917,7 @@
       const days = ['일', '월', '화', '수', '목', '금', '토'];
       days.forEach((d, idx) => {
         const dh = document.createElement('div');
-        dh.className = `text-center text-[11px] font-bold py-0.5 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500'}`;
+        dh.className = `text-center text-[11px] font-bold pt-2.5 pb-1 ${idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500'}`;
         dh.innerText = d;
         calGrid.appendChild(dh);
       });
@@ -1941,10 +1940,10 @@
         const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
-          html += `<div class="text-[9px] text-emerald-600 font-normal mb-0.5 text-left pl-0.5">🟢 방문 ${visitMatches.length}건</div>`;
+          html += `<div class="text-[11px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 방문 ${visitMatches.length}건</div>`;
         }
         if (deadlineMatches.length > 0) {
-          html += `<div class="text-[9px] text-rose-500 font-normal mb-0.5 text-left pl-0.5">🔴 마감 ${deadlineMatches.length}건</div>`;
+          html += `<div class="text-[11px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 마감 ${deadlineMatches.length}건</div>`;
         }
 
         const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
@@ -3296,7 +3295,7 @@
 
       </div>
 
-      <!-- 5. 설정 및 공유 탭 -->
+      <!-- 5. 설정 및 공유 탭 (레이어드 서브탭 2개 적용 & 최하단 구역 배치) -->
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
@@ -3473,4 +3472,113 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label>
-            <input type="text" id="modalSponsoredAmount
+            <input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+
+          <div id="modalRowApplyDate">
+            <label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label>
+            <input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal">
+          </div>
+
+          <div id="modalRowDeadlineDate" class="hidden">
+            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
+            <input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+              <input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowContact" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div id="modalRowMemo" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 체험 정보 수정 팝업 -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3>
+        <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+
+      <form id="editForm" class="space-y-4 text-sm">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
+            <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
+            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div>
+          <label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label>
+          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
+            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
+            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
+              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline
