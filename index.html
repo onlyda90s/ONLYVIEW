@@ -1821,44 +1821,55 @@
       }
     }
 
+    // 모달 타이틀 연/월 제거 및 카운터 조건 100% 동일 표출
     window.openCounterListModal = function(counterType, titleName) {
-      const year = currentCalDate.getFullYear();
-      const month = currentCalDate.getMonth() + 1;
-      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
       const now = new Date();
-
-      const monthlyCampaigns = rawCampaignList.filter(item => {
-        const visitM = item.visitDate ? item.visitDate.slice(0, 7) : '';
-        return visitM === monthPrefix;
-      });
+      now.setHours(0, 0, 0, 0);
 
       let matchedItems = [];
 
       if (counterType === 'select') {
-        matchedItems = monthlyCampaigns.filter(c => {
+        // 현재 진행 중인 체험단 전체
+        matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
-          return (st === '선정' && !c.visitDate) || st === '배송' || st === '원고료';
+          return st !== '제출' && st !== '완료';
         });
       } else if (counterType === 'visitWait') {
-        matchedItems = monthlyCampaigns.filter(c => (getEffectiveStatus(c) === '선정' || getEffectiveStatus(c) === '방문') && !c.visitDate);
+        // 예약 대기 목록
+        matchedItems = rawCampaignList.filter(c => {
+          const st = getEffectiveStatus(c);
+          return (st === '선정' || st === '방문') && !c.visitDate;
+        });
       } else if (counterType === 'visitPlan') {
-        matchedItems = monthlyCampaigns.filter(c => {
-          if ((getEffectiveStatus(c) !== '선정' && getEffectiveStatus(c) !== '방문') || !c.visitDate) return false;
-          const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
-          return new Date(visitDateTimeStr) >= now;
+        // 방문 예정 목록
+        matchedItems = rawCampaignList.filter(c => {
+          const st = getEffectiveStatus(c);
+          if ((st !== '선정' && st !== '방문') || !c.visitDate) return false;
+          const cleanVDate = formatCleanDate(c.visitDate);
+          if (!cleanVDate) return false;
+          const vDateObj = new Date(cleanVDate);
+          vDateObj.setHours(0, 0, 0, 0);
+          return vDateObj >= now;
         });
       } else if (counterType === 'submitWait') {
-        matchedItems = monthlyCampaigns.filter(c => isItemOverdue(c) || getEffectiveStatus(c) === '미제출');
+        // 미제출 목록
+        matchedItems = rawCampaignList.filter(c => {
+          const st = getEffectiveStatus(c);
+          if (st === '제출' || st === '완료') return false;
+          return isItemOverdue(c) || st === '미제출';
+        });
       } else if (counterType === 'submitDone') {
-        matchedItems = monthlyCampaigns.filter(c => {
+        // 제출 완료 목록
+        matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
           return st === '제출' || st === '완료';
         });
       }
 
+      // 모달 타이틀에서 연/월 제거 후 지정 양식 표출
       const modalTitleElem = document.getElementById('modalDateTitle');
       if (modalTitleElem) {
-        modalTitleElem.innerText = `${year}년 ${month}월 [${titleName}] 목록 (${matchedItems.length}건)`;
+        modalTitleElem.innerText = `[${titleName}] 목록 (${matchedItems.length}건)`;
       }
       
       const modalList = document.getElementById('modalItemList');
@@ -2315,7 +2326,7 @@
       }
     });
 
-    // 체험단 목록 렌더링 (진행중/완료 조건 및 문자열 템플릿 정상 조립)
+    // 백틱 Template Literal 조립 오류 수정 및 정산/진행중 분리 렌더링
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -3419,9 +3430,9 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
 
