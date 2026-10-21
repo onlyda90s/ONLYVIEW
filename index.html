@@ -89,6 +89,13 @@
     .col-fixed-paid       { width: 120px !important; min-width: 120px !important; }
     .col-fixed-revenue    { width: 120px !important; min-width: 120px !important; }
     .col-fixed-note       { width: 72px !important; min-width: 72px !important; }
+
+    /* 달력 셀 크기 완전 동일화 스타일 */
+    .cal-cell-fixed {
+      height: 100% !important;
+      min-height: 0 !important;
+      box-sizing: border-box !important;
+    }
   </style>
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal">
@@ -1883,6 +1890,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
+    // 달력 모든 셀 1:1 완벽 고정 및 요일 밀착 연동
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1894,14 +1902,14 @@
       const days = ['일', '월', '화', '수', '목', '금', '토'];
       days.forEach((d, idx) => {
         const dh = document.createElement('div');
-        dh.className = "text-center text-[11px] font-bold pt-2.5 pb-1 " + (idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500');
+        dh.className = "text-center text-[11px] font-bold pb-1.5 " + (idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500');
         dh.innerText = d;
         calGrid.appendChild(dh);
       });
 
       for (let i = 0; i < firstDay; i++) {
         const empty = document.createElement('div');
-        empty.className = 'bg-gray-50/50 rounded-xl min-h-[34px]';
+        empty.className = 'bg-gray-50/40 rounded-xl aspect-square w-full cal-cell-fixed';
         calGrid.appendChild(empty);
       }
 
@@ -1909,23 +1917,27 @@
       for (let date = 1; date <= lastDate; date++) {
         const dateStr = year + "-" + String(month).padStart(2, '0') + "-" + String(date).padStart(2, '0');
         const dayCell = document.createElement('div');
-        dayCell.className = "bg-white p-1 rounded-xl border border-gray-100 min-h-[34px] flex flex-col justify-start cursor-pointer hover:border-theme transition-colors " + (dateStr === todayStr ? 'ring-2 ring-theme' : '');
-        
-        let html = '<div class="text-[10px] font-normal text-gray-500 mb-0.5">' + date + '</div>';
+        // aspect-square 및 cal-cell-fixed로 모든 칸 크기 100% 동일 고정
+        dayCell.className = "bg-white p-1 rounded-xl border border-gray-100 aspect-square w-full cal-cell-fixed flex flex-col justify-start cursor-pointer hover:border-theme transition-colors " + (dateStr === todayStr ? 'ring-2 ring-theme' : '');
         
         const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
         const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
+        let badgeHtml = '';
         if (visitMatches.length > 0) {
-          html += '<div class="text-[11px] text-emerald-600 font-bold mb-0.5 text-left pl-0.5">🟢 방문 ' + visitMatches.length + '건</div>';
+          badgeHtml += '<span class="text-[10px] text-emerald-600 font-bold whitespace-nowrap">🟢 ' + visitMatches.length + '건</span>';
         }
         if (deadlineMatches.length > 0) {
-          html += '<div class="text-[11px] text-rose-500 font-bold mb-0.5 text-left pl-0.5">🔴 마감 ' + deadlineMatches.length + '건</div>';
+          badgeHtml += '<span class="text-[10px] text-rose-500 font-bold whitespace-nowrap">🔴 ' + deadlineMatches.length + '건</span>';
         }
+
+        dayCell.innerHTML = '<div class="flex items-center justify-between w-full mb-0.5">'
+          + '<span class="text-[10px] font-normal text-gray-500 pl-0.5">' + date + '</span>'
+          + '<div class="flex flex-col items-end gap-0.5 pr-0.5">' + badgeHtml + '</div>'
+          + '</div>';
 
         const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
 
-        dayCell.innerHTML = html;
         dayCell.onclick = () => openDayModal(dateStr, allMatched);
         calGrid.appendChild(dayCell);
       }
@@ -2285,7 +2297,6 @@
       return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
     }
 
-    // 목록 렌더링 함수 (정적 HTML thead 구조에 화살표 표시만 갱신)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -2311,7 +2322,6 @@
           }
         }
 
-        // 헤더 아이콘 업데이트
         const sortCols = ['storeName', 'status', 'platformName', 'visitDate', 'deadlineDate', 'sponsoredAmount', 'paidAmount', 'revenue'];
         sortCols.forEach(col => {
           const elem = document.getElementById("sortInd_" + col);
