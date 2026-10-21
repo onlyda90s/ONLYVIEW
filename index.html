@@ -291,14 +291,12 @@
       return str;
     }
 
-    // 원본 상태 보존 및 지연 여부 실시간 판별 함수
     function isItemOverdue(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return false;
 
       const now = new Date();
 
-      // 마감일 경과 체크
       if (item.deadlineDate) {
         const cleanDDate = formatCleanDate(item.deadlineDate);
         if (cleanDDate) {
@@ -309,7 +307,6 @@
         }
       }
 
-      // 방문일 경과 체크 (방문 후 리뷰 미작성 건)
       if (item.visitDate) {
         const cleanVDate = formatCleanDate(item.visitDate);
         if (cleanVDate) {
@@ -1244,7 +1241,6 @@
       renderSettlementView();
     }
 
-    // 대시보드 뷰 렌더링 (요청된 5가지 수식 상시 반영)
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
@@ -1259,32 +1255,27 @@
         let cntSubmitDone = 0; 
 
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // 오늘 날짜 00:00:00 세팅
+        now.setHours(0, 0, 0, 0);
 
         rawCampaignList.forEach(item => {
           const st = getEffectiveStatus(item);
           const isOverdue = isItemOverdue(item);
 
-          // 1. 제출 완료 건수
           if (st === '제출' || st === '완료') {
             cntSubmitDone++;
             return;
           }
 
-          // 2. 현재 진행 중인 체험 전체 (선정 현황)
           cntSelect++;
 
-          // 3. 미제출 건수 (방문일이 오늘 이전이거나, 마감일이 지났는데 제출 안 한 건)
           if (isOverdue) {
             cntSubmitWait++;
           }
 
-          // 4. 예약 대기 건수 (상태가 선정 또는 방문이면서 방문일자가 없는 건)
           if ((st === '선정' || st === '방문') && !item.visitDate) {
             cntVisitWait++;
           }
 
-          // 5. 방문 예정 건수 (상태가 선정 또는 방문이면서 방문일이 오늘 이후인 건 - 오늘 포함)
           if ((st === '선정' || st === '방문') && item.visitDate) {
             const cleanVDate = formatCleanDate(item.visitDate);
             if (cleanVDate) {
@@ -1847,10 +1838,10 @@
           return (st === '선정' && !c.visitDate) || st === '배송' || st === '원고료';
         });
       } else if (counterType === 'visitWait') {
-        matchedItems = monthlyCampaigns.filter(c => getEffectiveStatus(c) === '선정' && !c.visitDate);
+        matchedItems = monthlyCampaigns.filter(c => (getEffectiveStatus(c) === '선정' || getEffectiveStatus(c) === '방문') && !c.visitDate);
       } else if (counterType === 'visitPlan') {
         matchedItems = monthlyCampaigns.filter(c => {
-          if (getEffectiveStatus(c) !== '선정' || !c.visitDate) return false;
+          if ((getEffectiveStatus(c) !== '선정' && getEffectiveStatus(c) !== '방문') || !c.visitDate) return false;
           const visitDateTimeStr = `${c.visitDate}T${c.visitTime || '23:59'}:00`;
           return new Date(visitDateTimeStr) >= now;
         });
@@ -1920,7 +1911,7 @@
 
       for (let i = 0; i < firstDay; i++) {
         const empty = document.createElement('div');
-        empty.className = 'bg-gray-50/50 rounded-xl min-h-[38px]';
+        empty.className = 'bg-gray-50/50 rounded-xl min-h-[34px]';
         calGrid.appendChild(empty);
       }
 
@@ -1928,7 +1919,7 @@
       for (let date = 1; date <= lastDate; date++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
         const dayCell = document.createElement('div');
-        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[40px] flex flex-col justify-start cursor-pointer hover:border-theme transition-colors ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
+        dayCell.className = `bg-white p-1 rounded-xl border border-gray-100 min-h-[34px] flex flex-col justify-start cursor-pointer hover:border-theme transition-colors ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
         
         let html = `<div class="text-[10px] font-normal text-gray-500 mb-0.5">${date}</div>`;
         
@@ -2022,7 +2013,8 @@
 
       deadlineList.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition-colors';
+        // 위젯 아이템 배경 흰색 적용
+        card.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
         card.onclick = () => openDetailItemModal(item.id);
 
         let dText = `D-${item.diffDays}`;
@@ -2070,7 +2062,8 @@
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 space-y-0.5 text-xs cursor-pointer hover:border-theme transition-colors';
+          // 위젯 아이템 배경 흰색 적용
+          div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 space-y-0.5 text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
           div.onclick = () => openDetailItemModal(item.id);
 
           const timeText = item.visitTime ? ` (${item.visitTime})` : '';
@@ -2095,7 +2088,8 @@
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
-          div.className = 'p-2.5 bg-theme-light rounded-xl border border-theme/10 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition-colors';
+          // 위젯 아이템 배경 흰색 적용
+          div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
           div.onclick = () => openDetailItemModal(item.id);
 
           div.innerHTML = `
@@ -2322,61 +2316,6 @@
       }
     });
 
-    document.getElementById('modalCampaignForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (isReadOnly || !currentUser) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
-      
-      const payload = {
-        userId: currentUser.uid,
-        storeName: document.getElementById('modalStoreName')?.value || '',
-        platformName: document.getElementById('modalPlatformName')?.value || '',
-        status: modalSelectedStatus,
-        applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''),
-        deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''),
-        visitTime: document.getElementById('modalVisitTime')?.value || '',
-        companions: document.getElementById('modalCompanions')?.value || '',
-        sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value),
-        revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
-        contact: document.getElementById('modalContact')?.value || '',
-        memo: document.getElementById('modalMemo')?.value || '',
-        createdAt: serverTimestamp()
-      };
-
-      try {
-        await addDoc(collection(db, "campaigns"), payload);
-        alert('성공적으로 등록되었습니다!');
-        closeDashRegisterModal();
-        loadCampaigns();
-      } catch (err) {
-        alert('저장 실패: ' + err.message);
-      }
-    });
-
-    window.handleSort = function(colName) {
-      if (sortColumn === colName) {
-        if (sortAsc) {
-          sortAsc = false; 
-        } else {
-          sortColumn = 'none'; 
-          sortAsc = true;
-        }
-      } else {
-        sortColumn = colName; 
-        sortAsc = true;
-      }
-      localStorage.setItem('onlyview_sortColumn', sortColumn);
-      localStorage.setItem('onlyview_sortAsc', sortAsc.toString());
-      filterAndRender();
-    };
-
-    function getSortIndicator(colName) {
-      if (sortColumn !== colName || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
-      return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
-    }
-
-    // 체험단 목록 렌더링 (매장명 옆 🔴 [상태확인] 표시 연동)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -2816,7 +2755,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 -->
+      <!-- 1. 대시보드 탭 (비율 조정: 달력 구역 축소 & 하단 구역 60 고정) -->
       <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden">
         <div class="flex items-center justify-between shrink-0">
           <div>
@@ -2868,7 +2807,8 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 shrink-0">
+        <!-- 하단 구역 높이 h-60으로 확장 적용 (마감 임박 / 예약 대기 1칸 추가 노출) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-60 shrink-0">
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">제출 마감 임박</h3>
             <div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
@@ -3479,10 +3419,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
