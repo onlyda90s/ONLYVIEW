@@ -292,23 +292,14 @@
       return str;
     }
 
+    // 상태 자동 판별 로직 수정 (미래 날짜 건의 미제출 오판정 방지)
     function getEffectiveStatus(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료') return rawSt;
 
       const now = new Date();
 
-      if (item.visitDate) {
-        const cleanVDate = formatCleanDate(item.visitDate);
-        if (cleanVDate) {
-          const vTimeStr = item.visitTime || '23:59';
-          const vDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
-          if (!isNaN(vDateTime.getTime()) && vDateTime < now) {
-            return '미제출';
-          }
-        }
-      }
-
+      // 마감일이 완전히 지난 경우에만 '미제출'로 자동 변경
       if (item.deadlineDate) {
         const cleanDDate = formatCleanDate(item.deadlineDate);
         if (cleanDDate) {
@@ -319,6 +310,7 @@
         }
       }
 
+      // 방문일과 마감일이 아직 지나지 않은 미래 일정인 경우 원본 저장 상태 반환
       return rawSt;
     }
 
@@ -384,7 +376,6 @@
       ink:       { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
     };
 
-    // 정산 차트 전용 4가지 색상 모드 팔레트
     let currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default';
 
     const chartStylePalettes = {
@@ -1166,6 +1157,7 @@
       }
     }
 
+    // 데이터 로드 및 렌더링 호출
     async function loadCampaigns() {
       if (!db || !targetUserId) return;
 
@@ -1237,6 +1229,14 @@
       }
     }
 
+    // 통합 갱신 함수 (목록 수정/추가 시 대시보드 및 정산 리포트 즉시 갱신)
+    function refreshAllViews() {
+      filterAndRender();
+      renderDashboardView();
+      renderSettlementView();
+    }
+
+    // 대시보드 뷰 렌더링 (카운터 수치 및 위젯 실시간 연동)
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
@@ -1262,12 +1262,10 @@
         monthlyCampaigns.forEach(item => {
           const st = getEffectiveStatus(item);
           if (st === '선정' || st === '배송' || st === '원고료') {
-            if (st === '선정' && !item.visitDate) {
-              cntSelect++;
+            cntSelect++;
+            if (!item.visitDate) {
               cntVisitWait++;
-            } else if (st === '배송' || st === '원고료') {
-              cntSelect++;
-            } else if (st === '선정' && item.visitDate) {
+            } else {
               const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
               const vTime = new Date(visitDateTimeStr);
               if (vTime >= now) {
@@ -1275,8 +1273,16 @@
               }
             }
           }
+          else if (st === '방문') {
+            const visitDateTimeStr = `${item.visitDate}T${item.visitTime || '23:59'}:00`;
+            const vTime = new Date(visitDateTimeStr);
+            if (vTime >= now) {
+              cntVisitPlan++;
+            } else {
+              cntSubmitWait++;
+            }
+          }
           else if (st === '미제출') cntSubmitWait++;
-          else if (st === '방문') cntSubmitWait++;
           else if (st === '제출' || st === '완료') cntSubmitDone++;
         });
 
@@ -1295,7 +1301,6 @@
       }
     }
 
-    // 정산 뷰 렌더링: 4가지 차트 색상 모드(기본, 연하게, 윤곽선, 테마) 실시간 적용
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1437,7 +1442,6 @@
           }
         }
 
-        // 도넛 차트 렌더링
         const ctxYearly = document.getElementById('yearlyDonutChart')?.getContext('2d');
         if (ctxYearly) {
           if (yearlyChartInstance) yearlyChartInstance.destroy();
@@ -1493,7 +1497,6 @@
 
         const monthlyDataTenThousand = monthlyRevenues.map(v => Number((v / 10000).toFixed(1)));
 
-        // 월간 수익 막대 차트 색상 매핑
         const barFills = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear) {
@@ -1617,7 +1620,6 @@
           }
         }
 
-        // 월간 분석 라인 차트 색상 매핑
         const pointFills = monthlyCounts.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear && monthNum === actualRealMonth) return chartColors.isOutline ? chartColors.highlightFill : chartColors.highlight;
@@ -1636,7 +1638,7 @@
                 data: monthlyCounts,
                 borderColor: chartColors.isOutline ? chartColors.mainBorder : chartColors.main,
                 borderWidth: 2.5,
-                borderDash: chartColors.isOutline ? [4, 4] : [], // 윤곽선 모드 시 점선 표현
+                borderDash: chartColors.isOutline ? [4, 4] : [],
                 pointBackgroundColor: pointFills,
                 pointBorderColor: chartColors.isOutline ? chartColors.mainBorder : pointFills,
                 pointRadius: 4,
@@ -1680,7 +1682,6 @@
           });
         }
 
-        // 플랫폼 분석 바 차트 색상 매핑
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -2022,6 +2023,7 @@
       });
     }
 
+    // 미래 방문 예정건 표출 정상 연동
     function renderAllScheduledVisits() {
       const visitContainer = document.getElementById('scheduledVisitList');
       const unscheduledContainer = document.getElementById('unscheduledVisitList');
@@ -2035,7 +2037,7 @@
 
       const scheduledItems = rawCampaignList.filter(c => {
         const effSt = getEffectiveStatus(c);
-        if (!c.visitDate || effSt === '방문' || effSt === '제출' || effSt === '완료' || effSt === '미제출') return false;
+        if (!c.visitDate || effSt === '제출' || effSt === '완료') return false;
         const cleanVDate = formatCleanDate(c.visitDate);
         const vTimeStr = c.visitTime || '23:59';
         const visitDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
@@ -2231,15 +2233,14 @@
       }
     };
 
+    // 상태 빠른 변경 시 전체 뷰 실시간 동기화
     window.quickUpdateStatus = async function(id, newStatus) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
       try {
         await updateDoc(doc(db, "campaigns", id), { status: newStatus });
         const item = rawCampaignList.find(c => c.id === id);
         if (item) item.status = newStatus;
-        filterAndRender();
-        renderDashboardView();
-        renderSettlementView();
+        refreshAllViews();
       } catch (err) {
         alert("상태 변경 실패: " + err.message);
       }
@@ -2569,7 +2570,7 @@
         if (isBatchEditing) {
           newBatchRows.forEach((row, idx) => {
             const newRow = document.createElement('tr');
-            newRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
+            newRow.className = 'bg-gray-50/80 border-b border-gray-200 text-xs text-gray-900';
             const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
 
             newRow.innerHTML = `
@@ -2725,7 +2726,7 @@
   <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
-    <!-- 접기/펴기 가능한 반응형 사이드바 (라인형 SVG 아이콘 적용) -->
+    <!-- 접기/펴기 가능한 반응형 사이드바 -->
     <aside id="mainSidebar" class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-all duration-200 relative">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -2741,27 +2742,22 @@
         </div>
 
         <nav class="space-y-1 text-sm font-bold">
-          <!-- 1. 대시보드 -->
           <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
             <span class="sidebar-text-label">대시보드</span>
           </button>
-          <!-- 2. 체험단 등록 -->
           <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span class="sidebar-text-label">체험단 등록</span>
           </button>
-          <!-- 3. 체험단 목록 -->
           <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             <span class="sidebar-text-label">체험단 목록</span>
           </button>
-          <!-- 4. 체험단 정산 -->
           <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span class="sidebar-text-label">체험단 정산</span>
           </button>
-          <!-- 5. 설정 및 공유 -->
           <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
             <span class="sidebar-text-label">설정 및 공유</span>
@@ -2769,7 +2765,6 @@
         </nav>
       </div>
 
-      <!-- 하단 액셀 내보내기 & 로그아웃 위치 보정 (약 20% 위로 고정) -->
       <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-16">
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">
           <span class="sidebar-text-label">내 목록으로 돌아가기</span>
@@ -2953,7 +2948,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
+      <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -3204,7 +3199,7 @@
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
         </div>
 
-        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 색상 설정 (4가지 모드 드롭다운 버튼 구현) -->
+        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 색상 설정 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">테마 설정</h3>
@@ -3252,7 +3247,7 @@
             </div>
           </div>
 
-          <!-- 정산 색상 설정 (4가지 스타일 모드 구획) -->
+          <!-- 정산 색상 설정 -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">정산 색상 설정</h3>
             <p class="text-xs text-gray-500 font-normal">정산 차트 및 그래픽의 스타일 표현 방식을 선택합니다.</p>
