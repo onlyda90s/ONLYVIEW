@@ -444,7 +444,6 @@
       }
     };
 
-    // 정산 서브탭 전환 제어 ('report' vs 'detail' 시각적 회색/하얀색 대조 보정)
     window.setSettlementSubTab = function(type) {
       settlementSubTab = type;
       const btnReport = document.getElementById('settlementSubTabReport');
@@ -470,31 +469,6 @@
       monthlyDetailsCollapseState[month] = !monthlyDetailsCollapseState[month];
       localStorage.setItem(`onlyview_monthlyDetailCollapsed_${month}`, monthlyDetailsCollapseState[month]);
       renderSettlementView(); 
-    };
-
-    window.switchSettingsSubTab = function(tabType) {
-      const tabStatus = document.getElementById('settingsSubTabStatus');
-      const tabTheme = document.getElementById('settingsSubTabTheme');
-      const panelStatus = document.getElementById('settingsPanelStatus');
-      const panelTheme = document.getElementById('settingsPanelTheme');
-
-      if (tabType === 'status') {
-        tabStatus?.classList.add('bg-theme', 'text-white');
-        tabStatus?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-        tabTheme?.classList.remove('bg-theme', 'text-white');
-        tabTheme?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-
-        panelStatus?.classList.remove('hidden');
-        panelTheme?.classList.add('hidden');
-      } else {
-        tabTheme?.classList.add('bg-theme', 'text-white');
-        tabTheme?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-        tabStatus?.classList.remove('bg-theme', 'text-white');
-        tabStatus?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-
-        panelTheme?.classList.remove('hidden');
-        panelStatus?.classList.add('hidden');
-      }
     };
 
     window.switchTab = function(tabName, pushState = true) {
@@ -570,7 +544,6 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
-        switchSettingsSubTab('status'); 
         renderStatusColorPickers();
       }
     };
@@ -1260,7 +1233,6 @@
       }
     }
 
-    // 정산 뷰 렌더링: 선택 연도에 따라 'YYYY년 누적' 또는 '누적 총 수익' 헤더 우측 동적 배치 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1273,7 +1245,6 @@
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
 
-        // 연간 수익 헤더 라인 우측 동적 연도 텍스트 연동 ('연도 전체' ➔ '누적 총 수익' / 특정 연도 ➔ 'YYYY년 누적')
         const yearlyAccumulatedLabel = document.getElementById('yearlyAccumulatedLabel');
         if (yearlyAccumulatedLabel) {
           yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : `${targetYear}년 누적`;
@@ -2793,6 +2764,7 @@
           <div>
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
+          <!-- 대시보드 우측 상단 버튼 순서: [이전달] [오늘] [다음달] [+ 체험 등록] -->
           <div class="flex items-center gap-2">
             <div class="flex gap-1">
               <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
@@ -2830,6 +2802,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
+            <!-- 요일과 셀 사이 밀착 여백 적용 -->
             <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
 
@@ -2950,7 +2923,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-#EAECEF 적용) -->
+      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -3043,17 +3016,15 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (조회연도 텍스트 삭제 및 상단 우측 동적 누적 표기 연동) -->
+      <!-- 4. 체험단 정산 탭 -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
           
           <div class="flex items-center gap-3">
-            <!-- '조회 연도:' 텍스트 완전 삭제 -->
             <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
             
-            <!-- 서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용 -->
             <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
               <button id="settlementSubTabReport" onclick="setSettlementSubTab('report')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">정산 리포트</button>
               <button id="settlementSubTabDetail" onclick="setSettlementSubTab('detail')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">세부 내역</button>
@@ -3065,7 +3036,7 @@
         <div id="settlementPanelReport" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             
-            <!-- 연간 수익 카드 (동적 연도 텍스트 상단 우측 전면 배치) -->
+            <!-- 연간 수익 카드 -->
             <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">연간 수익</span>
@@ -3197,7 +3168,7 @@
 
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (레이어드 서브탭 2개 적용 & 최하단 구역 배치) -->
+      <!-- 5. 설정 및 공유 탭 (1~3줄 2단 박스 구성 및 서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
@@ -3207,45 +3178,13 @@
           </div>
         </div>
 
-        <!-- 패널 1: 상태별 색상 설정 -->
-        <div id="settingsPanelStatus" class="space-y-6">
+        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 테마 설정 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">상태별 색상 설정</h3>
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-3 text-xs">
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">신청</span>
-                <button type="button" onclick="openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_apply"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">선정</span>
-                <button type="button" onclick="openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_select"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">방문</span>
-                <button type="button" onclick="openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_visit"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">미제출</span>
-                <button type="button" onclick="openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_unsubmitted"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">제출</span>
-                <button type="button" onclick="openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_submit"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">배송</span>
-                <button type="button" onclick="openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_delivery"></button>
-              </div>
-              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
-                <span class="block font-normal text-gray-700">원고료</span>
-                <button type="button" onclick="openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_fee"></button>
-              </div>
-            </div>
+            <h3 class="font-bold text-gray-800 text-base">테마 설정</h3>
+            <p class="text-xs text-gray-500 font-normal">온리뷰 대시보드의 기본 포인트 테마를 변경합니다.</p>
           </div>
-        </div>
 
-        <!-- 패널 2: 정산 테마 설정 -->
-        <div id="settingsPanelTheme" class="hidden space-y-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">정산 테마 설정</h3>
             <div class="grid grid-cols-5 gap-3 text-xs">
@@ -3293,19 +3232,55 @@
           </div>
         </div>
 
-        <!-- 마감 임박 알림 설정 (중단 배치) -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h3 class="font-bold text-gray-800 text-base">마감 임박 알림 기준 설정</h3>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-600 font-normal mr-2">D-Day 범위:</span>
-            <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">7일 전</button>
-            <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
-            <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
+        <!-- 2줄 (좌/우 2단): 상태별 색상 설정 / 마감 알림 기준 설정 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">상태별 색상 설정</h3>
+            <div class="grid grid-cols-2 md:grid-cols-7 gap-3 text-xs">
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">신청</span>
+                <button type="button" onclick="openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_apply"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">선정</span>
+                <button type="button" onclick="openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_select"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">방문</span>
+                <button type="button" onclick="openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_visit"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">미제출</span>
+                <button type="button" onclick="openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_unsubmitted"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">제출</span>
+                <button type="button" onclick="openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_submit"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">배송</span>
+                <button type="button" onclick="openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_delivery"></button>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-center space-y-2">
+                <span class="block font-normal text-gray-700">원고료</span>
+                <button type="button" onclick="openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block transition-transform hover:scale-110" id="picker_badge_fee"></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">마감 알림 기준 설정</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-600 font-normal mr-2">D-Day 범위:</span>
+              <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">7일 전</button>
+              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
+              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
+            </div>
           </div>
         </div>
 
-        <!-- 최하단 이동 배치: 공유 코드 관리 & 동반자 내역 조회 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <!-- 3줄 (좌/우 2단): 공유 코드 관리 / 동반자 내역 조회 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
             <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
@@ -3445,10 +3420,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
