@@ -144,7 +144,7 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
-    let settlementSubTab = 'report'; // 정산 서브탭 상태 ('report' | 'detail')
+    let settlementSubTab = 'report'; 
     let isFilterExpanded = false; 
     let newBatchRows = []; 
     let yearlyChartInstance = null;
@@ -444,7 +444,6 @@
       }
     };
 
-    // 정산 서브탭 전환 제어 ('report' vs 'detail')
     window.setSettlementSubTab = function(type) {
       settlementSubTab = type;
       const btnReport = document.getElementById('settlementSubTabReport');
@@ -566,7 +565,7 @@
       }
       else if (tabName === 'settlement') {
         document.getElementById('sectionSettlement')?.classList.remove('hidden');
-        setSettlementSubTab('report'); // 정산 리포트 기본 선택
+        setSettlementSubTab('report'); 
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
@@ -1669,7 +1668,7 @@
           }
         }
 
-        // 세부 내역 (20% 키운 max-h-[200px] 스크롤 컨테이너 적용)
+        // 세부 내역 (소계 박스를 정산리포트 '최고 수익 달' 카드 스타일 bg-gray-50/80 및 border-gray-100/60으로 통일)
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1730,10 +1729,11 @@
               }
               html += `</div>`;
 
+              // 소계 영역 스타일을 정산리포트 최저/최고 카드 규격(bg-gray-50/80 border-gray-100/60)으로 일치시킴
               html += `
-                <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
-                  <span class="text-[11px] font-normal text-gray-600">소계 <b class="text-theme text-xs font-normal ml-1">${totalMCount}건</b></span>
-                  <span class="text-[11px] font-normal text-gray-600">실수익 <b class="text-theme text-sm font-normal ml-1">${totalMRevenue.toLocaleString()}원</b></span>
+                <div class="mt-2.5 p-2 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
+                  <span class="text-[10px] font-normal text-gray-400">소계 <b class="text-gray-900 text-xs font-normal ml-1">${totalMCount}건</b></span>
+                  <span class="text-[10px] font-normal text-gray-400">실수익 <b class="text-gray-900 text-xs font-normal ml-1">${totalMRevenue.toLocaleString()}원</b></span>
                 </div>
               `;
               html += `</div>`;
@@ -3070,11 +3070,10 @@
           <!-- 1줄: 연간 수익 / 월간 수익 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             
-            <!-- 연간 수익 카드 (상시 펴짐) -->
+            <!-- 연간 수익 카드 (상시 펴짐, 회색 조회년도 누적 삭제) -->
             <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">연간 수익</span>
-                <span id="yearlySubText" class="text-[10px] text-gray-400 font-normal">조회년도 누적</span>
               </div>
 
               <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative">
@@ -3199,13 +3198,8 @@
           </div>
         </div>
 
-        <!-- 서브패널 2: 세부 내역 (1월~12월 개별 접기/펴기 카드 - 높이 20% 확대) -->
+        <!-- 서브패널 2: 세부 내역 ('월간 세부 내역' 텍스트 삭제 및 소계 카드 스타일 통일) -->
         <div id="settlementPanelDetail" class="hidden space-y-3">
-          <div class="flex items-center justify-between px-1">
-            <span class="text-xs font-bold text-gray-700">월간 세부 내역</span>
-            <span class="text-[11px] text-gray-400 font-normal">클릭하여 해당 월의 정산 내역을 펼쳐보세요</span>
-          </div>
-          
           <div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div>
         </div>
 
@@ -3460,7 +3454,7 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
