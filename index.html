@@ -291,17 +291,20 @@
       return str;
     }
 
+    // [상태확인] 표시 조건 수정: 미제출/제출/완료가 아닌 항목 중 마감일/방문일이 지난 경우만 true
     function isItemOverdue(item) {
       const rawSt = item.status;
-      if (rawSt === '제출' || rawSt === '완료') return false;
+      if (rawSt === '제출' || rawSt === '완료' || rawSt === '미제출') return false;
 
       const now = new Date();
+      now.setHours(0, 0, 0, 0);
 
       if (item.deadlineDate) {
         const cleanDDate = formatCleanDate(item.deadlineDate);
         if (cleanDDate) {
-          const dDateTime = new Date(`${cleanDDate}T23:59:59`);
-          if (!isNaN(dDateTime.getTime()) && dDateTime < now) {
+          const dDateObj = new Date(cleanDDate);
+          dDateObj.setHours(0, 0, 0, 0);
+          if (!isNaN(dDateObj.getTime()) && dDateObj < now) {
             return true;
           }
         }
@@ -310,9 +313,9 @@
       if (item.visitDate) {
         const cleanVDate = formatCleanDate(item.visitDate);
         if (cleanVDate) {
-          const vTimeStr = item.visitTime || '23:59';
-          const vDateTime = new Date(`${cleanVDate}T${vTimeStr}:00`);
-          if (!isNaN(vDateTime.getTime()) && vDateTime < now) {
+          const vDateObj = new Date(cleanVDate);
+          vDateObj.setHours(0, 0, 0, 0);
+          if (!isNaN(vDateObj.getTime()) && vDateObj < now) {
             return true;
           }
         }
@@ -1259,7 +1262,7 @@
 
         rawCampaignList.forEach(item => {
           const st = getEffectiveStatus(item);
-          const isOverdue = isItemOverdue(item);
+          const overdue = isItemOverdue(item);
 
           if (st === '제출' || st === '완료') {
             cntSubmitDone++;
@@ -1268,7 +1271,7 @@
 
           cntSelect++;
 
-          if (isOverdue) {
+          if (overdue || st === '미제출') {
             cntSubmitWait++;
           }
 
@@ -1846,7 +1849,7 @@
           return new Date(visitDateTimeStr) >= now;
         });
       } else if (counterType === 'submitWait') {
-        matchedItems = monthlyCampaigns.filter(c => isItemOverdue(c));
+        matchedItems = monthlyCampaigns.filter(c => isItemOverdue(c) || getEffectiveStatus(c) === '미제출');
       } else if (counterType === 'submitDone') {
         matchedItems = monthlyCampaigns.filter(c => {
           const st = getEffectiveStatus(c);
@@ -2013,7 +2016,6 @@
 
       deadlineList.forEach(item => {
         const card = document.createElement('div');
-        // 위젯 아이템 배경 흰색 적용
         card.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
         card.onclick = () => openDetailItemModal(item.id);
 
@@ -2062,7 +2064,6 @@
       } else {
         scheduledItems.forEach(item => {
           const div = document.createElement('div');
-          // 위젯 아이템 배경 흰색 적용
           div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 space-y-0.5 text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
           div.onclick = () => openDetailItemModal(item.id);
 
@@ -2088,7 +2089,6 @@
       } else {
         unscheduledItems.forEach(item => {
           const div = document.createElement('div');
-          // 위젯 아이템 배경 흰색 적용
           div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
           div.onclick = () => openDetailItemModal(item.id);
 
@@ -2316,6 +2316,7 @@
       }
     });
 
+    // 체험단 목록 렌더링 (진행중/완료 분리 및 매장명 옆 🔴 [상태확인] 표시 정확 연동)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -2755,7 +2756,7 @@
         현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.
       </div>
 
-      <!-- 1. 대시보드 탭 (비율 조정: 달력 구역 축소 & 하단 구역 60 고정) -->
+      <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden">
         <div class="flex items-center justify-between shrink-0">
           <div>
@@ -2807,7 +2808,6 @@
           </div>
         </div>
 
-        <!-- 하단 구역 높이 h-60으로 확장 적용 (마감 임박 / 예약 대기 1칸 추가 노출) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-60 shrink-0">
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">제출 마감 임박</h3>
@@ -3420,9 +3420,9 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
 
