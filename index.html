@@ -905,51 +905,133 @@
       document.getElementById('dashRegisterModal')?.classList.add('hidden');
     };
 
-    // 엑셀 내보내기 다운로드 함수 구현
+    // 올려주신 정산 리포트 양식(.xlsx) 시트 구조와 100% 동일하게 생성되는 엑셀 다운로드 함수
     window.downloadExcel = function() {
       if (!rawCampaignList || rawCampaignList.length === 0) {
         return alert("내보낼 체험단 데이터가 없습니다.");
       }
 
       try {
-        const excelData = rawCampaignList.map(item => {
-          const effSt = getEffectiveStatus(item);
+        const workbook = XLSX.utils.book_new();
+
+        // 1. [진행중 체험단] 시트 생성
+        const ongoingData = rawCampaignList
+          .filter(item => {
+            const effSt = getEffectiveStatus(item);
+            return effSt !== '제출' && effSt !== '완료';
+          })
+          .map(item => {
+            const sponsored = Number(item.sponsoredAmount || 0);
+            const paid = Number(item.paidAmount || 0);
+            const inputRev = Number(item.revenue || 0);
+            let calcRevenue = paid === 0 ? (sponsored > 0 ? sponsored : inputRev) : ((sponsored - paid) + inputRev);
+
+            return {
+              "매장명": item.storeName || "",
+              "상태": getEffectiveStatus(item),
+              "사이트": item.platformName || "개별",
+              "방문일": formatCleanDate(item.visitDate),
+              "마감일": formatCleanDate(item.deadlineDate),
+              "제공금액": sponsored,
+              "결제금액": paid,
+              "실수익": calcRevenue,
+              "비고": item.memo || ""
+            };
+          });
+
+        const ongoingSheet = XLSX.utils.json_to_sheet(ongoingData.length > 0 ? ongoingData : [{ "매장명": "진행중인 체험단이 없습니다." }]);
+        XLSX.utils.book_append_sheet(workbook, ongoingSheet, "진행중 체험단");
+
+        // 2. [완료 체험단] 시트 생성
+        const completedData = rawCampaignList
+          .filter(item => {
+            const effSt = getEffectiveStatus(item);
+            return effSt === '제출' || effSt === '완료';
+          })
+          .map(item => {
+            const sponsored = Number(item.sponsoredAmount || 0);
+            const paid = Number(item.paidAmount || 0);
+            const inputRev = Number(item.revenue || 0);
+            let calcRevenue = paid === 0 ? (sponsored > 0 ? sponsored : inputRev) : ((sponsored - paid) + inputRev);
+
+            return {
+              "매장명": item.storeName || "",
+              "상태": getEffectiveStatus(item),
+              "사이트": item.platformName || "개별",
+              "방문일": formatCleanDate(item.visitDate),
+              "마감일": formatCleanDate(item.deadlineDate),
+              "제공금액": sponsored,
+              "결제금액": paid,
+              "실수익": calcRevenue,
+              "비고": item.memo || "정산완료"
+            };
+          });
+
+        const completedSheet = XLSX.utils.json_to_sheet(completedData.length > 0 ? completedData : [{ "매장명": "완료된 체험단이 없습니다." }]);
+        XLSX.utils.book_append_sheet(workbook, completedSheet, "완료 체험단");
+
+        // 3. [대시보드] 요약 시트 생성
+        const currentYear = new Date().getFullYear();
+        let totalRevenue = 0;
+        let doneCnt = 0;
+        let doneAmt = 0;
+        let planCnt = 0;
+        let planAmt = 0;
+        const monthlyStats = Array.from({ length: 12 }, () => ({ count: 0, revenue: 0 }));
+
+        rawCampaignList.forEach(item => {
           const sponsored = Number(item.sponsoredAmount || 0);
           const paid = Number(item.paidAmount || 0);
           const inputRev = Number(item.revenue || 0);
+          let calcRevenue = paid === 0 ? (sponsored > 0 ? sponsored : inputRev) : ((sponsored - paid) + inputRev);
 
-          let calcRevenue = 0;
-          if (paid === 0) {
-            calcRevenue = sponsored > 0 ? sponsored : inputRev;
+          const effSt = getEffectiveStatus(item);
+          const isDone = (effSt === '제출' || effSt === '완료');
+          const refDate = formatCleanDate(item.visitDate || item.deadlineDate || '');
+
+          if (isDone) {
+            doneCnt++;
+            doneAmt += calcRevenue;
+            if (refDate && refDate.length >= 7) {
+              const m = parseInt(refDate.slice(5, 7)) - 1;
+              if (m >= 0 && m < 12) {
+                monthlyStats[m].count++;
+                monthlyStats[m].revenue += calcRevenue;
+              }
+            }
           } else {
-            calcRevenue = (sponsored - paid) + inputRev;
+            planCnt++;
+            planAmt += calcRevenue;
           }
-
-          return {
-            "매장명": item.storeName || "",
-            "상태": effSt,
-            "사이트(플랫폼)": item.platformName || "개별",
-            "신청일": formatCleanDate(item.applyDate),
-            "방문일": formatCleanDate(item.visitDate),
-            "방문시간": item.visitTime || "",
-            "마감일": formatCleanDate(item.deadlineDate),
-            "제공금액(원)": sponsored,
-            "결제금액(원)": paid,
-            "실수익(원)": calcRevenue,
-            "동반인원": item.companions || "",
-            "연락처": item.contact || "",
-            "메모": item.memo || ""
-          };
         });
 
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "체험단목록");
+        totalRevenue = doneAmt + planAmt;
 
+        const dashboardData = [
+          ["체험단 정산 리포트", "", "", ""],
+          ["조회 연도", currentYear, "◀ 연도별 통계 요약"],
+          [""],
+          ["연간 수익", totalRevenue, "", "월간 수익 · 건수"],
+          ["구분", "건수", "금액", "월", "건수", "수익"]
+        ];
+
+        dashboardData.push(["정산 완료", doneCnt, doneAmt, "1월", monthlyStats[0].count, monthlyStats[0].revenue]);
+        dashboardData.push(["정산 예정", planCnt, planAmt, "2월", monthlyStats[1].count, monthlyStats[1].revenue]);
+        dashboardData.push(["합계", doneCnt + planCnt, totalRevenue, "3월", monthlyStats[2].count, monthlyStats[2].revenue]);
+
+        for (let i = 3; i < 12; i++) {
+          dashboardData.push(["", "", "", (i + 1) + "월", monthlyStats[i].count, monthlyStats[i].revenue]);
+        }
+
+        const dashboardSheet = XLSX.utils.aoa_to_sheet(dashboardData);
+        XLSX.utils.book_append_sheet(workbook, dashboardSheet, "대시보드");
+
+        // 엑셀 파일 내보내기 실행
         const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        XLSX.writeFile(workbook, "온리뷰_체험단목록_" + todayStr + ".xlsx");
+        XLSX.writeFile(workbook, "체험단_정산_리포트_" + todayStr + ".xlsx");
+
       } catch (err) {
-        alert("엑셀 내보내기 도중 오류가 발생했습니다: " + err.message);
+        alert("엑셀 다운로드 도중 오류가 발생했습니다: " + err.message);
       }
     };
 
@@ -968,7 +1050,6 @@
         window.location.reload();
       });
 
-      // 엑셀 내보내기 버튼 이벤트 바인딩
       document.getElementById('downloadExcelBtn')?.addEventListener('click', window.downloadExcel);
 
       document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
@@ -1940,7 +2021,6 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 달력 모든 셀 1:1 완벽 고정 및 요일 밀착 연동
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -2665,7 +2745,7 @@
 
         <nav class="space-y-1 text-sm font-bold">
           <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2h-2a2 2 0 01-2-2v-2z"/></svg>
             <span class="sidebar-text-label">대시보드</span>
           </button>
           <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
@@ -2870,7 +2950,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (정적 HTML thead 구조 보장) -->
+      <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -2941,7 +3021,6 @@
           </select>
         </div>
 
-        <!-- 정적 HTML 구조로 thead 선언 -->
         <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table class="w-full text-left border-collapse table-auto">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
@@ -3372,8 +3451,8 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
