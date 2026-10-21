@@ -144,18 +144,14 @@
     let rawCampaignList = [];
     let isBatchEditing = false; 
     let listSubTab = 'ongoing'; 
-    let isFilterExpanded = false; // 필터 영역 접기/펴기 상태
+    let settlementSubTab = 'report'; // 정산 서브탭 상태 ('report' | 'detail')
+    let isFilterExpanded = false; 
     let newBatchRows = []; 
     let yearlyChartInstance = null;
     let monthlyChartInstance = null;
     let monthlyAnalysisChartInstance = null;
 
     let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
-
-    let isYearlyCollapsed = localStorage.getItem('onlyview_yearlyCollapsed') === 'true';
-    let isMonthlyCollapsed = localStorage.getItem('onlyview_monthlyCollapsed') === 'true';
-    let isMonthlyAnalysisCollapsed = localStorage.getItem('onlyview_monthlyAnalysisCollapsed') === 'true';
-    let isPlatformAnalysisCollapsed = localStorage.getItem('onlyview_platformAnalysisCollapsed') === 'true';
 
     let monthlyDetailsCollapseState = {}; 
 
@@ -265,7 +261,6 @@
       });
     }
 
-    // YYYY 4자리 연도 고정 포맷터
     function formatCleanDate(dateVal) {
       if (!dateVal) return "";
       let str = String(dateVal).trim();
@@ -273,7 +268,7 @@
       const parts = str.split("-");
       if (parts.length === 3) {
         let year = parts[0].replace(/[^0-9]/g, '');
-        if (year.length > 4) year = year.slice(-4); // 입력 오류로 연도가 4자리를 넘으면 최근 4자리 추출
+        if (year.length > 4) year = year.slice(-4);
         const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
         const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
         if (!year || !month || !day) return "";
@@ -431,7 +426,6 @@
       }
     }
 
-    // 필터 영역 접기/펴기 토글 핸들러
     window.toggleFilterArea = function() {
       isFilterExpanded = !isFilterExpanded;
       const filterBox = document.getElementById('filterBoxContainer');
@@ -450,28 +444,26 @@
       }
     };
 
-    window.toggleYearlyCard = function() {
-      isYearlyCollapsed = !isYearlyCollapsed;
-      localStorage.setItem('onlyview_yearlyCollapsed', isYearlyCollapsed);
-      applyCardToggleUI();
-    };
+    // 정산 서브탭 전환 제어 ('report' vs 'detail')
+    window.setSettlementSubTab = function(type) {
+      settlementSubTab = type;
+      const btnReport = document.getElementById('settlementSubTabReport');
+      const btnDetail = document.getElementById('settlementSubTabDetail');
+      const panelReport = document.getElementById('settlementPanelReport');
+      const panelDetail = document.getElementById('settlementPanelDetail');
 
-    window.toggleMonthlyCard = function() {
-      isMonthlyCollapsed = !isMonthlyCollapsed;
-      localStorage.setItem('onlyview_monthlyCollapsed', isMonthlyCollapsed);
-      applyCardToggleUI();
-    };
-
-    window.toggleMonthlyAnalysisCard = function() {
-      isMonthlyAnalysisCollapsed = !isMonthlyAnalysisCollapsed;
-      localStorage.setItem('onlyview_monthlyAnalysisCollapsed', isMonthlyAnalysisCollapsed);
-      applyCardToggleUI();
-    };
-
-    window.togglePlatformAnalysisCard = function() {
-      isPlatformAnalysisCollapsed = !isPlatformAnalysisCollapsed;
-      localStorage.setItem('onlyview_platformAnalysisCollapsed', isPlatformAnalysisCollapsed);
-      applyCardToggleUI();
+      if (type === 'report') {
+        if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+        if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        panelReport?.classList.remove('hidden');
+        panelDetail?.classList.add('hidden');
+      } else {
+        if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+        panelDetail?.classList.remove('hidden');
+        panelReport?.classList.add('hidden');
+      }
+      renderSettlementView();
     };
 
     window.toggleMonthlyDetailsCard = function(month) {
@@ -504,96 +496,6 @@
         panelStatus?.classList.add('hidden');
       }
     };
-
-    function applyCardToggleUI() {
-      const yearlyCard = document.getElementById('yearlyCardContainer');
-      const yearlyBody = document.getElementById('yearlyCardBody');
-      const yearlyArrow = document.getElementById('yearlyToggleArrow');
-      const yearlySummary = document.getElementById('yearlySummaryText');
-      const yearlySubText = document.getElementById('yearlySubText');
-
-      if (yearlyBody && yearlyArrow) {
-        if (isYearlyCollapsed) {
-          yearlyBody.classList.add('hidden');
-          yearlyArrow.innerText = '▼';
-          if (yearlySummary) yearlySummary.classList.remove('hidden');
-          if (yearlySubText) yearlySubText.classList.add('hidden');
-          if (yearlyCard) yearlyCard.style.height = '48px';
-        } else {
-          yearlyBody.classList.remove('hidden');
-          yearlyArrow.innerText = '▲';
-          if (yearlySummary) yearlySummary.classList.add('hidden');
-          if (yearlySubText) yearlySubText.classList.remove('hidden');
-          if (yearlyCard) yearlyCard.style.height = '280px';
-        }
-      }
-
-      const monthlyCard = document.getElementById('monthlyCardContainer');
-      const monthlyBody = document.getElementById('monthlyCardBody');
-      const monthlyArrow = document.getElementById('monthlyToggleArrow');
-      const monthlySummary = document.getElementById('monthlySummaryText');
-      const monthlySubText = document.getElementById('monthlySubText');
-
-      if (monthlyBody && monthlyArrow) {
-        if (isMonthlyCollapsed) {
-          monthlyBody.classList.add('hidden');
-          monthlyArrow.innerText = '▼';
-          if (monthlySummary) monthlySummary.classList.remove('hidden');
-          if (monthlySubText) monthlySubText.classList.add('hidden');
-          if (monthlyCard) monthlyCard.style.height = '48px';
-        } else {
-          monthlyBody.classList.remove('hidden');
-          monthlyArrow.innerText = '▲';
-          if (monthlySummary) monthlySummary.classList.add('hidden');
-          if (monthlySubText) monthlySubText.classList.remove('hidden');
-          if (monthlyCard) monthlyCard.style.height = '280px';
-        }
-      }
-
-      const maCard = document.getElementById('monthlyAnalysisCardContainer');
-      const maBody = document.getElementById('monthlyAnalysisCardBody');
-      const maArrow = document.getElementById('monthlyAnalysisToggleArrow');
-      const maSummary = document.getElementById('monthlyAnalysisSummaryText');
-      const maSubText = document.getElementById('monthlyAnalysisSubText');
-
-      if (maBody && maArrow) {
-        if (isMonthlyAnalysisCollapsed) {
-          maBody.classList.add('hidden');
-          maArrow.innerText = '▼';
-          if (maSummary) maSummary.classList.remove('hidden');
-          if (maSubText) maSubText.classList.add('hidden');
-          if (maCard) maCard.style.height = '48px';
-        } else {
-          maBody.classList.remove('hidden');
-          maArrow.innerText = '▲';
-          if (maSummary) maSummary.classList.add('hidden');
-          if (maSubText) maSubText.classList.remove('hidden');
-          if (maCard) maCard.style.height = '280px';
-        }
-      }
-
-      const paCard = document.getElementById('platformAnalysisCardContainer');
-      const paBody = document.getElementById('platformAnalysisCardBody');
-      const paArrow = document.getElementById('platformAnalysisToggleArrow');
-      const paSummary = document.getElementById('platformAnalysisSummaryText');
-      const paSubText = document.getElementById('platformAnalysisCountInfo');
-
-      if (paBody && paArrow) {
-        if (isPlatformAnalysisCollapsed) {
-          paBody.classList.add('hidden');
-          paArrow.innerText = '▼';
-          if (paSummary) paSummary.classList.remove('hidden');
-          if (paSubText) paSubText.classList.add('hidden');
-          if (paCard) paCard.style.height = '48px';
-        } else {
-          paBody.classList.remove('hidden');
-          paArrow.innerText = '▲';
-          if (paSummary) paSummary.classList.add('hidden');
-          if (paSubText) paSubText.classList.remove('hidden');
-          if (paCard) paCard.style.height = '280px';
-        }
-      }
-    }
 
     window.switchTab = function(tabName, pushState = true) {
       if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
@@ -633,7 +535,7 @@
         isBatchEditing = false;   
         newBatchRows = [];         
         listSubTab = 'ongoing';    
-        isFilterExpanded = false; // 필터 초기화
+        isFilterExpanded = false; 
         const filterBox = document.getElementById('filterBoxContainer');
         const toggleBtn = document.getElementById('filterToggleBtn');
         if (filterBox && toggleBtn) {
@@ -664,7 +566,7 @@
       }
       else if (tabName === 'settlement') {
         document.getElementById('sectionSettlement')?.classList.remove('hidden');
-        renderSettlementView();
+        setSettlementSubTab('report'); // 정산 리포트 기본 선택
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
@@ -1360,8 +1262,6 @@
 
     function renderSettlementView() {
       try {
-        applyCardToggleUI();
-
         const yearSelect = document.getElementById('settlementYearSelect');
         const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
         
@@ -1462,11 +1362,6 @@
           totalRevElem.innerText = `${totalAmount.toLocaleString()}원`;
         }
 
-        const yearlySummaryVal = document.getElementById('yearlySummaryVal');
-        if (yearlySummaryVal) {
-          yearlySummaryVal.innerText = `${totalAmount.toLocaleString()}원`;
-        }
-
         const doneCntElem = document.getElementById('yearlyDoneCount');
         const doneAmtElem = document.getElementById('yearlyDoneAmount');
         if (doneCntElem) doneCntElem.innerText = `${doneCount}건`;
@@ -1559,7 +1454,6 @@
 
         const bestMonthText = document.getElementById('monthlyBestMonthText');
         const currentMonthText = document.getElementById('monthlyCurrentMonthText');
-        const monthlySummaryVal = document.getElementById('monthlySummaryVal');
 
         if (bestMonthText) {
           if (maxRevVal === 0) {
@@ -1572,12 +1466,9 @@
         if (currentMonthText) {
           if (isCurrentYear && totalAmount > 0) {
             const curVal = monthlyRevenues[actualRealMonth - 1] || 0;
-            const curTxt = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
-            currentMonthText.innerText = curTxt;
-            if (monthlySummaryVal) monthlySummaryVal.innerText = curTxt;
+            currentMonthText.innerText = `${actualRealMonth}월 · ${curVal.toLocaleString()}원`;
           } else {
             currentMonthText.innerText = '-';
-            if (monthlySummaryVal) monthlySummaryVal.innerText = '-';
           }
         }
 
@@ -1646,7 +1537,6 @@
 
         const maBestText = document.getElementById('monthlyAnalysisBestText');
         const maCurrentText = document.getElementById('monthlyAnalysisCurrentText');
-        const maSummaryVal = document.getElementById('monthlyAnalysisSummaryVal');
 
         if (maBestText) {
           if (maxCountVal === 0) {
@@ -1659,12 +1549,9 @@
         if (maCurrentText) {
           if (isCurrentYear) {
             const curCnt = monthlyCounts[actualRealMonth - 1] || 0;
-            const curCntTxt = `${curCnt}건`;
-            maCurrentText.innerText = `${actualRealMonth}월 · ${curCntTxt}`;
-            if (maSummaryVal) maSummaryVal.innerText = curCntTxt;
+            maCurrentText.innerText = `${actualRealMonth}월 · ${curCnt}건`;
           } else {
             maCurrentText.innerText = '-';
-            if (maSummaryVal) maSummaryVal.innerText = '-';
           }
         }
 
@@ -1732,7 +1619,6 @@
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
-        const paSummaryVal = document.getElementById('platformAnalysisSummaryVal');
 
         if (platformColLeft && platformColRight) {
           platformColLeft.innerHTML = '';
@@ -1752,8 +1638,6 @@
           }
 
           if (sortedPlatforms.length > 0) {
-            if (paSummaryVal) paSummaryVal.innerText = `${sortedPlatforms[0].pName} (${sortedPlatforms[0].doneCount}건)`;
-
             const maxDoneCnt = sortedPlatforms[0].doneCount || 1;
             const leftThreshold = Math.ceil(totalPlatformNum / 2);
 
@@ -1781,11 +1665,11 @@
               }
             });
           } else {
-            if (paSummaryVal) paSummaryVal.innerText = '-';
             platformColLeft.innerHTML = `<div class="text-xs text-gray-400 py-12 text-center font-normal col-span-2">해당 기간의 정산 완료 플랫폼 데이터가 없습니다.</div>`;
           }
         }
 
+        // 세부 내역 (20% 키운 max-h-[200px] 스크롤 컨테이너 적용)
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1802,7 +1686,7 @@
 
             const cardDiv = document.createElement('div');
             cardDiv.id = cardId;
-            cardDiv.className = "bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[48px]";
+            cardDiv.className = "bg-white pt-2.5 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[48px]";
 
             let summaryInlineHtml = '';
             if (isCollapsed) {
@@ -1820,11 +1704,11 @@
             `;
 
             if (!isCollapsed) {
-              html += `<div class="flex-1 flex flex-col justify-between min-h-[160px] mt-2">`;
-              html += `<div class="flex-1 overflow-y-auto widget-scroll max-h-[160px] my-1 pr-1 space-y-1.5">`;
+              html += `<div class="flex-1 flex flex-col justify-between min-h-[200px] mt-2.5">`;
+              html += `<div class="flex-1 overflow-y-auto widget-scroll max-h-[200px] my-1 pr-1 space-y-1.5">`;
               
               if (list.length === 0) {
-                html += `<div class="text-center text-gray-300 font-normal py-12 text-[11px]">이 달의 완료된 체험이 없습니다.</div>`;
+                html += `<div class="text-center text-gray-300 font-normal py-16 text-[11px]">이 달의 완료된 체험이 없습니다.</div>`;
               } else {
                 html += `
                   <div class="flex items-center justify-between font-normal text-gray-400 text-[10px] mb-1">
@@ -1836,7 +1720,7 @@
 
                 list.forEach(item => {
                   html += `
-                    <div class="flex items-center justify-between text-[11px] py-0.5 border-b border-dashed border-gray-50">
+                    <div class="flex items-center justify-between text-[11px] py-1 border-b border-dashed border-gray-50">
                       <span class="w-1/2 font-normal text-gray-800 truncate" title="${item.storeName}">${item.storeName}</span>
                       <span class="w-1/4 text-right font-normal text-gray-500">${item.sponsoredAmount.toLocaleString()}원</span>
                       <span class="w-1/4 text-right font-normal text-gray-400">${item.paidAmount > 0 ? item.paidAmount.toLocaleString() + '원' : '0원'}</span>
@@ -1847,7 +1731,7 @@
               html += `</div>`;
 
               html += `
-                <div class="mt-2 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
+                <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
                   <span class="text-[11px] font-normal text-gray-600">소계 <b class="text-theme text-xs font-normal ml-1">${totalMCount}건</b></span>
                   <span class="text-[11px] font-normal text-gray-600">실수익 <b class="text-theme text-sm font-normal ml-1">${totalMRevenue.toLocaleString()}원</b></span>
                 </div>
@@ -2908,6 +2792,7 @@
           <div>
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
+          <!-- 대시보드 우측 상단 버튼 순서: [이전달] [오늘] [다음달] [+ 체험 등록] -->
           <div class="flex items-center gap-2">
             <div class="flex gap-1">
               <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
@@ -3161,174 +3046,161 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 -->
+      <!-- 4. 체험단 정산 탭 (2단 구조 서브탭 적용) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
-          <h2 class="text-2xl font-black text-theme">체험단 정산 리포트</h2>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-500 font-normal">조회 연도:</span>
-            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
+          <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
+          
+          <!-- 정산 2단 서브탭 버튼 그룹: [정산 리포트] / [세부 내역] -->
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs text-gray-500 font-normal">조회 연도:</span>
+              <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
+            </div>
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button id="settlementSubTabReport" onclick="setSettlementSubTab('report')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">정산 리포트</button>
+              <button id="settlementSubTabDetail" onclick="setSettlementSubTab('detail')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">세부 내역</button>
+            </div>
           </div>
         </div>
 
-        <!-- 1줄: 연간 수익 / 월간 수익 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-          
-          <!-- 1줄 1번: 연간 수익 카드 -->
-          <div id="yearlyCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-              <span class="text-xs font-bold text-gray-800">연간 수익</span>
-              <div class="flex items-center gap-2">
-                <span id="yearlySummaryText" class="hidden text-xs text-gray-900 font-normal">
-                  총 <span id="yearlySummaryVal">0원</span>
-                </span>
+        <!-- 서브패널 1: 정산 리포트 (연간수익, 월간수익, 플랫폼분석, 월간분석 상시 펴짐 고정) -->
+        <div id="settlementPanelReport" class="space-y-4">
+          <!-- 1줄: 연간 수익 / 월간 수익 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+            
+            <!-- 연간 수익 카드 (상시 펴짐) -->
+            <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
+                <span class="text-xs font-bold text-gray-800">연간 수익</span>
                 <span id="yearlySubText" class="text-[10px] text-gray-400 font-normal">조회년도 누적</span>
-                <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
+              </div>
+
+              <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative">
+                <div class="col-span-2 relative flex items-center justify-center h-48 w-full">
+                  <canvas id="yearlyDonutChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                    <span id="yearlyTotalRevenueText" class="text-xl font-black text-gray-900 tracking-tight">0원</span>
+                  </div>
+                </div>
+
+                <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
+                  <div class="flex justify-end mb-1">
+                    <span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">2026년 누적</span>
+                  </div>
+
+                  <div class="space-y-1 py-1">
+                    <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
+                      <span class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
+                        <span>정산 완료</span>
+                      </span>
+                      <span class="flex items-center gap-1.5">
+                        <span id="yearlyDoneCount" class="w-8 text-right">0건</span>
+                        <span class="text-gray-300 font-normal">|</span>
+                        <span id="yearlyDoneAmount" class="w-20 text-right">0원</span>
+                      </span>
+                    </div>
+
+                    <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
+                      <span class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
+                        <span>정산 예정</span>
+                      </span>
+                      <span class="flex items-center gap-1.5">
+                        <span id="yearlyPlanCount" class="w-8 text-right">0건</span>
+                        <span class="text-gray-300 font-normal">|</span>
+                        <span id="yearlyPlanAmount" class="w-20 text-right">0원</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div id="yearlyCompareContainer" class="pt-0.5">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span>
+                      <span class="text-xs text-gray-400 font-normal">비교 데이터 없음</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative">
-              <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
-                <canvas id="yearlyDonutChart"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span id="yearlyTotalRevenueText" class="text-xl font-black text-gray-900 tracking-tight">0원</span>
-                </div>
-              </div>
-
-              <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
-                <div class="flex justify-end mb-1">
-                  <span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">2026년 누적</span>
-                </div>
-
-                <div class="space-y-1 py-1">
-                  <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
-                    <span class="flex items-center gap-1.5">
-                      <span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
-                      <span>정산 완료</span>
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                      <span id="yearlyDoneCount" class="w-8 text-right">0건</span>
-                      <span class="text-gray-300 font-normal">|</span>
-                      <span id="yearlyDoneAmount" class="w-20 text-right">0원</span>
-                    </span>
-                  </div>
-
-                  <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
-                    <span class="flex items-center gap-1.5">
-                      <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span>
-                      <span>정산 예정</span>
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                      <span id="yearlyPlanCount" class="w-8 text-right">0건</span>
-                      <span class="text-gray-300 font-normal">|</span>
-                      <span id="yearlyPlanAmount" class="w-20 text-right">0원</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div id="yearlyCompareContainer" class="pt-0.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span>
-                    <span class="text-xs text-gray-400 font-normal">비교 데이터 없음</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 1줄 2번: 월간 수익 카드 -->
-          <div id="monthlyCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-              <span class="text-xs font-bold text-gray-800">월간 수익</span>
-              <div class="flex items-center gap-2">
-                <span id="monthlySummaryText" class="hidden text-xs text-gray-900 font-normal">
-                  이번 달 <span id="monthlySummaryVal">-</span>
-                </span>
+            <!-- 월간 수익 카드 (상시 펴짐) -->
+            <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
+                <span class="text-xs font-bold text-gray-800">월간 수익</span>
                 <span id="monthlySubText" class="text-[10px] text-gray-400 font-normal">단위 : 만원</span>
-                <span id="monthlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
+              </div>
+
+              <div id="monthlyCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between">
+                <div class="relative h-44 w-full">
+                  <canvas id="monthlyBarChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
+                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                    <span class="text-[10px] text-gray-400 font-normal">최고 수익 달</span>
+                    <span id="monthlyBestMonthText" class="font-normal text-gray-900 text-xs">-</span>
+                  </div>
+                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                    <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
+                    <span id="monthlyCurrentMonthText" class="font-normal text-gray-900 text-xs">-</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div id="monthlyCardBody" class="space-y-3 mt-2 h-[225px] flex-none">
-              <div class="relative h-40 w-full">
-                <canvas id="monthlyBarChart"></canvas>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-normal">최고 수익 달</span>
-                  <span id="monthlyBestMonthText" class="font-normal text-gray-900 text-xs">-</span>
-                </div>
-                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
-                  <span id="monthlyCurrentMonthText" class="font-normal text-gray-900 text-xs">-</span>
-                </div>
-              </div>
-            </div>
           </div>
 
-        </div>
-
-        <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-          
-          <!-- 2줄 1번: 플랫폼 분석 카드 -->
-          <div id="platformAnalysisCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors">
-            <div onclick="togglePlatformAnalysisCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-              <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
-              <div class="flex items-center gap-2">
-                <span id="platformAnalysisSummaryText" class="hidden text-xs text-gray-900 font-normal">
-                  상위 <span id="platformAnalysisSummaryVal">-</span>
-                </span>
+          <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+            
+            <!-- 플랫폼 분석 카드 (상시 펴짐) -->
+            <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
+                <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
                 <span id="platformAnalysisCountInfo" class="text-[10px] text-gray-400 font-normal">올해 건수·실수익 (0개 플랫폼)</span>
-                <span id="platformAnalysisToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
+              </div>
+
+              <div id="platformAnalysisCardBody" class="mt-3 flex-1">
+                <div class="grid grid-cols-2 gap-x-6 gap-y-2 max-h-56 overflow-y-auto widget-scroll pr-1">
+                  <div id="platformColLeft" class="space-y-2"></div>
+                  <div id="platformColRight" class="space-y-2"></div>
+                </div>
               </div>
             </div>
 
-            <div id="platformAnalysisCardBody" class="mt-2">
-              <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 max-h-48 overflow-y-auto widget-scroll pr-1">
-                <div id="platformColLeft" class="space-y-1.5"></div>
-                <div id="platformColRight" class="space-y-1.5"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2줄 2번: 월간 분석 카드 -->
-          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-              <span class="text-xs font-bold text-gray-800">월간 분석</span>
-              <div class="flex items-center gap-2">
-                <span id="monthlyAnalysisSummaryText" class="hidden text-xs text-gray-900 font-normal">
-                  이번 달 <span id="monthlyAnalysisSummaryVal">-</span>
-                </span>
+            <!-- 월간 분석 카드 (상시 펴짐) -->
+            <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
+                <span class="text-xs font-bold text-gray-800">월간 분석</span>
                 <span id="monthlyAnalysisSubText" class="text-[10px] text-gray-400 font-normal">단위 : 건</span>
-                <span id="monthlyAnalysisToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
+              </div>
+
+              <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between">
+                <div class="relative h-44 w-full">
+                  <canvas id="monthlyAnalysisLineChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
+                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                    <span class="text-[10px] text-gray-400 font-normal">최고 건의 달</span>
+                    <span id="monthlyAnalysisBestText" class="font-normal text-gray-900 text-xs">-</span>
+                  </div>
+                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
+                    <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
+                    <span id="monthlyAnalysisCurrentText" class="font-normal text-gray-900 text-xs">-</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2 h-[225px] flex-none">
-              <div class="relative h-40 w-full">
-                <canvas id="monthlyAnalysisLineChart"></canvas>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-normal">최고 건의 달</span>
-                  <span id="monthlyAnalysisBestText" class="font-normal text-gray-900 text-xs">-</span>
-                </div>
-                <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3">
-                  <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
-                  <span id="monthlyAnalysisCurrentText" class="font-normal text-gray-900 text-xs">-</span>
-                </div>
-              </div>
-            </div>
           </div>
-
         </div>
 
-        <!-- 3줄: 12개월 개별 접기/펴기 카드 그리드 -->
-        <div class="space-y-2">
+        <!-- 서브패널 2: 세부 내역 (1월~12월 개별 접기/펴기 카드 - 높이 20% 확대) -->
+        <div id="settlementPanelDetail" class="hidden space-y-3">
           <div class="flex items-center justify-between px-1">
             <span class="text-xs font-bold text-gray-700">월간 세부 내역</span>
             <span class="text-[11px] text-gray-400 font-normal">클릭하여 해당 월의 정산 내역을 펼쳐보세요</span>
@@ -3587,10 +3459,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
 
