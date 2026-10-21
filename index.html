@@ -384,6 +384,68 @@
       ink:       { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
     };
 
+    // 정산 차트 전용 4가지 색상 모드 팔레트
+    let currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default';
+
+    const chartStylePalettes = {
+      default: { highlight: '#335A90', main: '#658EC6', pending: '#B2C6E2', isOutline: false },
+      light:   { highlight: '#2F5FA8', main: '#5C8FD6', pending: '#A9C6EC', isOutline: false },
+      outline: { 
+        highlightBorder: '#3F73C2', highlightFill: '#9DB8E3',
+        mainBorder: '#4F82CC', mainFill: '#C7D7EE',
+        pendingBorder: '#4F82CC', pendingFill: '#E3EAF5',
+        isOutline: true
+      },
+      themePreset: {
+        slate:      { highlight: '#335A90', main: '#658EC6', pending: '#B2C6E2' },
+        terracotta: { highlight: '#994A20', main: '#CF7B4F', pending: '#E7BCA5' },
+        forest:     { highlight: '#2A583F', main: '#5B8B71', pending: '#ACC4B7' },
+        violet:     { highlight: '#58419A', main: '#8C75CF', pending: '#C6BAE7' },
+        graphite:   { highlight: '#272B31', main: '#595C61', pending: '#ACADB0' },
+        brick:      { highlight: '#8D3029', main: '#C3635B', pending: '#E1B0AC' },
+        mustard:    { highlight: '#7D5705', main: '#B28A36', pending: '#D9C598' },
+        indigo:     { highlight: '#2C3B89', main: '#606EBB', pending: '#AFB6DD' },
+        emerald:    { highlight: '#0F6554', main: '#429887', pending: '#A0CCC3' },
+        ink:        { highlight: '#20242B', main: '#53575D', pending: '#AAABAF' }
+      }
+    };
+
+    window.setChartMode = function(modeKey) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 정산 색상 스타일을 변경할 수 없습니다.");
+      currentChartMode = modeKey;
+      localStorage.setItem('onlyview_chartMode', modeKey);
+      updateChartModeButtonsUI();
+      renderSettlementView();
+    };
+
+    function updateChartModeButtonsUI() {
+      ['default', 'light', 'outline', 'theme'].forEach(m => {
+        const btn = document.getElementById(`btnChartMode_${m}`);
+        if (btn) {
+          if (m === currentChartMode) {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
+          } else {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+          }
+        }
+      });
+    }
+
+    function getActiveChartColors() {
+      const activeThemeKey = localStorage.getItem('onlyview_theme') || 'slate';
+      if (currentChartMode === 'theme') {
+        const preset = chartStylePalettes.themePreset[activeThemeKey] || chartStylePalettes.themePreset.slate;
+        return { highlight: preset.highlight, main: preset.main, pending: preset.pending, isOutline: false };
+      }
+      if (currentChartMode === 'outline') {
+        return chartStylePalettes.outline;
+      }
+      if (currentChartMode === 'light') {
+        return chartStylePalettes.light;
+      }
+      return chartStylePalettes.default;
+    }
+
     window.changeTheme = function(colorKey) {
       if (isReadOnly) return alert("읽기 전용 모드에서는 테마를 변경할 수 없습니다.");
       const theme = themeColors[colorKey] || themeColors.slate;
@@ -398,10 +460,8 @@
       document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
       
       localStorage.setItem('onlyview_theme', colorKey);
+      if (currentChartMode === 'theme') renderSettlementView();
     };
-
-    const savedTheme = localStorage.getItem('onlyview_theme') || 'slate';
-    window.changeTheme(savedTheme);
 
     window.toggleSidebar = function() {
       isSidebarCollapsed = !isSidebarCollapsed;
@@ -470,31 +530,6 @@
       monthlyDetailsCollapseState[month] = !monthlyDetailsCollapseState[month];
       localStorage.setItem(`onlyview_monthlyDetailCollapsed_${month}`, monthlyDetailsCollapseState[month]);
       renderSettlementView(); 
-    };
-
-    window.switchSettingsSubTab = function(tabType) {
-      const tabStatus = document.getElementById('settingsSubTabStatus');
-      const tabTheme = document.getElementById('settingsSubTabTheme');
-      const panelStatus = document.getElementById('settingsPanelStatus');
-      const panelTheme = document.getElementById('settingsPanelTheme');
-
-      if (tabType === 'status') {
-        tabStatus?.classList.add('bg-theme', 'text-white');
-        tabStatus?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-        tabTheme?.classList.remove('bg-theme', 'text-white');
-        tabTheme?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-
-        panelStatus?.classList.remove('hidden');
-        panelTheme?.classList.add('hidden');
-      } else {
-        tabTheme?.classList.add('bg-theme', 'text-white');
-        tabTheme?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-        tabStatus?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-        tabStatus?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
-
-        panelTheme?.classList.remove('hidden');
-        panelStatus?.classList.add('hidden');
-      }
     };
 
     window.switchTab = function(tabName, pushState = true) {
@@ -570,6 +605,7 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
+        updateChartModeButtonsUI();
         renderStatusColorPickers();
       }
     };
@@ -1259,6 +1295,7 @@
       }
     }
 
+    // 정산 뷰 렌더링: 4가지 차트 색상 모드(기본, 연하게, 윤곽선, 테마) 실시간 적용
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1275,6 +1312,8 @@
         if (yearlyAccumulatedLabel) {
           yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : `${targetYear}년 누적`;
         }
+
+        const chartColors = getActiveChartColors();
 
         let doneCount = 0;
         let doneAmount = 0;
@@ -1398,21 +1437,35 @@
           }
         }
 
+        // 도넛 차트 렌더링
         const ctxYearly = document.getElementById('yearlyDonutChart')?.getContext('2d');
         if (ctxYearly) {
           if (yearlyChartInstance) yearlyChartInstance.destroy();
 
-          const chartDataValues = totalAmount === 0 ? [1, 0] : [doneAmount, planAmount];
-          const chartColors = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : ['#2563EB', '#CBD5E1'];
+          const doughnutValues = totalAmount === 0 ? [1, 0] : [doneAmount, planAmount];
+          let doughnutFills = [];
+          let doughnutBorders = [];
+          let doughnutWidths = 0;
+
+          if (chartColors.isOutline) {
+            doughnutFills = totalAmount === 0 ? ['#F3F4F6', '#FFFFFF'] : [chartColors.mainFill, chartColors.pendingFill];
+            doughnutBorders = totalAmount === 0 ? ['#E5E7EB', '#E5E7EB'] : [chartColors.mainBorder, chartColors.pendingBorder];
+            doughnutWidths = 2;
+          } else {
+            doughnutFills = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : [chartColors.main, chartColors.pending];
+            doughnutBorders = ['transparent', 'transparent'];
+            doughnutWidths = 0;
+          }
 
           yearlyChartInstance = new Chart(ctxYearly, {
             type: 'doughnut',
             data: {
               labels: ['정산 완료', '정산 예정'],
               datasets: [{
-                data: chartDataValues,
-                backgroundColor: chartColors,
-                borderWidth: 0,
+                data: doughnutValues,
+                backgroundColor: doughnutFills,
+                borderColor: doughnutBorders,
+                borderWidth: doughnutWidths,
                 hoverOffset: 2
               }]
             },
@@ -1440,15 +1493,23 @@
 
         const monthlyDataTenThousand = monthlyRevenues.map(v => Number((v / 10000).toFixed(1)));
 
-        const barColors = monthlyRevenues.map((_, idx) => {
+        // 월간 수익 막대 차트 색상 매핑
+        const barFills = monthlyRevenues.map((_, idx) => {
           const monthNum = idx + 1;
           if (isCurrentYear) {
-            if (monthNum === actualRealMonth) return '#F4A261'; 
-            if (monthNum < actualRealMonth) return '#2563EB';   
-            return '#CBD5E1';                                  
+            if (monthNum === actualRealMonth) return chartColors.isOutline ? chartColors.highlightFill : chartColors.highlight; 
+            if (monthNum < actualRealMonth) return chartColors.isOutline ? chartColors.mainFill : chartColors.main;   
+            return chartColors.isOutline ? chartColors.pendingFill : chartColors.pending;                                  
           } else {
-            return '#2563EB'; 
+            return chartColors.isOutline ? chartColors.mainFill : chartColors.main; 
           }
+        });
+
+        const barBorders = monthlyRevenues.map((_, idx) => {
+          const monthNum = idx + 1;
+          if (!chartColors.isOutline) return 'transparent';
+          if (isCurrentYear && monthNum === actualRealMonth) return chartColors.highlightBorder;
+          return chartColors.mainBorder;
         });
 
         const bestMonthText = document.getElementById('monthlyBestMonthText');
@@ -1481,7 +1542,9 @@
               labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
               datasets: [{
                 data: monthlyDataTenThousand,
-                backgroundColor: barColors,
+                backgroundColor: barFills,
+                borderColor: barBorders,
+                borderWidth: chartColors.isOutline ? 2 : 0,
                 borderRadius: 6,
                 borderSkipped: false,
                 barPercentage: 0.6
@@ -1514,7 +1577,7 @@
                   align: 'end',
                   offset: 2,
                   font: { size: 10, weight: 'normal' },
-                  color: (context) => barColors[context.dataIndex],
+                  color: (context) => barFills[context.dataIndex],
                   formatter: (value) => {
                     if (!value || value <= 0) return '';
                     return Number.isInteger(value) ? value : value.toFixed(1);
@@ -1554,10 +1617,11 @@
           }
         }
 
-        const pointColors = monthlyCounts.map((_, idx) => {
+        // 월간 분석 라인 차트 색상 매핑
+        const pointFills = monthlyCounts.map((_, idx) => {
           const monthNum = idx + 1;
-          if (isCurrentYear && monthNum === actualRealMonth) return '#C85A17';
-          return '#3B82F6';
+          if (isCurrentYear && monthNum === actualRealMonth) return chartColors.isOutline ? chartColors.highlightFill : chartColors.highlight;
+          return chartColors.isOutline ? chartColors.mainFill : chartColors.main;
         });
 
         const ctxMonthlyAnalysis = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
@@ -1570,10 +1634,11 @@
               labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
               datasets: [{
                 data: monthlyCounts,
-                borderColor: '#3B82F6',
+                borderColor: chartColors.isOutline ? chartColors.mainBorder : chartColors.main,
                 borderWidth: 2.5,
-                pointBackgroundColor: pointColors,
-                pointBorderColor: pointColors,
+                borderDash: chartColors.isOutline ? [4, 4] : [], // 윤곽선 모드 시 점선 표현
+                pointBackgroundColor: pointFills,
+                pointBorderColor: chartColors.isOutline ? chartColors.mainBorder : pointFills,
                 pointRadius: 4,
                 pointHoverRadius: 6,
                 tension: 0.25,
@@ -1607,7 +1672,7 @@
                   align: 'end',
                   offset: 2,
                   font: { size: 10, weight: 'normal' },
-                  color: (context) => pointColors[context.dataIndex],
+                  color: (context) => pointFills[context.dataIndex],
                   formatter: (value) => (value > 0 ? value : '')
                 }
               }
@@ -1615,6 +1680,7 @@
           });
         }
 
+        // 플랫폼 분석 바 차트 색상 매핑
         const platformColLeft = document.getElementById('platformColLeft');
         const platformColRight = document.getElementById('platformColRight');
         const platformCountInfo = document.getElementById('platformAnalysisCountInfo');
@@ -1646,10 +1712,13 @@
               const itemDiv = document.createElement('div');
               itemDiv.className = "flex items-center justify-between text-xs py-1 px-0.5";
 
+              const barBgColor = chartColors.isOutline ? chartColors.mainFill : chartColors.main;
+              const barBorderStyle = chartColors.isOutline ? `border: 1px solid ${chartColors.mainBorder};` : '';
+
               itemDiv.innerHTML = `
                 <span class="font-normal text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
                 <div class="flex-1 mx-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                  <div class="bg-blue-600 h-full rounded-full transition-colors" style="width: ${barPercent}%"></div>
+                  <div class="h-full rounded-full transition-colors" style="width: ${barPercent}%; background-color: ${barBgColor}; ${barBorderStyle}"></div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
                   <span class="text-gray-400 font-normal text-[10px] text-right">${p.doneCount}건</span>
@@ -2268,110 +2337,6 @@
       }
     });
 
-    // 엑셀 내보내기: JSZip 바이너리 템플릿 복사 및 원본 보존 방식 구현
-    document.getElementById('downloadExcelBtn')?.addEventListener('click', async () => {
-      if (isReadOnly) return alert("읽기 전용 모드에서는 엑셀 내보내기를 이용할 수 없습니다.");
-      if (rawCampaignList.length === 0) return alert('다운로드할 데이터가 없습니다.');
-      
-      const yearSelect = document.getElementById('settlementYearSelect');
-      const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
-      const targetYearNum = selectedYearVal === 'ALL' ? new Date().getFullYear() : parseInt(selectedYearVal);
-
-      try {
-        const response = await fetch('체험단_정산_리포트_양식.xlsx');
-        if (!response.ok) {
-          throw new Error('템플릿 파일을 찾을 수 없습니다.');
-        }
-        const blob = await response.blob();
-        
-        const zip = await JSZip.loadAsync(blob);
-        
-        // 1. 대시보드 C2 셀 연도 설정 (sheet1.xml 수정)
-        let sheet1Xml = await zip.file("xl/worksheets/sheet1.xml").async("text");
-        sheet1Xml = sheet1Xml.replace(/<c r="C2"[^>]*>.*?<\/c>/, `<c r="C2"><v>${targetYearNum}</v></c>`);
-        zip.file("xl/worksheets/sheet1.xml", sheet1Xml);
-
-        // 2. 진행중/완료 체험단 분리 및 최신 방문일 정렬
-        const ongoingItems = rawCampaignList.filter(item => {
-          const effSt = getEffectiveStatus(item);
-          return effSt !== '제출' && effSt !== '완료';
-        }).sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || '')).slice(0, 1997);
-
-        const completedItems = rawCampaignList.filter(item => {
-          const effSt = getEffectiveStatus(item);
-          return effSt === '제출' || effSt === '완료';
-        }).sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || '')).slice(0, 1997);
-
-        // 시트 XML 데이터 매핑 생성 함수 (A~G, I열 4행 이하 치환)
-        const fillSheetData = (sheetXmlText, items, isCompleted = false) => {
-          const rowsXml = items.map((item, idx) => {
-            const rowNum = idx + 4;
-            const storeName = (item.storeName || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const status = displayStatusName(getEffectiveStatus(item));
-            const platform = (item.platformName || '개별').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const visitDate = formatCleanDate(item.visitDate);
-            const deadlineDate = formatCleanDate(item.deadlineDate);
-            const sponsored = Number(item.sponsoredAmount || 0);
-            const paid = Number(item.paidAmount || 0);
-            const note = isCompleted ? "정산완료" : ((item.memo || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
-
-            return `
-              <row r="${rowNum}">
-                <c r="A${rowNum}" t="inlineStr"><is><t>${storeName}</t></is></c>
-                <c r="B${rowNum}" t="inlineStr"><is><t>${status}</t></is></c>
-                <c r="C${rowNum}" t="inlineStr"><is><t>${platform}</t></is></c>
-                <c r="D${rowNum}" t="inlineStr"><is><t>${visitDate}</t></is></c>
-                <c r="E${rowNum}" t="inlineStr"><is><t>${deadlineDate}</t></is></c>
-                <c r="F${rowNum}"><v>${sponsored}</v></c>
-                <c r="G${rowNum}"><v>${paid}</v></c>
-                <c r="H${rowNum}"><f>IF(G${rowNum}=0,F${rowNum},F${rowNum}-G${rowNum})</f></c>
-                <c r="I${rowNum}" t="inlineStr"><is><t>${note}</t></is></c>
-              </row>
-            `;
-          }).join('');
-
-          return sheetXmlText.replace(/<sheetData>[\s\S]*?<\/sheetData>/, `<sheetData>${rowsXml}</sheetData>`);
-        };
-
-        // sheet3.xml (진행중 체험단) & sheet4.xml (완료 체험단) 데이터 주입
-        if (zip.file("xl/worksheets/sheet3.xml")) {
-          let sheet3Xml = await zip.file("xl/worksheets/sheet3.xml").async("text");
-          sheet3Xml = fillSheetData(sheet3Xml, ongoingItems, false);
-          zip.file("xl/worksheets/sheet3.xml", sheet3Xml);
-        }
-
-        if (zip.file("xl/worksheets/sheet4.xml")) {
-          let sheet4Xml = await zip.file("xl/worksheets/sheet4.xml").async("text");
-          sheet4Xml = fillSheetData(sheet4Xml, completedItems, true);
-          zip.file("xl/worksheets/sheet4.xml", sheet4Xml);
-        }
-
-        // 3. fullCalcOnLoad 켜기 (xl/workbook.xml 수정)
-        if (zip.file("xl/workbook.xml")) {
-          let workbookXml = await zip.file("xl/workbook.xml").async("text");
-          if (workbookXml.includes("<calcPr")) {
-            workbookXml = workbookXml.replace(/<calcPr[^>]*\/>/, '<calcPr fullCalcOnLoad="1"/>');
-          } else {
-            workbookXml = workbookXml.replace("</workbook>", '<calcPr fullCalcOnLoad="1"/></workbook>');
-          }
-          zip.file("xl/workbook.xml", workbookXml);
-        }
-
-        const outContent = await zip.generateAsync({ type: "blob" });
-        const downloadUrl = URL.createObjectURL(outContent);
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = `온리뷰_리포트_${targetYearNum}년.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
-
-      } catch (err) {
-        alert("엑셀 내보내기 오류: " + err.message);
-      }
-    });
-
     window.handleSort = function(colName) {
       if (sortColumn === colName) {
         if (sortAsc) {
@@ -2604,7 +2569,7 @@
         if (isBatchEditing) {
           newBatchRows.forEach((row, idx) => {
             const newRow = document.createElement('tr');
-            newRow.className = 'bg-gray-50/80 border-b border-gray-200 text-xs text-gray-900';
+            newRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
             const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
 
             newRow.innerHTML = `
@@ -2760,7 +2725,7 @@
   <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
-    <!-- 접기/펴기 가능한 반응형 사이드바 -->
+    <!-- 접기/펴기 가능한 반응형 사이드바 (라인형 SVG 아이콘 적용) -->
     <aside id="mainSidebar" class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-all duration-200 relative">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -2776,22 +2741,27 @@
         </div>
 
         <nav class="space-y-1 text-sm font-bold">
+          <!-- 1. 대시보드 -->
           <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
             <span class="sidebar-text-label">대시보드</span>
           </button>
+          <!-- 2. 체험단 등록 -->
           <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span class="sidebar-text-label">체험단 등록</span>
           </button>
+          <!-- 3. 체험단 목록 -->
           <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             <span class="sidebar-text-label">체험단 목록</span>
           </button>
+          <!-- 4. 체험단 정산 -->
           <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span class="sidebar-text-label">체험단 정산</span>
           </button>
+          <!-- 5. 설정 및 공유 -->
           <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
             <span class="sidebar-text-label">설정 및 공유</span>
@@ -2799,6 +2769,7 @@
         </nav>
       </div>
 
+      <!-- 하단 액셀 내보내기 & 로그아웃 위치 보정 (약 20% 위로 고정) -->
       <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-16">
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">
           <span class="sidebar-text-label">내 목록으로 돌아가기</span>
@@ -2982,7 +2953,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -3227,21 +3198,16 @@
 
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (1~3줄 2단 박스 구성) -->
+      <!-- 5. 설정 및 공유 탭 (1줄: 테마 설정 / 정산 색상 설정) -->
       <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
         </div>
 
-        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 테마 설정 -->
+        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 색상 설정 (4가지 모드 드롭다운 버튼 구현) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">테마 설정</h3>
-            <p class="text-xs text-gray-500 font-normal">온리뷰 대시보드의 기본 포인트 테마를 변경합니다.</p>
-          </div>
-
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">정산 테마 설정</h3>
             <div class="grid grid-cols-5 gap-3 text-xs">
               <button onclick="changeTheme('slate')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="슬레이트 블루">
                 <span class="w-6 h-6 rounded-full bg-[#3B6FB6] border border-white shadow-sm"></span>
@@ -3283,6 +3249,18 @@
                 <span class="w-6 h-6 rounded-full bg-[#232830] border border-white shadow-sm"></span>
                 <span class="text-[10px] font-normal text-gray-700">잉크블랙</span>
               </button>
+            </div>
+          </div>
+
+          <!-- 정산 색상 설정 (4가지 스타일 모드 구획) -->
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">정산 색상 설정</h3>
+            <p class="text-xs text-gray-500 font-normal">정산 차트 및 그래픽의 스타일 표현 방식을 선택합니다.</p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button id="btnChartMode_default" onclick="setChartMode('default')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">기본</button>
+              <button id="btnChartMode_light" onclick="setChartMode('light')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">연하게</button>
+              <button id="btnChartMode_outline" onclick="setChartMode('outline')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">윤곽선</button>
+              <button id="btnChartMode_theme" onclick="setChartMode('theme')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">테마</button>
             </div>
           </div>
         </div>
