@@ -162,6 +162,7 @@
     let myCustomCode = "";
     let currentCalDate = new Date();
     let selectedStatus = "신청";
+    let modalSelectedStatus = "신청";
     let editSelectedStatus = "선정";
     let editingId = null;
     let activeColorPickerKey = null;
@@ -574,6 +575,7 @@
       document.getElementById('dayModal')?.classList.add('hidden');
       document.getElementById('editModal')?.classList.add('hidden');
       document.getElementById('colorPickerModal')?.classList.add('hidden');
+      document.getElementById('dashRegisterModal')?.classList.add('hidden');
 
       if (tabName === 'dashboard') {
         currentCalDate = new Date();
@@ -719,6 +721,73 @@
       }
     };
 
+    // 대시보드 내 모달 등록용 상태 버튼
+    window.setModalStatusBtn = function(status) {
+      modalSelectedStatus = status;
+      const statuses = ['신청', '선정', '배송', '원고료'];
+      
+      statuses.forEach(s => {
+        const btn = document.getElementById(`btnModalStatus_${s}`);
+        if (btn) {
+          if (s === status) {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
+          } else {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+          }
+        }
+      });
+
+      const storeLabel = document.getElementById('modalStoreNameLabel');
+      const amountLabel = document.getElementById('modalSponsoredAmountLabel');
+      const rowApplyDate = document.getElementById('modalRowApplyDate');
+      const rowDeadlineDate = document.getElementById('modalRowDeadlineDate');
+      const rowVisit = document.getElementById('modalRowVisit');
+      const rowFinancial = document.getElementById('modalRowFinancial');
+      const rowContact = document.getElementById('modalRowContact');
+      const rowMemo = document.getElementById('modalRowMemo');
+
+      if (status === '신청') {
+        if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+        if (amountLabel) amountLabel.innerText = "제공금액 (원)";
+        rowApplyDate?.classList.remove('hidden');
+        rowDeadlineDate?.classList.add('hidden');
+        rowVisit?.classList.add('hidden');
+        rowFinancial?.classList.add('hidden');
+        rowContact?.classList.add('hidden');
+        rowMemo?.classList.add('hidden');
+      } else {
+        rowApplyDate?.classList.add('hidden');
+        rowDeadlineDate?.classList.remove('hidden');
+        rowContact?.classList.remove('hidden');
+        rowMemo?.classList.remove('hidden');
+
+        if (status === '선정') {
+          if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+          if (amountLabel) amountLabel.innerText = "제공금액 (원)";
+          rowVisit?.classList.remove('hidden');
+          rowFinancial?.classList.remove('hidden');
+
+          if (!document.getElementById('modalVisitTime')?.value) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const vTimeElem = document.getElementById('modalVisitTime');
+            if (vTimeElem) vTimeElem.value = `${hh}:${mm}`;
+          }
+        } else if (status === '배송') {
+          if (storeLabel) storeLabel.innerText = "매장명 (제품명) *";
+          if (amountLabel) amountLabel.innerText = "제공금액 (원)";
+          rowVisit?.classList.add('hidden');
+          rowFinancial?.classList.remove('hidden');
+        } else if (status === '원고료') {
+          if (storeLabel) storeLabel.innerText = "매장명 (업체명) *";
+          if (amountLabel) amountLabel.innerText = "원고료 (원)";
+          rowVisit?.classList.add('hidden');
+          rowFinancial?.classList.add('hidden');
+        }
+      }
+    };
+
     window.setEditStatusBtn = function(status) {
       editSelectedStatus = status;
       const statuses = ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'];
@@ -737,30 +806,41 @@
 
     function renderPlatformChips() {
       const container = document.getElementById('platformChipsContainer');
-      if (!container) return;
-      container.innerHTML = '';
+      const modalContainer = document.getElementById('modalPlatformChipsContainer');
+      
+      const renderChips = (targetElem, isModal = false) => {
+        if (!targetElem) return;
+        targetElem.innerHTML = '';
+        const inputId = isModal ? 'modalPlatformName' : 'platformName';
+        const currentVal = document.getElementById(inputId)?.value || platformList[0];
 
-      const currentVal = document.getElementById('platformName')?.value || platformList[0];
+        platformList.forEach(name => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.innerText = name;
+          if (name === currentVal) {
+            btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors";
+          } else {
+            btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
+          }
+          btn.onclick = () => {
+            const platformElem = document.getElementById(inputId);
+            if (platformElem) platformElem.value = name;
+            renderPlatformChips();
+          };
+          targetElem.appendChild(btn);
+        });
 
-      platformList.forEach(name => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.innerText = name;
-        if (name === currentVal) {
-          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors";
-        } else {
-          btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-        }
-        btn.onclick = () => selectPlatformChip(name);
-        container.appendChild(btn);
-      });
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.innerText = '+ 추가';
+        addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
+        addBtn.onclick = addCustomPlatform;
+        targetElem.appendChild(addBtn);
+      };
 
-      const addBtn = document.createElement('button');
-      addBtn.type = 'button';
-      addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
-      addBtn.onclick = addCustomPlatform;
-      container.appendChild(addBtn);
+      renderChips(container, false);
+      renderChips(modalContainer, true);
     }
 
     window.selectPlatformChip = function(name) {
@@ -810,6 +890,21 @@
       });
     }
 
+    // 대시보드 체험 등록 모달 열기/닫기
+    window.openDashRegisterModal = function() {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
+      document.getElementById('modalCampaignForm')?.reset();
+      setModalStatusBtn('신청');
+      const modalApplyDate = document.getElementById('modalApplyDate');
+      if (modalApplyDate) modalApplyDate.value = new Date().toISOString().slice(0, 10);
+      renderPlatformChips();
+      document.getElementById('dashRegisterModal')?.classList.remove('hidden');
+    };
+
+    window.closeDashRegisterModal = function() {
+      document.getElementById('dashRegisterModal')?.classList.add('hidden');
+    };
+
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginBtn')?.addEventListener('click', async () => {
         try { await signInWithPopup(auth, provider); } 
@@ -836,7 +931,6 @@
         renderDashboardView();
       });
 
-      // 대시보드 오늘 버튼 이벤트 연동
       document.getElementById('todayMonthBtn')?.addEventListener('click', () => {
         currentCalDate = new Date();
         renderDashboardView();
@@ -859,13 +953,15 @@
         document.getElementById('colorPickerModal')?.classList.add('hidden');
       });
 
-      ['sponsoredAmount', 'paidAmount', 'revenue', 'editSponsoredAmount', 'editPaidAmount', 'editRevenue'].forEach(id => {
+      document.getElementById('closeDashRegisterModalBtn')?.addEventListener('click', closeDashRegisterModal);
+
+      ['sponsoredAmount', 'paidAmount', 'revenue', 'editSponsoredAmount', 'editPaidAmount', 'editRevenue', 'modalSponsoredAmount', 'modalPaidAmount', 'modalRevenue'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', (e) => {
           e.target.value = formatCurrencyInput(e.target.value);
         });
       });
 
-      ['contact', 'editContact'].forEach(id => {
+      ['contact', 'editContact', 'modalContact'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', (e) => {
           e.target.value = formatPhoneNumber(e.target.value);
         });
@@ -1168,26 +1264,6 @@
         let cntVisitPlan = 0;  
         let cntSubmitWait = 0; 
         let cntSubmitDone = 0; 
-
-        let cntTotalVisitMonth = 0;
-        let cntTotalDeadlineMonth = 0;
-
-        rawCampaignList.forEach(item => {
-          if (formatCleanDate(item.visitDate).startsWith(monthPrefix)) {
-            cntTotalVisitMonth++;
-          }
-          if (formatCleanDate(item.deadlineDate).startsWith(monthPrefix) && item.status !== '신청') {
-            cntTotalDeadlineMonth++;
-          }
-        });
-
-        const calLegendElem = document.getElementById('calendarLegendStats');
-        if (calLegendElem) {
-          calLegendElem.innerHTML = `
-            <span class="text-emerald-600">🟢 방문 ${cntTotalVisitMonth}건</span>
-            <span class="text-rose-500">🔴 마감 ${cntTotalDeadlineMonth}건</span>
-          `;
-        }
 
         const now = new Date();
 
@@ -1804,6 +1880,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
+    // 캘린더 렌더링: 명확한 '방문 N건', '마감 N건' 직관적 표기
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -1838,10 +1915,10 @@
         const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
         if (visitMatches.length > 0) {
-          html += `<div class="text-[9px] text-emerald-600 font-normal mb-0.5 text-left pl-0.5">🟢 ${visitMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-emerald-600 font-normal mb-0.5 text-left pl-0.5">🟢 방문 ${visitMatches.length}건</div>`;
         }
         if (deadlineMatches.length > 0) {
-          html += `<div class="text-[9px] text-rose-500 font-normal mb-0.5 text-left pl-0.5">🔴 ${deadlineMatches.length}건</div>`;
+          html += `<div class="text-[9px] text-rose-500 font-normal mb-0.5 text-left pl-0.5">🔴 마감 ${deadlineMatches.length}건</div>`;
         }
 
         const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
@@ -2223,6 +2300,39 @@
       }
     });
 
+    // 대시보드 팝업 모달을 통한 체험 등록 핸들러
+    document.getElementById('modalCampaignForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isReadOnly || !currentUser) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
+      
+      const payload = {
+        userId: currentUser.uid,
+        storeName: document.getElementById('modalStoreName')?.value || '',
+        platformName: document.getElementById('modalPlatformName')?.value || '',
+        status: modalSelectedStatus,
+        applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''),
+        deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''),
+        visitTime: document.getElementById('modalVisitTime')?.value || '',
+        companions: document.getElementById('modalCompanions')?.value || '',
+        sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
+        paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value),
+        revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
+        contact: document.getElementById('modalContact')?.value || '',
+        memo: document.getElementById('modalMemo')?.value || '',
+        createdAt: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "campaigns"), payload);
+        alert('성공적으로 등록되었습니다!');
+        closeDashRegisterModal();
+        loadCampaigns();
+      } catch (err) {
+        alert('저장 실패: ' + err.message);
+      }
+    });
+
     window.handleSort = function(colName) {
       if (sortColumn === colName) {
         if (sortAsc) {
@@ -2313,15 +2423,15 @@
         const thead = document.querySelector('#sectionList table thead tr');
         if (thead) {
           thead.innerHTML = `
-            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
-            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
-            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
-            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
-            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
-            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
-            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-normal text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
-            <th class="p-3 font-normal text-xs text-center col-fixed-note">비고</th>
+            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
+            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
+            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
+            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
+            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
+            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
+            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
+            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
+            <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
           `;
         }
 
@@ -2719,14 +2829,15 @@
           <div>
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
-          <!-- 버튼 순서 변경: [이전달] [오늘] [다음달] [+ 체험 등록] -->
+          <!-- 대시보드 우측 상단 버튼 순서: [이전달] [오늘] [다음달] [+ 체험 등록] -->
           <div class="flex items-center gap-2">
             <div class="flex gap-1">
               <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
               <button id="todayMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">오늘</button>
               <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">다음달</button>
             </div>
-            <button id="dashRegisterBtn" onclick="switchTab('form')" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition-colors">
+            <!-- 대시보드 위에서 바로 팝업(모달) 오픈 -->
+            <button id="dashRegisterBtn" onclick="openDashRegisterModal()" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition-colors">
               + 체험 등록
             </button>
           </div>
@@ -2757,15 +2868,8 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
-            <!-- 캘린더 상단 총수치 범례 표시 -->
-            <div class="flex justify-end items-center mb-0.5 shrink-0">
-              <div id="calendarLegendStats" class="flex items-center gap-3 text-[11px] font-normal">
-                <span class="text-emerald-600">🟢 방문 0건</span>
-                <span class="text-rose-500">🔴 마감 0건</span>
-              </div>
-            </div>
             <!-- 요일과 셀 사이 밀착 여백 적용 -->
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden pt-1"></div>
           </div>
 
           <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
@@ -3154,7 +3258,6 @@
       <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
-          <!-- 2개 서브탭 (레이어드) -->
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="settingsSubTabStatus" onclick="switchSettingsSubTab('status')" class="px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">상태별 색상 설정</button>
             <button id="settingsSubTabTheme" onclick="switchSettingsSubTab('theme')" class="px-4 py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">정산 테마 설정</button>
@@ -3295,6 +3398,95 @@
     </div>
   </div>
 
+  <!-- 대시보드 전용 체험 등록 팝업 모달 -->
+  <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-base text-gray-900">체험단 등록</h3>
+        <button id="closeDashRegisterModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+
+      <form id="modalCampaignForm" class="space-y-4 text-sm">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-normal text-gray-900">진행 상태</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnModalStatus_신청" onclick="setModalStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">신청</button>
+            <button type="button" id="btnModalStatus_선정" onclick="setModalStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">선정</button>
+            <button type="button" id="btnModalStatus_배송" onclick="setModalStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">배송</button>
+            <button type="button" id="btnModalStatus_원고료" onclick="setModalStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">원고료</button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-xs font-normal text-gray-900">체험단 사이트</label>
+          <div id="modalPlatformChipsContainer" class="flex flex-wrap gap-1.5"></div>
+          <input type="hidden" id="modalPlatformName" value="개별">
+        </div>
+
+        <div>
+          <label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
+          <input type="text" id="modalStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label>
+            <input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+
+          <div id="modalRowApplyDate">
+            <label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label>
+            <input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal">
+          </div>
+
+          <div id="modalRowDeadlineDate" class="hidden">
+            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
+            <input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
+            <div class="flex gap-1.5">
+              <input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+              <input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
+            <input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div id="modalRowContact" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div id="modalRowMemo" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- 체험 정보 수정 팝업 -->
   <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -3310,7 +3502,7 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
