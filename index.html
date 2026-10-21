@@ -169,6 +169,9 @@
     let deadlineAlertDays = 7;
     let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 
+    // 차트 스타일 모드 설정 ('default' | 'soft' | 'outline' | 'theme')
+    let chartStyleMode = localStorage.getItem('onlyview_chartStyleMode') || 'default';
+
     const presetPalette = [
       '#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A',
       '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706',
@@ -370,17 +373,18 @@
       }
     }
 
+    // 10가지 사이트 테마 및 차트 전용 테마 색상 정의
     const themeColors = {
-      slate:     { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333' },
-      terracotta:{ primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333' },
-      forest:    { primary: '#2E6B4A', hover: '#225238', text: '#2E6B4A', light: '#E1EAE4', bg: '#F4F7F5', sidebarBg: '#E1EAE4', sidebarText: '#333333' },
-      violet:    { primary: '#6D4FC2', hover: '#553BA3', text: '#6D4FC2', light: '#EAE6F6', bg: '#F3F3F4', sidebarBg: '#EAE6F6', sidebarText: '#333333' },
-      graphite:  { primary: '#2B2F36', hover: '#191C21', text: '#2B2F36', light: '#E3E3E5', bg: '#F3F3F4', sidebarBg: '#E3E3E5', sidebarText: '#333333' },
-      brick:     { primary: '#B2382F', hover: '#8E2820', text: '#B2382F', light: '#F3E4E1', bg: '#F9F3F1', sidebarBg: '#F3E4E1', sidebarText: '#333333' },
-      mustard:   { primary: '#9C6A00', hover: '#7A5200', text: '#9C6A00', light: '#F2EBD7', bg: '#FAF6EA', sidebarBg: '#F2EBD7', sidebarText: '#333333' },
-      indigo:    { primary: '#3446A8', hover: '#253488', text: '#3446A8', light: '#E8EBF8', bg: '#F2F4FA', sidebarBg: '#1D2760', sidebarText: '#E6E8EE' },
-      emerald:   { primary: '#0E7C66', hover: '#095E4D', text: '#0E7C66', light: '#DCEDE9', bg: '#EEF7F4', sidebarBg: '#DCEDE9', sidebarText: '#333333' },
-      ink:       { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
+      slate:     { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333', chartHighlight: '#335A90', chartBase: '#658EC6', chartPlan: '#B2C6E2' },
+      terracotta:{ primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333', chartHighlight: '#994A20', chartBase: '#CF7B4F', chartPlan: '#E7BCA5' },
+      forest:    { primary: '#2E6B4A', hover: '#225238', text: '#2E6B4A', light: '#E1EAE4', bg: '#F4F7F5', sidebarBg: '#E1EAE4', sidebarText: '#333333', chartHighlight: '#2A583F', chartBase: '#5B8B71', chartPlan: '#ACC4B7' },
+      violet:    { primary: '#6D4FC2', hover: '#553BA3', text: '#6D4FC2', light: '#EAE6F6', bg: '#F3F3F4', sidebarBg: '#EAE6F6', sidebarText: '#333333', chartHighlight: '#58419A', chartBase: '#8C75CF', chartPlan: '#C6BAE7' },
+      graphite:  { primary: '#2B2F36', hover: '#191C21', text: '#2B2F36', light: '#E3E3E5', bg: '#F3F3F4', sidebarBg: '#E3E3E5', sidebarText: '#333333', chartHighlight: '#272B31', chartBase: '#595C61', chartPlan: '#ACADB0' },
+      brick:     { primary: '#B2382F', hover: '#8E2820', text: '#B2382F', light: '#F3E4E1', bg: '#F9F3F1', sidebarBg: '#F3E4E1', sidebarText: '#333333', chartHighlight: '#8D3029', chartBase: '#C3635B', chartPlan: '#E1B0AC' },
+      mustard:   { primary: '#9C6A00', hover: '#7A5200', text: '#9C6A00', light: '#F2EBD7', bg: '#FAF6EA', sidebarBg: '#F2EBD7', sidebarText: '#333333', chartHighlight: '#7D5705', chartBase: '#B28A36', chartPlan: '#D9C598' },
+      indigo:    { primary: '#3446A8', hover: '#253488', text: '#3446A8', light: '#E8EBF8', bg: '#F2F4FA', sidebarBg: '#1D2760', sidebarText: '#E6E8EE', chartHighlight: '#2C3B89', chartBase: '#606EBB', chartPlan: '#AFB6DD' },
+      emerald:   { primary: '#0E7C66', hover: '#095E4D', text: '#0E7C66', light: '#DCEDE9', bg: '#EEF7F4', sidebarBg: '#DCEDE9', sidebarText: '#333333', chartHighlight: '#0F6554', chartBase: '#429887', chartPlan: '#A0CCC3' },
+      ink:       { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE', chartHighlight: '#20242B', chartBase: '#53575D', chartPlan: '#AAABAF' }
     };
 
     window.changeTheme = function(colorKey) {
@@ -397,10 +401,72 @@
       document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
       
       localStorage.setItem('onlyview_theme', colorKey);
+      if (chartStyleMode === 'theme') {
+        renderSettlementView();
+      }
     };
 
     const savedTheme = localStorage.getItem('onlyview_theme') || 'slate';
     window.changeTheme(savedTheme);
+
+    // 정산 색상 설정 모드 변경 함수 ('default' | 'soft' | 'outline' | 'theme')
+    window.setChartStyleMode = function(mode) {
+      if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
+      chartStyleMode = mode;
+      localStorage.setItem('onlyview_chartStyleMode', mode);
+      updateChartStyleButtons();
+      renderSettlementView();
+    };
+
+    function updateChartStyleButtons() {
+      ['default', 'soft', 'outline', 'theme'].forEach(m => {
+        const btn = document.getElementById(`btnChartMode_${m}`);
+        if (btn) {
+          if (m === chartStyleMode) {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
+          } else {
+            btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+          }
+        }
+      });
+    }
+
+    // 4가지 모드별 차트 팔레트 색상 계산 반환 함수
+    function getChartPalette() {
+      const curThemeKey = localStorage.getItem('onlyview_theme') || 'slate';
+      const curThemeObj = themeColors[curThemeKey] || themeColors.slate;
+
+      if (chartStyleMode === 'soft') {
+        return {
+          highlight: '#2F5FA8',
+          base: '#5C8FD6',
+          plan: '#A9C6EC',
+          isOutline: false
+        };
+      } else if (chartStyleMode === 'outline') {
+        return {
+          highlightBorder: '#3F73C2', highlightFill: '#9DB8E3',
+          baseBorder: '#4F82CC', baseFill: '#C7D7EE',
+          planBorder: '#4F82CC', planFill: '#E3EAF5',
+          isOutline: true
+        };
+      } else if (chartStyleMode === 'theme') {
+        return {
+          highlight: curThemeObj.chartHighlight,
+          base: curThemeObj.chartBase,
+          plan: curThemeObj.chartPlan,
+          isOutline: false
+        };
+      } else {
+        // 기본 모드 (default)
+        return {
+          highlight: '#335A90',
+          base: '#658EC6',
+          plan: '#B2C6E2',
+          isOutline: false
+        };
+      }
+    }
 
     window.toggleSidebar = function() {
       isSidebarCollapsed = !isSidebarCollapsed;
@@ -469,6 +535,31 @@
       monthlyDetailsCollapseState[month] = !monthlyDetailsCollapseState[month];
       localStorage.setItem(`onlyview_monthlyDetailCollapsed_${month}`, monthlyDetailsCollapseState[month]);
       renderSettlementView(); 
+    };
+
+    window.switchSettingsSubTab = function(tabType) {
+      const tabStatus = document.getElementById('settingsSubTabStatus');
+      const tabTheme = document.getElementById('settingsSubTabTheme');
+      const panelStatus = document.getElementById('settingsPanelStatus');
+      const panelTheme = document.getElementById('settingsPanelTheme');
+
+      if (tabType === 'status') {
+        tabStatus?.classList.add('bg-theme', 'text-white');
+        tabStatus?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
+        tabTheme?.classList.remove('bg-theme', 'text-white');
+        tabTheme?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
+
+        panelStatus?.classList.remove('hidden');
+        panelTheme?.classList.add('hidden');
+      } else {
+        tabTheme?.classList.add('bg-theme', 'text-white');
+        tabTheme?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
+        tabStatus?.classList.remove('bg-theme', 'text-white');
+        tabStatus?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
+
+        panelTheme?.classList.remove('hidden');
+        panelStatus?.classList.add('hidden');
+      }
     };
 
     window.switchTab = function(tabName, pushState = true) {
@@ -544,7 +635,9 @@
       }
       else if (tabName === 'settings') {
         document.getElementById('sectionSettings')?.classList.remove('hidden');
+        switchSettingsSubTab('status'); 
         renderStatusColorPickers();
+        updateChartStyleButtons();
       }
     };
 
@@ -1233,6 +1326,7 @@
       }
     }
 
+    // 4가지 정산 색상 스타일 모드가 즉시 연동되는 정산 뷰 렌더링
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1244,6 +1338,8 @@
 
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
+
+        const palette = getChartPalette();
 
         const yearlyAccumulatedLabel = document.getElementById('yearlyAccumulatedLabel');
         if (yearlyAccumulatedLabel) {
@@ -1377,7 +1473,20 @@
           if (yearlyChartInstance) yearlyChartInstance.destroy();
 
           const chartDataValues = totalAmount === 0 ? [1, 0] : [doneAmount, planAmount];
-          const chartColors = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : ['#2563EB', '#CBD5E1'];
+          
+          let doughnutBgColors = [];
+          let doughnutBorderColors = [];
+          let doughnutBorderWidth = 0;
+
+          if (palette.isOutline) {
+            doughnutBgColors = [palette.baseFill, palette.planFill];
+            doughnutBorderColors = [palette.baseBorder, palette.planBorder];
+            doughnutBorderWidth = 2;
+          } else {
+            doughnutBgColors = totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : [palette.base, palette.plan];
+            doughnutBorderColors = doughnutBgColors;
+            doughnutBorderWidth = 0;
+          }
 
           yearlyChartInstance = new Chart(ctxYearly, {
             type: 'doughnut',
@@ -1385,8 +1494,9 @@
               labels: ['정산 완료', '정산 예정'],
               datasets: [{
                 data: chartDataValues,
-                backgroundColor: chartColors,
-                borderWidth: 0,
+                backgroundColor: doughnutBgColors,
+                borderColor: doughnutBorderColors,
+                borderWidth: doughnutBorderWidth,
                 hoverOffset: 2
               }]
             },
@@ -1414,14 +1524,40 @@
 
         const monthlyDataTenThousand = monthlyRevenues.map(v => Number((v / 10000).toFixed(1)));
 
-        const barColors = monthlyRevenues.map((_, idx) => {
+        let barBgColors = [];
+        let barBorderColors = [];
+        let barBorderWidth = 0;
+
+        monthlyRevenues.forEach((_, idx) => {
           const monthNum = idx + 1;
-          if (isCurrentYear) {
-            if (monthNum === actualRealMonth) return '#F4A261'; 
-            if (monthNum < actualRealMonth) return '#2563EB';   
-            return '#CBD5E1';                                  
+          const isMonthHighlight = isCurrentYear && (monthNum === actualRealMonth);
+
+          if (palette.isOutline) {
+            barBorderWidth = 2;
+            if (isMonthHighlight) {
+              barBgColors.push(palette.highlightFill);
+              barBorderColors.push(palette.highlightBorder);
+            } else if (isCurrentYear && monthNum < actualRealMonth) {
+              barBgColors.push(palette.baseFill);
+              barBorderColors.push(palette.baseBorder);
+            } else {
+              barBgColors.push(palette.planFill);
+              barBorderColors.push(palette.planBorder);
+            }
           } else {
-            return '#2563EB'; 
+            barBorderWidth = 0;
+            if (isCurrentYear) {
+              if (monthNum === actualRealMonth) {
+                barBgColors.push(palette.highlight);
+              } else if (monthNum < actualRealMonth) {
+                barBgColors.push(palette.base);
+              } else {
+                barBgColors.push(palette.plan);
+              }
+            } else {
+              barBgColors.push(palette.base);
+            }
+            barBorderColors = barBgColors;
           }
         });
 
@@ -1455,7 +1591,9 @@
               labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
               datasets: [{
                 data: monthlyDataTenThousand,
-                backgroundColor: barColors,
+                backgroundColor: barBgColors,
+                borderColor: barBorderColors,
+                borderWidth: barBorderWidth,
                 borderRadius: 6,
                 borderSkipped: false,
                 barPercentage: 0.6
@@ -1488,7 +1626,7 @@
                   align: 'end',
                   offset: 2,
                   font: { size: 10, weight: 'normal' },
-                  color: (context) => barColors[context.dataIndex],
+                  color: (context) => palette.isOutline ? palette.baseBorder : barBgColors[context.dataIndex],
                   formatter: (value) => {
                     if (!value || value <= 0) return '';
                     return Number.isInteger(value) ? value : value.toFixed(1);
@@ -1530,8 +1668,10 @@
 
         const pointColors = monthlyCounts.map((_, idx) => {
           const monthNum = idx + 1;
-          if (isCurrentYear && monthNum === actualRealMonth) return '#C85A17';
-          return '#3B82F6';
+          if (isCurrentYear && monthNum === actualRealMonth) {
+            return palette.isOutline ? palette.highlightBorder : palette.highlight;
+          }
+          return palette.isOutline ? palette.baseBorder : palette.base;
         });
 
         const ctxMonthlyAnalysis = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
@@ -1544,7 +1684,7 @@
               labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
               datasets: [{
                 data: monthlyCounts,
-                borderColor: '#3B82F6',
+                borderColor: palette.isOutline ? palette.baseBorder : palette.base,
                 borderWidth: 2.5,
                 pointBackgroundColor: pointColors,
                 pointBorderColor: pointColors,
@@ -1620,10 +1760,17 @@
               const itemDiv = document.createElement('div');
               itemDiv.className = "flex items-center justify-between text-xs py-1 px-0.5";
 
+              let barStyle = '';
+              if (palette.isOutline) {
+                barStyle = `background-color: ${palette.baseFill}; border: 1.5px solid ${palette.baseBorder};`;
+              } else {
+                barStyle = `background-color: ${palette.base};`;
+              }
+
               itemDiv.innerHTML = `
                 <span class="font-normal text-gray-800 truncate w-16 shrink-0 text-[11px]">${p.pName}</span>
-                <div class="flex-1 mx-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                  <div class="bg-blue-600 h-full rounded-full transition-colors" style="width: ${barPercent}%"></div>
+                <div class="flex-1 mx-1 bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-colors" style="width: ${barPercent}%; ${barStyle}"></div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 text-right whitespace-nowrap">
                   <span class="text-gray-400 font-normal text-[10px] text-right">${p.doneCount}건</span>
@@ -2764,7 +2911,6 @@
           <div>
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
-          <!-- 대시보드 우측 상단 버튼 순서: [이전달] [오늘] [다음달] [+ 체험 등록] -->
           <div class="flex items-center gap-2">
             <div class="flex gap-1">
               <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
@@ -2802,7 +2948,6 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
-            <!-- 요일과 셀 사이 밀착 여백 적용 -->
             <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
 
@@ -2923,7 +3068,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
+      <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -3168,25 +3313,17 @@
 
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (1~3줄 2단 박스 구성 및 서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용) -->
-      <div id="sectionSettings" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
+      <!-- 5. 설정 및 공유 탭 (1~3줄 2단 박스 구성) -->
+      <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 mb-2 shrink-0">
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
-          <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
-            <button id="settingsSubTabStatus" onclick="switchSettingsSubTab('status')" class="px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">상태별 색상 설정</button>
-            <button id="settingsSubTabTheme" onclick="switchSettingsSubTab('theme')" class="px-4 py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">정산 테마 설정</button>
-          </div>
         </div>
 
-        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 테마 설정 -->
+        <!-- 1줄 (좌/우 2단): 테마 설정 / 정산 색상 설정 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 좌측: 테마 설정 -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">테마 설정</h3>
-            <p class="text-xs text-gray-500 font-normal">온리뷰 대시보드의 기본 포인트 테마를 변경합니다.</p>
-          </div>
-
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">정산 테마 설정</h3>
             <div class="grid grid-cols-5 gap-3 text-xs">
               <button onclick="changeTheme('slate')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition" title="슬레이트 블루">
                 <span class="w-6 h-6 rounded-full bg-[#3B6FB6] border border-white shadow-sm"></span>
@@ -3229,6 +3366,18 @@
                 <span class="text-[10px] font-normal text-gray-700">잉크블랙</span>
               </button>
             </div>
+          </div>
+
+          <!-- 우측: 정산 색상 설정 (4가지 모드 선택) -->
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">정산 색상 설정</h3>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="btnChartMode_default" onclick="setChartStyleMode('default')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">기본</button>
+              <button type="button" id="btnChartMode_soft" onclick="setChartStyleMode('soft')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">연하게</button>
+              <button type="button" id="btnChartMode_outline" onclick="setChartStyleMode('outline')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">윤곽선</button>
+              <button type="button" id="btnChartMode_theme" onclick="setChartStyleMode('theme')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">테마</button>
+            </div>
+            <p class="text-xs text-gray-400 font-normal pt-1">• '테마' 선택 시 좌측에서 지정한 테마 고유 색상이 정산 차트에 연동됩니다.</p>
           </div>
         </div>
 
@@ -3273,234 +3422,4 @@
             <div class="flex items-center gap-2">
               <span class="text-xs text-gray-600 font-normal mr-2">D-Day 범위:</span>
               <button id="btnDeadlineDay_7" onclick="setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">7일 전</button>
-              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">10일 전</button>
-              <button id="btnDeadlineDay_14" onclick="setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">14일 전</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3줄 (좌/우 2단): 공유 코드 관리 / 동반자 내역 조회 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
-            <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
-              <div>
-                <div class="text-xs text-gray-500 font-normal">내 초대 코드</div>
-                <div id="myShareCode" class="text-xl font-mono font-bold text-theme"></div>
-              </div>
-              <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl font-normal hover:bg-gray-50">코드 변경 (4/6자리)</button>
-            </div>
-          </div>
-
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
-            <div class="flex gap-2">
-              <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2.5 rounded-xl text-xs w-full outline-none focus:ring-2 ring-theme font-normal">
-              <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0">조회</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-    </main>
-  </div>
-
-  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3>
-        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
-    </div>
-  </div>
-
-  <!-- 대시보드 전용 체험 등록 팝업 모달 -->
-  <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-base text-gray-900">체험단 등록</h3>
-        <button id="closeDashRegisterModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-
-      <form id="modalCampaignForm" class="space-y-4 text-sm">
-        <div class="space-y-1.5">
-          <label class="block text-xs font-normal text-gray-900">진행 상태</label>
-          <div class="flex flex-wrap gap-1.5">
-            <button type="button" id="btnModalStatus_신청" onclick="setModalStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">신청</button>
-            <button type="button" id="btnModalStatus_선정" onclick="setModalStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">선정</button>
-            <button type="button" id="btnModalStatus_배송" onclick="setModalStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">배송</button>
-            <button type="button" id="btnModalStatus_원고료" onclick="setModalStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">원고료</button>
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label class="block text-xs font-normal text-gray-900">체험단 사이트</label>
-          <div id="modalPlatformChipsContainer" class="flex flex-wrap gap-1.5"></div>
-          <input type="hidden" id="modalPlatformName" value="개별">
-        </div>
-
-        <div>
-          <label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="modalStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label>
-            <input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-
-          <div id="modalRowApplyDate">
-            <label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label>
-            <input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal">
-          </div>
-
-          <div id="modalRowDeadlineDate" class="hidden">
-            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-              <input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div id="modalRowContact" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div id="modalRowMemo" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
-          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 체험 정보 수정 팝업 -->
-  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3>
-        <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-
-      <form id="editForm" class="space-y-4 text-sm">
-        <div class="space-y-1.5">
-          <label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
-          <div class="flex flex-wrap gap-1.5">
-            <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
-            <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
-            <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label>
-          <input type="text" id="editStoreName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label>
-          <input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label>
-            <input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label>
-            <input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label>
-            <div class="flex gap-1.5">
-              <input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
-              <input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none font-normal">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
-            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-          <div>
-            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
-            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
-        </div>
-
-        <div>
-          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
-          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
-        </div>
-
-        <div class="flex gap-2 pt-2 border-t">
-          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 컬러 팔레트 모달 -->
-  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
-        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
-      <p class="text-xs text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
-      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
-    </div>
-  </div>
-
-</body>
-</html>
+              <button id="btnDeadlineDay_10" onclick="setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-3
