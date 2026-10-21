@@ -291,7 +291,6 @@
       return str;
     }
 
-    // [상태확인] 표시 조건 수정: 미제출/제출/완료가 아닌 항목 중 마감일/방문일이 지난 경우만 true
     function isItemOverdue(item) {
       const rawSt = item.status;
       if (rawSt === '제출' || rawSt === '완료' || rawSt === '미제출') return false;
@@ -2316,7 +2315,7 @@
       }
     });
 
-    // 체험단 목록 렌더링 (진행중/완료 분리 및 매장명 옆 🔴 [상태확인] 표시 정확 연동)
+    // 체험단 목록 렌더링 (진행중/완료 조건 및 문자열 템플릿 정상 조립)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -3420,9 +3419,9 @@
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
             <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
