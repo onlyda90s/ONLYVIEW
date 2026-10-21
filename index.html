@@ -444,6 +444,7 @@
       }
     };
 
+    // 정산 서브탭 전환 제어 ('report' vs 'detail' 시각적 회색/하얀색 대조 보정)
     window.setSettlementSubTab = function(type) {
       settlementSubTab = type;
       const btnReport = document.getElementById('settlementSubTabReport');
@@ -453,11 +454,11 @@
 
       if (type === 'report') {
         if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-        if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
         panelReport?.classList.remove('hidden');
         panelDetail?.classList.add('hidden');
       } else {
-        if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
         if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
         panelDetail?.classList.remove('hidden');
         panelReport?.classList.add('hidden');
@@ -479,17 +480,17 @@
 
       if (tabType === 'status') {
         tabStatus?.classList.add('bg-theme', 'text-white');
-        tabStatus?.classList.remove('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+        tabStatus?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
         tabTheme?.classList.remove('bg-theme', 'text-white');
-        tabTheme?.classList.add('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+        tabTheme?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
 
         panelStatus?.classList.remove('hidden');
         panelTheme?.classList.add('hidden');
       } else {
         tabTheme?.classList.add('bg-theme', 'text-white');
-        tabTheme?.classList.remove('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+        tabTheme?.classList.remove('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
         tabStatus?.classList.remove('bg-theme', 'text-white');
-        tabStatus?.classList.add('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+        tabStatus?.classList.add('bg-[#EAECEF]', 'text-gray-700', 'hover:bg-gray-200');
 
         panelTheme?.classList.remove('hidden');
         panelStatus?.classList.add('hidden');
@@ -547,7 +548,7 @@
         const btnSubmitted = document.getElementById('subTabSubmitted');
         if (btnOngoing && btnSubmitted) {
           btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+          btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] text-gray-700 hover:bg-gray-200 transition-colors";
         }
         document.getElementById('searchInput').value = '';
         document.getElementById('filterStatus').value = 'ALL';
@@ -1259,6 +1260,7 @@
       }
     }
 
+    // 정산 뷰 렌더링: 선택 연도에 따라 'YYYY년 누적' 또는 '누적 총 수익' 헤더 우측 동적 배치 연동
     function renderSettlementView() {
       try {
         const yearSelect = document.getElementById('settlementYearSelect');
@@ -1271,9 +1273,10 @@
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
 
+        // 연간 수익 헤더 라인 우측 동적 연도 텍스트 연동 ('연도 전체' ➔ '누적 총 수익' / 특정 연도 ➔ 'YYYY년 누적')
         const yearlyAccumulatedLabel = document.getElementById('yearlyAccumulatedLabel');
         if (yearlyAccumulatedLabel) {
-          yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 누적`;
+          yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : `${targetYear}년 누적`;
         }
 
         let doneCount = 0;
@@ -1668,7 +1671,6 @@
           }
         }
 
-        // 세부 내역 (소계 박스를 정산리포트 '최고 수익 달' 카드 스타일 bg-gray-50/80 및 border-gray-100/60으로 통일)
         const monthlyDetailsGrid = document.getElementById('monthlyDetailsGrid');
         if (monthlyDetailsGrid) {
           monthlyDetailsGrid.innerHTML = '';
@@ -1729,7 +1731,6 @@
               }
               html += `</div>`;
 
-              // 소계 영역 스타일을 정산리포트 최저/최고 카드 규격(bg-gray-50/80 border-gray-100/60)으로 일치시킴
               html += `
                 <div class="mt-2.5 p-2 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
                   <span class="text-[10px] font-normal text-gray-400">소계 <b class="text-gray-900 text-xs font-normal ml-1">${totalMCount}건</b></span>
@@ -2077,9 +2078,9 @@
       
       if (type === 'ongoing') {
         if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
       } else {
-        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors";
+        if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
         if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
       }
       filterAndRender();
@@ -2792,7 +2793,6 @@
           <div>
             <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme">2026년 10월</h2>
           </div>
-          <!-- 대시보드 우측 상단 버튼 순서: [이전달] [오늘] [다음달] [+ 체험 등록] -->
           <div class="flex items-center gap-2">
             <div class="flex gap-1">
               <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
@@ -2830,7 +2830,6 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
           <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
-            <!-- 요일과 셀 사이 밀착 여백 적용 -->
             <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
 
@@ -2951,7 +2950,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (서브탭 비활성화 시 연한 회색 bg-#EAECEF 적용) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         
         <div class="flex items-center justify-between h-10 shrink-0">
@@ -2974,7 +2973,6 @@
             </div>
           </div>
 
-          <!-- 상단 1줄 기본 버튼 그룹: [▼ 필터] / [진행중인 체험] [완료된 체험] / [수정] -->
           <div class="flex items-center gap-2">
             <button id="filterToggleBtn" onclick="toggleFilterArea()" class="px-3.5 py-1.5 rounded-lg font-normal text-xs bg-white border border-gray-200 text-gray-700 shadow-sm transition-colors hover:bg-gray-50">
               ▼ 필터
@@ -2982,7 +2980,7 @@
 
             <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
               <button id="subTabOngoing" onclick="setListSubTab('ongoing')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">진행중인 체험</button>
-              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">완료된 체험</button>
+              <button id="subTabSubmitted" onclick="setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">완료된 체험</button>
             </div>
 
             <button id="saveBatchBtn" onclick="saveAllBatchEdits()" class="hidden px-4 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1">저장</button>
@@ -2990,7 +2988,6 @@
           </div>
         </div>
 
-        <!-- 2. 펼쳤을 때 나오는 검색창 및 연도/월/상태 선택 드롭다운 영역 -->
         <div id="filterBoxContainer" class="hidden items-center justify-end gap-2 shrink-0 flex-wrap pr-1 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
           <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm font-normal">
           
@@ -3046,34 +3043,33 @@
         <div id="campaignCardList" class="block md:hidden space-y-3"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (2단 구조 서브탭 적용) -->
+      <!-- 4. 체험단 정산 탭 (조회연도 텍스트 삭제 및 상단 우측 동적 누적 표기 연동) -->
       <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
         
         <div class="flex items-center justify-between h-10 mb-1 shrink-0">
           <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
           
-          <!-- 정산 2단 서브탭 버튼 그룹: [정산 리포트] / [세부 내역] -->
           <div class="flex items-center gap-3">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs text-gray-500 font-normal">조회 연도:</span>
-              <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
-            </div>
+            <!-- '조회 연도:' 텍스트 완전 삭제 -->
+            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
+            
+            <!-- 서브탭 비활성화 시 연한 회색 bg-[#EAECEF] 적용 -->
             <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
               <button id="settlementSubTabReport" onclick="setSettlementSubTab('report')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">정산 리포트</button>
-              <button id="settlementSubTabDetail" onclick="setSettlementSubTab('detail')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">세부 내역</button>
+              <button id="settlementSubTabDetail" onclick="setSettlementSubTab('detail')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">세부 내역</button>
             </div>
           </div>
         </div>
 
-        <!-- 서브패널 1: 정산 리포트 (연간수익, 월간수익, 플랫폼분석, 월간분석 상시 펴짐 고정) -->
+        <!-- 서브패널 1: 정산 리포트 -->
         <div id="settlementPanelReport" class="space-y-4">
-          <!-- 1줄: 연간 수익 / 월간 수익 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             
-            <!-- 연간 수익 카드 (상시 펴짐, 회색 조회년도 누적 삭제) -->
+            <!-- 연간 수익 카드 (동적 연도 텍스트 상단 우측 전면 배치) -->
             <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">연간 수익</span>
+                <span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">2026년 누적</span>
               </div>
 
               <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative">
@@ -3085,10 +3081,6 @@
                 </div>
 
                 <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
-                  <div class="flex justify-end mb-1">
-                    <span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">2026년 누적</span>
-                  </div>
-
                   <div class="space-y-1 py-1">
                     <div class="flex items-center justify-between font-normal text-gray-800 text-xs">
                       <span class="flex items-center gap-1.5">
@@ -3125,7 +3117,7 @@
               </div>
             </div>
 
-            <!-- 월간 수익 카드 (상시 펴짐) -->
+            <!-- 월간 수익 카드 -->
             <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">월간 수익</span>
@@ -3155,7 +3147,7 @@
           <!-- 2줄: 플랫폼 분석 / 월간 분석 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             
-            <!-- 플랫폼 분석 카드 (상시 펴짐) -->
+            <!-- 플랫폼 분석 카드 -->
             <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
@@ -3170,7 +3162,7 @@
               </div>
             </div>
 
-            <!-- 월간 분석 카드 (상시 펴짐) -->
+            <!-- 월간 분석 카드 -->
             <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[320px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs font-bold text-gray-800">월간 분석</span>
@@ -3198,7 +3190,7 @@
           </div>
         </div>
 
-        <!-- 서브패널 2: 세부 내역 ('월간 세부 내역' 텍스트 삭제 및 소계 카드 스타일 통일) -->
+        <!-- 서브패널 2: 세부 내역 -->
         <div id="settlementPanelDetail" class="hidden space-y-3">
           <div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div>
         </div>
@@ -3211,7 +3203,7 @@
           <h2 class="text-2xl font-black text-theme">설정 및 공유</h2>
           <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
             <button id="settingsSubTabStatus" onclick="switchSettingsSubTab('status')" class="px-4 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">상태별 색상 설정</button>
-            <button id="settingsSubTabTheme" onclick="switchSettingsSubTab('theme')" class="px-4 py-1.5 rounded-lg font-normal text-xs bg-transparent text-gray-600 hover:bg-gray-200 transition-colors">정산 테마 설정</button>
+            <button id="settingsSubTabTheme" onclick="switchSettingsSubTab('theme')" class="px-4 py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">정산 테마 설정</button>
           </div>
         </div>
 
@@ -3455,7 +3447,7 @@
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
             <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
             <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
