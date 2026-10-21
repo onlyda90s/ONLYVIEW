@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>온리뷰 (onlyview) - 대시보드</title>
+  
+  <!-- Pretendard & Noto Sans KR 폰트 CDN -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -27,6 +34,10 @@
       --color-status-submit: #059669;
       --color-status-delivery: #2563EB;
       --color-status-fee: #9333EA;
+    }
+
+    body, input, select, textarea, button {
+      font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
     }
 
     body { background-color: var(--main-bg) !important; transition: background-color 0.3s ease; }
@@ -359,7 +370,6 @@
       }
     }
 
-    // 10가지 신규 테마 컬러 팔레트 정의 (3번 포레스트 그린 사이드바/본문 교정 완료)
     const themeColors = {
       slate:     { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333' },
       terracotta:{ primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333' },
@@ -428,21 +438,18 @@
       const yearlyBody = document.getElementById('yearlyCardBody');
       const yearlyArrow = document.getElementById('yearlyToggleArrow');
       const yearlySummary = document.getElementById('yearlySummaryText');
-      const yearlySubText = document.getElementById('yearlySubText');
 
       if (yearlyBody && yearlyArrow) {
         if (isYearlyCollapsed) {
           yearlyBody.classList.add('hidden');
           yearlyArrow.innerText = '▼';
           if (yearlySummary) yearlySummary.classList.remove('hidden');
-          if (yearlySubText) yearlySubText.classList.add('hidden');
-          if (yearlyCard) yearlyCard.style.height = '52px';
+          if (yearlyCard) yearlyCard.style.height = '48px';
         } else {
           yearlyBody.classList.remove('hidden');
           yearlyArrow.innerText = '▲';
           if (yearlySummary) yearlySummary.classList.add('hidden');
-          if (yearlySubText) yearlySubText.classList.remove('hidden');
-          if (yearlyCard) yearlyCard.style.height = '290px';
+          if (yearlyCard) yearlyCard.style.height = '280px';
         }
       }
 
@@ -458,13 +465,13 @@
           monthlyArrow.innerText = '▼';
           if (monthlySummary) monthlySummary.classList.remove('hidden');
           if (monthlySubText) monthlySubText.classList.add('hidden');
-          if (monthlyCard) monthlyCard.style.height = '52px';
+          if (monthlyCard) monthlyCard.style.height = '48px';
         } else {
           monthlyBody.classList.remove('hidden');
           monthlyArrow.innerText = '▲';
           if (monthlySummary) monthlySummary.classList.add('hidden');
           if (monthlySubText) monthlySubText.classList.remove('hidden');
-          if (monthlyCard) monthlyCard.style.height = '290px';
+          if (monthlyCard) monthlyCard.style.height = '280px';
         }
       }
 
@@ -480,13 +487,13 @@
           maArrow.innerText = '▼';
           if (maSummary) maSummary.classList.remove('hidden');
           if (maSubText) maSubText.classList.add('hidden');
-          if (maCard) maCard.style.height = '52px';
+          if (maCard) maCard.style.height = '48px';
         } else {
           maBody.classList.remove('hidden');
           maArrow.innerText = '▲';
           if (maSummary) maSummary.classList.add('hidden');
           if (maSubText) maSubText.classList.remove('hidden');
-          if (maCard) maCard.style.height = '290px';
+          if (maCard) maCard.style.height = '280px';
         }
       }
 
@@ -502,13 +509,13 @@
           paArrow.innerText = '▼';
           if (paSummary) paSummary.classList.remove('hidden');
           if (paSubText) paSubText.classList.add('hidden');
-          if (paCard) paCard.style.height = '52px';
+          if (paCard) paCard.style.height = '48px';
         } else {
           paBody.classList.remove('hidden');
           paArrow.innerText = '▲';
           if (paSummary) paSummary.classList.add('hidden');
           if (paSubText) paSubText.classList.remove('hidden');
-          if (paCard) paCard.style.height = '290px';
+          if (paCard) paCard.style.height = '280px';
         }
       }
     }
@@ -1179,7 +1186,7 @@
         const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
         const isCurrentYear = (targetYear === actualRealYear);
 
-        // 연간 누적 연도 표기 업데이트
+        // 연간 누적 연도 표기 업데이트 (도넛 차트 오른쪽 상단)
         const yearlyAccumulatedLabel = document.getElementById('yearlyAccumulatedLabel');
         if (yearlyAccumulatedLabel) {
           yearlyAccumulatedLabel.innerText = selectedYearVal === 'ALL' ? '누적 총수익' : `${targetYear}년 누적`;
@@ -1270,7 +1277,6 @@
           totalRevElem.innerText = `${totalAmount.toLocaleString()}원`;
         }
 
-        // 검정색 일반 굵기로 상단 요약문 변경
         const yearlySummaryVal = document.getElementById('yearlySummaryVal');
         if (yearlySummaryVal) {
           yearlySummaryVal.innerText = `${totalAmount.toLocaleString()}원`;
@@ -1611,7 +1617,7 @@
 
             const cardDiv = document.createElement('div');
             cardDiv.id = cardId;
-            cardDiv.className = "bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[52px]";
+            cardDiv.className = "bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[48px]";
 
             let summaryInlineHtml = '';
             if (isCollapsed) {
@@ -1619,7 +1625,7 @@
             }
 
             let html = `
-              <div onclick="toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+              <div onclick="toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
                 <span class="text-xs font-bold text-gray-800">${m}월</span>
                 <div class="flex items-center gap-2">
                   ${summaryInlineHtml}
@@ -1629,7 +1635,7 @@
             `;
 
             if (!isCollapsed) {
-              html += `<div class="flex-1 flex flex-col justify-between min-h-[160px] mt-2.5">`;
+              html += `<div class="flex-1 flex flex-col justify-between min-h-[160px] mt-2">`;
               html += `<div class="flex-1 overflow-y-auto widget-scroll max-h-[160px] my-1 pr-1 space-y-1.5">`;
               
               if (list.length === 0) {
@@ -1656,7 +1662,7 @@
               html += `</div>`;
 
               html += `
-                <div class="mt-2.5 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
+                <div class="mt-2 p-2 bg-theme-light rounded-xl flex justify-between items-center border border-theme/10 shrink-0">
                   <span class="text-[11px] font-bold text-gray-600">소계 <b class="text-theme text-xs font-black ml-1">${totalMCount}건</b></span>
                   <span class="text-[11px] font-bold text-gray-600">실수익 <b class="text-theme text-sm font-black ml-1">${totalMRevenue.toLocaleString()}원</b></span>
                 </div>
@@ -2924,19 +2930,18 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 1줄 1번: 연간 수익 카드 -->
-          <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+          <div id="yearlyCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
+            <div onclick="toggleYearlyCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">연간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="yearlySummaryText" class="hidden text-xs text-gray-900 font-normal">
                   총 <span id="yearlySummaryVal">0원</span>
                 </span>
-                <span id="yearlySubText" class="text-[10px] text-gray-400 font-normal">조회년도 누적</span>
                 <span id="yearlyToggleArrow" class="text-xs text-gray-400 font-bold">▲</span>
               </div>
             </div>
 
-            <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2.5 flex-1 relative">
+            <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative">
               <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
                 <canvas id="yearlyDonutChart"></canvas>
                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
@@ -2945,7 +2950,7 @@
               </div>
 
               <div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2">
-                <!-- 이동 위치: 도넛 차트 오른쪽 상단 누적 표기 -->
+                <!-- 도넛 차트 오른쪽 상단 [조회년도]년 누적 표기 -->
                 <div class="flex justify-end mb-1">
                   <span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">2026년 누적</span>
                 </div>
@@ -2987,8 +2992,8 @@
           </div>
 
           <!-- 1줄 2번: 월간 수익 카드 -->
-          <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+          <div id="monthlyCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
+            <div onclick="toggleMonthlyCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 수익</span>
               <div class="flex items-center gap-2">
                 <span id="monthlySummaryText" class="hidden text-xs text-gray-900 font-normal">
@@ -2999,7 +3004,7 @@
               </div>
             </div>
 
-            <div id="monthlyCardBody" class="space-y-3 mt-2.5 h-[225px] flex-none">
+            <div id="monthlyCardBody" class="space-y-3 mt-2 h-[225px] flex-none">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyBarChart"></canvas>
               </div>
@@ -3023,8 +3028,8 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
           
           <!-- 2줄 1번: 플랫폼 분석 카드 -->
-          <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors">
-            <div onclick="togglePlatformAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+          <div id="platformAnalysisCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden transition-colors">
+            <div onclick="togglePlatformAnalysisCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">플랫폼 분석</span>
               <div class="flex items-center gap-2">
                 <span id="platformAnalysisSummaryText" class="hidden text-xs text-gray-900 font-normal">
@@ -3035,7 +3040,7 @@
               </div>
             </div>
 
-            <div id="platformAnalysisCardBody" class="mt-2.5">
+            <div id="platformAnalysisCardBody" class="mt-2">
               <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 max-h-48 overflow-y-auto widget-scroll pr-1">
                 <div id="platformColLeft" class="space-y-1.5"></div>
                 <div id="platformColRight" class="space-y-1.5"></div>
@@ -3044,8 +3049,8 @@
           </div>
 
           <!-- 2줄 2번: 월간 분석 카드 -->
-          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
-            <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[43px] border-b border-gray-100 cursor-pointer select-none">
+          <div id="monthlyAnalysisCardContainer" class="bg-white pt-2 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors">
+            <div onclick="toggleMonthlyAnalysisCard()" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
               <span class="text-xs font-bold text-gray-800">월간 분석</span>
               <div class="flex items-center gap-2">
                 <span id="monthlyAnalysisSummaryText" class="hidden text-xs text-gray-900 font-normal">
@@ -3056,7 +3061,7 @@
               </div>
             </div>
 
-            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2.5 h-[225px] flex-none">
+            <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2 h-[225px] flex-none">
               <div class="relative h-40 w-full">
                 <canvas id="monthlyAnalysisLineChart"></canvas>
               </div>
@@ -3105,7 +3110,6 @@
             </div>
           </div>
 
-          <!-- 10가지 신규 테마 선택 팔레트 칩 구현 (제목 아래 문구 정리) -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
             <h3 class="font-bold text-gray-800 text-base">테마 색상 설정</h3>
             <div class="grid grid-cols-5 gap-3 text-xs">
