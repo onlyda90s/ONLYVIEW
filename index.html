@@ -1243,10 +1243,13 @@
       renderSettlementView();
     }
 
+    // 대시보드 뷰 렌더링 (제출 완료: 선택된 이번 달 완료 건수만 집계)
     function renderDashboardView() {
       try {
         const year = currentCalDate.getFullYear();
         const month = currentCalDate.getMonth() + 1;
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+        
         const titleElem = document.getElementById('dashMonthTitle');
         if (titleElem) titleElem.innerText = `${year}년 ${month}월`;
 
@@ -1263,8 +1266,12 @@
           const st = getEffectiveStatus(item);
           const overdue = isItemOverdue(item);
 
+          // 제출 완료 항목: '이번 달' 제출/완료 건수만 카운트
           if (st === '제출' || st === '완료') {
-            cntSubmitDone++;
+            const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+            if (refDate && refDate.startsWith(monthPrefix)) {
+              cntSubmitDone++;
+            }
             return;
           }
 
@@ -1821,27 +1828,28 @@
       }
     }
 
-    // 모달 타이틀 연/월 제거 및 카운터 조건 100% 동일 표출
+    // 모달 클릭 시 100% 동일 조건 표출 (제출 완료: 선택월 완료건 표출)
     window.openCounterListModal = function(counterType, titleName) {
+      const year = currentCalDate.getFullYear();
+      const month = currentCalDate.getMonth() + 1;
+      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+
       const now = new Date();
       now.setHours(0, 0, 0, 0);
 
       let matchedItems = [];
 
       if (counterType === 'select') {
-        // 현재 진행 중인 체험단 전체
         matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
           return st !== '제출' && st !== '완료';
         });
       } else if (counterType === 'visitWait') {
-        // 예약 대기 목록
         matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
           return (st === '선정' || st === '방문') && !c.visitDate;
         });
       } else if (counterType === 'visitPlan') {
-        // 방문 예정 목록
         matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
           if ((st !== '선정' && st !== '방문') || !c.visitDate) return false;
@@ -1852,21 +1860,21 @@
           return vDateObj >= now;
         });
       } else if (counterType === 'submitWait') {
-        // 미제출 목록
         matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
           if (st === '제출' || st === '완료') return false;
           return isItemOverdue(c) || st === '미제출';
         });
       } else if (counterType === 'submitDone') {
-        // 제출 완료 목록
+        // 이번 달 제출 완료 건만 동일하게 표출
         matchedItems = rawCampaignList.filter(c => {
           const st = getEffectiveStatus(c);
-          return st === '제출' || st === '완료';
+          if (st !== '제출' && st !== '완료') return false;
+          const refDate = formatCleanDate(c.visitDate || c.deadlineDate || c.applyDate || '');
+          return refDate && refDate.startsWith(monthPrefix);
         });
       }
 
-      // 모달 타이틀에서 연/월 제거 후 지정 양식 표출
       const modalTitleElem = document.getElementById('modalDateTitle');
       if (modalTitleElem) {
         modalTitleElem.innerText = `[${titleName}] 목록 (${matchedItems.length}건)`;
@@ -2326,7 +2334,7 @@
       }
     });
 
-    // 백틱 Template Literal 조립 오류 수정 및 정산/진행중 분리 렌더링
+    // 안전한 문자열 연결 방식으로 innerHTML 조립 (템플릿 파싱 에러 방지)
     function filterAndRender() {
       try {
         const tableBody = document.getElementById('campaignTableBody');
@@ -2397,17 +2405,16 @@
 
         const thead = document.querySelector('#sectionList table thead tr');
         if (thead) {
-          thead.innerHTML = `
-            <th onclick="handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ${getSortIndicator('storeName')}</th>
-            <th onclick="handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ${getSortIndicator('status')}</th>
-            <th onclick="handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ${getSortIndicator('platformName')}</th>
-            <th onclick="handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ${getSortIndicator('visitDate')}</th>
-            <th onclick="handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ${getSortIndicator('deadlineDate')}</th>
-            <th onclick="handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ${getSortIndicator('sponsoredAmount')}</th>
-            <th onclick="handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ${getSortIndicator('paidAmount')}</th>
-            <th onclick="handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ${getSortIndicator('revenue')}</th>
-            <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
-          `;
+          thead.innerHTML = ''
+            + '<th onclick="handleSort(\'storeName\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 ' + getSortIndicator('storeName') + '</th>'
+            + '<th onclick="handleSort(\'status\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 ' + getSortIndicator('status') + '</th>'
+            + '<th onclick="handleSort(\'platformName\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 ' + getSortIndicator('platformName') + '</th>'
+            + '<th onclick="handleSort(\'visitDate\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 ' + getSortIndicator('visitDate') + '</th>'
+            + '<th onclick="handleSort(\'deadlineDate\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 ' + getSortIndicator('deadlineDate') + '</th>'
+            + '<th onclick="handleSort(\'sponsoredAmount\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 ' + getSortIndicator('sponsoredAmount') + '</th>'
+            + '<th onclick="handleSort(\'paidAmount\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 ' + getSortIndicator('paidAmount') + '</th>'
+            + '<th onclick="handleSort(\'revenue\')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 ' + getSortIndicator('revenue') + '</th>'
+            + '<th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>';
         }
 
         if (tableBody) tableBody.innerHTML = '';
@@ -3429,10 +3436,10 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
-            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</option>
           </div>
         </div>
 
