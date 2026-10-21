@@ -1905,7 +1905,7 @@
       document.getElementById('dayModal')?.classList.remove('hidden');
     };
 
-    // 캘린더 렌더링: 요일 상단 여백 축소 및 굵은 요일 표기 + 건수 굵게 2pt 확대한 구별 표기
+    // 캘린더 렌더링: 요일 상단 여백 보정 + 굵은 요일 표기 + 건수 굵게 2pt 확대한 구별 표기
     function renderCalendar(year, month) {
       const calGrid = document.getElementById('calendarGrid');
       if (!calGrid) return;
@@ -2805,7 +2805,7 @@
   <!-- 로그인 후 대시보드 -->
   <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
     
-    <!-- 접기/펴기 가능한 반응형 사이드바 -->
+    <!-- 접기/펴기 가능한 반응형 사이드바 (라인형 SVG 아이콘 적용) -->
     <aside id="mainSidebar" class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-all duration-200 relative">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -2821,24 +2821,29 @@
         </div>
 
         <nav class="space-y-1 text-sm font-bold">
-          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
-            <span class="text-base shrink-0">📊</span>
+          <!-- 1. 대시보드 (라인 SVG) -->
+          <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
             <span class="sidebar-text-label">대시보드</span>
           </button>
-          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            <span class="text-base shrink-0">➕</span>
+          <!-- 2. 체험단 등록 (라인 SVG) -->
+          <button id="nav-form" onclick="switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span class="sidebar-text-label">체험단 등록</span>
           </button>
-          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            <span class="text-base shrink-0">📋</span>
+          <!-- 3. 체험단 목록 (라인 SVG) -->
+          <button id="nav-list" onclick="switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             <span class="sidebar-text-label">체험단 목록</span>
           </button>
-          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            <span class="text-base shrink-0">📈</span>
+          <!-- 4. 체험단 정산 (라인 SVG) -->
+          <button id="nav-settlement" onclick="switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span class="sidebar-text-label">체험단 정산</span>
           </button>
-          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
-            <span class="text-base shrink-0">⚙️</span>
+          <!-- 5. 설정 및 공유 (라인 SVG) -->
+          <button id="nav-settings" onclick="switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
             <span class="sidebar-text-label">설정 및 공유</span>
           </button>
         </nav>
@@ -2849,8 +2854,8 @@
         <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm">
           <span class="sidebar-text-label">내 목록으로 돌아가기</span>
         </button>
-        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1">
-          <span>📥</span>
+        <button id="downloadExcelBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           <span class="sidebar-text-label">엑셀 내보내기</span>
         </button>
         <button id="logoutBtn" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center">
@@ -3543,9 +3548,9 @@
             <button type="button" id="btnEditStatus_신청" onclick="setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">신청</button>
             <button type="button" id="btnEditStatus_선정" onclick="setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
             <button type="button" id="btnEditStatus_방문" onclick="setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">방문</button>
-            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</option>
-            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</option>
-            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</option>
+            <button type="button" id="btnEditStatus_미제출" onclick="setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
             <button type="button" id="btnEditStatus_원고료" onclick="setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
           </div>
         </div>
@@ -3581,4 +3586,49 @@
           </div>
           <div>
             <label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label>
-            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline
+            <input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label>
+            <input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+          <div>
+            <label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label>
+            <input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal">
+        </div>
+
+        <div>
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 컬러 팔레트 모달 -->
+  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3>
+        <button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+      <p class="text-xs text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
+      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
+    </div>
+  </div>
+
+</body>
+</html>
