@@ -34,7 +34,6 @@ function resetAutoLogoutTimer() {
 ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetAutoLogoutTimer));
 resetAutoLogoutTimer();
 
-// 전역 상태 변수
 let currentUser = null;
 let targetUserId = null;
 let isReadOnly = false;
@@ -106,7 +105,6 @@ const themeColors = {
   ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
 };
 
-// 유틸 함수
 function formatCleanDate(dateVal) {
   if (!dateVal) return "";
   let str = String(dateVal).trim().replace(/[/.]/g, '-');
@@ -116,13 +114,9 @@ function formatCleanDate(dateVal) {
     let year = parts[0].replace(/[^0-9]/g, '');
     let month = parts[1].replace(/[^0-9]/g, '').padStart(2, '0');
     let day = parts[2].replace(/[^0-9]/g, '').padStart(2, '0');
-
     if (year.length === 2) year = "20" + year;
     else if (year.length > 4) year = year.slice(0, 4);
-
-    if (year.length === 4 && month && day) {
-      return year + "-" + month + "-" + day;
-    }
+    if (year.length === 4 && month && day) return year + "-" + month + "-" + day;
   }
   return str;
 }
@@ -243,8 +237,8 @@ function updateChartModeButtonsUI() {
   ['default', 'light', 'outline', 'theme'].forEach(m => {
     const btn = document.getElementById("btnChartMode_" + m);
     if (btn) {
-      if (m === currentChartMode) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
-      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+      if (m === currentChartMode) btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-[11px] transition-colors shadow-sm";
+      else btn.className = "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-[11px] hover:border-gray-300 transition-colors";
     }
   });
 }
@@ -265,11 +259,11 @@ function applySidebarUI() {
   const toggleBtn = document.getElementById('sidebarToggleBtn');
   const textElems = document.querySelectorAll('.sidebar-text-label');
   if (isSidebarCollapsed) {
-    sidebar?.classList.remove('md:w-64'); sidebar?.classList.add('md:w-20');
+    sidebar?.classList.remove('lg:w-64'); sidebar?.classList.add('lg:w-20');
     if (toggleBtn) toggleBtn.innerText = '▶';
     textElems.forEach(el => el.classList.add('hidden'));
   } else {
-    sidebar?.classList.remove('md:w-20'); sidebar?.classList.add('md:w-64');
+    sidebar?.classList.remove('lg:w-20'); sidebar?.classList.add('lg:w-64');
     if (toggleBtn) toggleBtn.innerText = '◀';
     textElems.forEach(el => el.classList.remove('hidden'));
   }
@@ -289,13 +283,13 @@ function updateShareSettlementUI() {
   const circle = document.getElementById('toggleShareSettlementCircle');
 
   if (isSettlementShared) {
-    if (label) { label.innerText = "공개"; label.className = "text-xs font-bold text-theme"; }
-    if (btn) { btn.className = "w-11 h-6 bg-theme rounded-full p-1 transition-colors relative flex items-center"; }
-    if (circle) { circle.className = "w-4 h-4 bg-white rounded-full transition-transform transform translate-x-5 shadow-sm"; }
+    if (label) { label.innerText = "공개"; label.className = "text-[11px] md:text-xs font-bold text-theme"; }
+    if (btn) { btn.className = "w-10 md:w-11 h-5 md:h-6 bg-theme rounded-full p-1 transition-colors relative flex items-center"; }
+    if (circle) { circle.className = "w-3.5 h-3.5 md:w-4 md:h-4 bg-white rounded-full transition-transform transform translate-x-5 shadow-sm"; }
   } else {
-    if (label) { label.innerText = "비공개"; label.className = "text-xs font-bold text-gray-500"; }
-    if (btn) { btn.className = "w-11 h-6 bg-gray-300 rounded-full p-1 transition-colors relative flex items-center"; }
-    if (circle) { circle.className = "w-4 h-4 bg-white rounded-full transition-transform transform translate-x-0 shadow-sm"; }
+    if (label) { label.innerText = "비공개"; label.className = "text-[11px] md:text-xs font-bold text-gray-500"; }
+    if (btn) { btn.className = "w-10 md:w-11 h-5 md:h-6 bg-gray-300 rounded-full p-1 transition-colors relative flex items-center"; }
+    if (circle) { circle.className = "w-3.5 h-3.5 md:w-4 md:h-4 bg-white rounded-full transition-transform transform translate-x-0 shadow-sm"; }
   }
 }
 
@@ -334,22 +328,15 @@ async function loadTargetUserSettings(uid) {
         updateDeadlineButtons();
       }
     }
-  } catch (err) {
-    console.error("대상 사용자 설정 동기화 실패:", err);
-  }
+  } catch (err) { console.error("설정 동기화 실패:", err); }
 }
 
-// ======================== 전역 바인딩 함수 ========================
 window.loginWithGoogle = async function() {
   try {
-    if (!auth || !provider) return alert("Firebase 초기화 중입니다. 잠시 후 다시 시도해 주세요.");
+    if (!auth || !provider) return alert("Firebase 초기화 중입니다. 잠시 후 시도해 주세요.");
     await signInWithPopup(auth, provider);
   } catch (err) {
-    if (err.code === 'auth/unauthorized-domain') {
-      alert("Firebase 승인 도메인에 현재 사이트 주소가 없습니다.\nFirebase 콘솔 > Authentication > Settings > Authorized domains에서 현재 주소를 추가해 주세요.");
-    } else if (err.code !== 'auth/popup-closed-by-user') {
-      alert("로그인 오류: " + err.message);
-    }
+    if (err.code !== 'auth/popup-closed-by-user') alert("로그인 오류: " + err.message);
   }
 };
 
@@ -370,7 +357,7 @@ window.toggleShareSettlement = async function() {
       if (myCustomCode) {
         await setDoc(doc(db, "userCodes", myCustomCode), { shareSettlement: isSettlementShared }, { merge: true });
       }
-    } catch(e) { console.error("공개 범위 설정 저장 실패:", e); }
+    } catch(e) {}
   }
 };
 
@@ -399,7 +386,7 @@ window.enterWithInviteCode = async function() {
     updateFormVisibility();
     await loadCampaigns();
     window.switchTab('dashboard', false);
-  } catch (err) { alert("초대 코드 조회 실패: " + err.message); }
+  } catch (err) { alert("코드 조회 실패: " + err.message); }
 };
 
 window.updateCustomStatusColor = async function(key, val) {
@@ -417,7 +404,7 @@ window.updateCustomStatusColor = async function(key, val) {
 };
 
 window.openColorPickerModal = function(key, label) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   activeColorPickerKey = key;
   const titleElem = document.getElementById('colorModalTitle');
   if (titleElem) titleElem.innerText = label + " 상태 글자 색상 선택";
@@ -428,7 +415,7 @@ window.openColorPickerModal = function(key, label) {
     presetPalette.forEach(hex => {
       const isSelected = currentColor.toLowerCase() === hex.toLowerCase();
       const btn = document.createElement('button'); btn.type = 'button';
-      btn.className = "w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center " + (isSelected ? "border-gray-900 ring-2 ring-gray-400 scale-110" : "border-white");
+      btn.className = "w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center " + (isSelected ? "border-gray-900 ring-2 ring-gray-400 scale-110" : "border-white");
       btn.style.backgroundColor = hex;
       if (isSelected) btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
       btn.onclick = () => window.updateCustomStatusColor(key, hex);
@@ -482,12 +469,12 @@ window.setSettlementSubTab = function(type) {
   const panelReport = document.getElementById('settlementPanelReport');
   const panelDetail = document.getElementById('settlementPanelDetail');
   if (type === 'report') {
-    if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-    if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
+    if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-bold text-[10px] md:text-xs bg-theme text-white shadow-sm transition-colors";
+    if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-normal text-[10px] md:text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
     panelReport?.classList.remove('hidden'); panelDetail?.classList.add('hidden');
   } else {
-    if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
-    if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+    if (btnReport) btnReport.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-normal text-[10px] md:text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
+    if (btnDetail) btnDetail.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-bold text-[10px] md:text-xs bg-theme text-white shadow-sm transition-colors";
     panelDetail?.classList.remove('hidden'); panelReport?.classList.add('hidden');
   }
   window.renderSettlementView();
@@ -510,9 +497,22 @@ window.switchTab = function(tabName, pushState = true) {
   }
 
   ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
+  
+  // 데스크톱 사이드바 탭 전환
   document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
   const activeBtn = document.getElementById("nav-" + tabName);
   if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
+  
+  // 모바일 하단 탭바 전환
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.classList.remove('text-theme');
+    btn.classList.add('text-gray-400');
+  });
+  const activeBottomBtn = document.getElementById("bottom-nav-" + tabName);
+  if (activeBottomBtn) {
+    activeBottomBtn.classList.remove('text-gray-400');
+    activeBottomBtn.classList.add('text-theme');
+  }
   
   if (pushState && window.location.hash !== "#" + tabName) {
     history.pushState({ tab: tabName }, '', "#" + tabName);
@@ -564,8 +564,8 @@ window.setStatusBtn = function(status) {
   ['신청', '선정', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById("btnStatus_" + s);
     if (btn) {
-      if (s === status) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
-      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+      if (s === status) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-[11px] transition-colors shadow-sm";
+      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-[11px] hover:border-gray-300 transition-colors";
     }
   });
   const storeLabel = document.getElementById('storeNameLabel'); const amountLabel = document.getElementById('sponsoredAmountLabel');
@@ -596,8 +596,8 @@ window.setModalStatusBtn = function(status) {
   ['신청', '선정', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById("btnModalStatus_" + s);
     if (btn) {
-      if (s === status) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs";
-      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
+      if (s === status) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-[11px]";
+      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-[11px]";
     }
   });
   const rowApplyDate = document.getElementById('modalRowApplyDate'); const rowDeadlineDate = document.getElementById('modalRowDeadlineDate');
@@ -623,8 +623,8 @@ window.setEditStatusBtn = function(status) {
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById("btnEditStatus_" + s);
     if (btn) {
-      if (s === status) btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs";
-      else btn.className = "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
+      if (s === status) btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-[11px]";
+      else btn.className = "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-[11px]";
     }
   });
 };
@@ -636,7 +636,7 @@ window.selectPlatformChip = function(name) {
 };
 
 window.addCustomPlatform = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 플랫폼을 추가할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   const newSite = prompt("추가할 사이트명을 입력하세요:");
   if (!newSite || !newSite.trim()) return;
   const trimmed = newSite.trim();
@@ -655,13 +655,13 @@ function renderPlatformChips() {
     const currentVal = document.getElementById(inputId)?.value || platformList[0];
     platformList.forEach(name => {
       const btn = document.createElement('button'); btn.type = 'button'; btn.innerText = name;
-      if (name === currentVal) btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors";
-      else btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
+      if (name === currentVal) btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-[11px] transition-colors";
+      else btn.className = "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-[11px] hover:border-gray-300 transition-colors";
       btn.onclick = () => { const platformElem = document.getElementById(inputId); if (platformElem) platformElem.value = name; renderPlatformChips(); };
       targetElem.appendChild(btn);
     });
     const addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.innerText = '+ 추가';
-    addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
+    addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-[11px] hover:bg-gray-100 transition-colors";
     addBtn.onclick = window.addCustomPlatform;
     targetElem.appendChild(addBtn);
   };
@@ -669,7 +669,7 @@ function renderPlatformChips() {
 }
 
 window.setDeadlineDays = async function(days) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   deadlineAlertDays = Number(days);
   localStorage.setItem('onlyview_deadlineAlertDays', deadlineAlertDays.toString());
   window.renderDashboardView(); 
@@ -683,14 +683,14 @@ function updateDeadlineButtons() {
   [7, 10, 14].forEach(d => {
     const btn = document.getElementById("btnDeadlineDay_" + d);
     if (btn) {
-      if (d === deadlineAlertDays) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
-      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
+      if (d === deadlineAlertDays) btn.className = "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-[11px] transition-colors shadow-sm";
+      else btn.className = "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-[11px] hover:border-gray-300 transition-colors";
     }
   });
 }
 
 window.openDashRegisterModal = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   document.getElementById('modalCampaignForm')?.reset();
   window.setModalStatusBtn('신청');
   const modalApplyDate = document.getElementById('modalApplyDate');
@@ -712,17 +712,17 @@ window.setListSubTab = function(type) {
   listSubTab = type;
   const btnOngoing = document.getElementById('subTabOngoing'); const btnSubmitted = document.getElementById('subTabSubmitted');
   if (type === 'ongoing') {
-    if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
-    if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
+    if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-bold text-[10px] md:text-[11px] bg-theme text-white shadow-sm transition-colors";
+    if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-normal text-[10px] md:text-[11px] bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
   } else {
-    if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
-    if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors";
+    if (btnOngoing) btnOngoing.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-normal text-[10px] md:text-[11px] bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors";
+    if (btnSubmitted) btnSubmitted.className = "tab-fixed-btn py-1.5 px-2 md:px-3 rounded-lg font-bold text-[10px] md:text-[11px] bg-theme text-white shadow-sm transition-colors";
   }
   window.filterAndRender();
 };
 
 window.toggleBatchEdit = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   isBatchEditing = !isBatchEditing; newBatchRows = []; window.filterAndRender();
 };
 window.addNewBatchRow = function() { newBatchRows.push({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
@@ -775,7 +775,7 @@ window.saveAllBatchEdits = async function() {
 };
 
 window.quickUpdateStatus = async function(id, newStatus) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   try {
     await updateDoc(doc(db, "campaigns", id), { status: newStatus });
     const item = rawCampaignList.find(c => c.id === id);
@@ -785,13 +785,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
 };
 
 window.deleteCampaign = async function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
 window.openEditModalFromId = function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
@@ -811,462 +811,183 @@ window.openEditModalFromId = function(id) {
   document.getElementById('editModal')?.classList.remove('hidden');
 };
 
-// ======================== [방법 B] ExcelJS 자동 디자인 엑셀 생성 ========================
 window.downloadExcel = async function() {
-  if (!rawCampaignList || rawCampaignList.length === 0) {
-    return alert("내보낼 체험단 데이터가 없습니다.");
-  }
-  if (typeof ExcelJS === 'undefined') {
-    return alert("엑셀 라이브러리를 로드 중입니다. 잠시 후 다시 시도해 주세요.");
-  }
+  if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
+  if (typeof ExcelJS === 'undefined') return alert("엑셀 로딩 중입니다.");
 
   try {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'ONLYVIEW';
     workbook.created = new Date();
 
-    const COLOR_PRIMARY = 'FF3B6FB6';       // 슬레이트 블루 (헤더 메인)
-    const COLOR_LIGHT = 'FFE5EBF4';         // 슬레이트 연한 배경
-    const COLOR_TEXT_DARK = 'FF1F2937';     // 짙은 텍스트
-    const COLOR_WHITE = 'FFFFFFFF';         // 흰색
-    const COLOR_BORDER = 'FFD1D5DB';        // 연한 테두리
+    const COLOR_PRIMARY = 'FF3B6FB6';
+    const COLOR_LIGHT = 'FFE5EBF4';
+    const COLOR_TEXT_DARK = 'FF1F2937';
+    const COLOR_WHITE = 'FFFFFFFF';
+    const COLOR_BORDER = 'FFD1D5DB';
 
-    const borderStyle = {
-      top: { style: 'thin', color: { argb: COLOR_BORDER } },
-      left: { style: 'thin', color: { argb: COLOR_BORDER } },
-      bottom: { style: 'thin', color: { argb: COLOR_BORDER } },
-      right: { style: 'thin', color: { argb: COLOR_BORDER } }
-    };
+    const borderStyle = { top: { style: 'thin', color: { argb: COLOR_BORDER } }, left: { style: 'thin', color: { argb: COLOR_BORDER } }, bottom: { style: 'thin', color: { argb: COLOR_BORDER } }, right: { style: 'thin', color: { argb: COLOR_BORDER } } };
 
     // 1. 대시보드 시트
     const dashSheet = workbook.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
-
     dashSheet.mergeCells('B2:H2');
     const titleCell = dashSheet.getCell('B2');
     titleCell.value = '온리뷰 (ONLYVIEW) 체험단 정산 & 일정 종합 리포트';
     titleCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
-
     const todayStr = new Date().toLocaleDateString('ko-KR');
     dashSheet.getCell('B3').value = `기준일시: ${todayStr} | 기본 슬레이트 정산 규격`;
     dashSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } };
 
-    let totalCount = rawCampaignList.length;
-    let completedCount = 0;
-    let totalSponsored = 0;
-    let totalPaid = 0;
-    let totalRevenue = 0;
+    let totalCount = rawCampaignList.length; let completedCount = 0; let totalSponsored = 0; let totalPaid = 0; let totalRevenue = 0;
     const monthlySummary = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, total: 0, done: 0, revenue: 0 }));
     const platformMap = {};
-
     rawCampaignList.forEach(item => {
-      const effSt = getEffectiveStatus(item);
-      const isDone = (effSt === '제출' || effSt === '완료');
-      const sp = Number(item.sponsoredAmount || 0);
-      const pd = Number(item.paidAmount || 0);
-      const inputRev = Number(item.revenue || 0);
+      const effSt = getEffectiveStatus(item); const isDone = (effSt === '제출' || effSt === '완료');
+      const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const inputRev = Number(item.revenue || 0);
       const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
-
       if (isDone) {
-        completedCount++;
-        totalSponsored += sp;
-        totalPaid += pd;
-        totalRevenue += calcRev;
-
+        completedCount++; totalSponsored += sp; totalPaid += pd; totalRevenue += calcRev;
         const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-        if (refDate && refDate.length >= 7) {
-          const m = parseInt(refDate.slice(5, 7));
-          if (m >= 1 && m <= 12) {
-            monthlySummary[m - 1].done++;
-            monthlySummary[m - 1].revenue += calcRev;
-          }
-        }
-
-        const pName = item.platformName || '개별';
-        platformMap[pName] = (platformMap[pName] || 0) + calcRev;
+        if (refDate && refDate.length >= 7) { const m = parseInt(refDate.slice(5, 7)); if (m >= 1 && m <= 12) { monthlySummary[m - 1].done++; monthlySummary[m - 1].revenue += calcRev; } }
+        const pName = item.platformName || '개별'; platformMap[pName] = (platformMap[pName] || 0) + calcRev;
       }
     });
 
-    const kpiCards = [
-      { col1: 'B', col2: 'B', title: '총 진행 건수', val: `${totalCount}건` },
-      { col1: 'C', col2: 'D', title: '제출 완료 (정산완료)', val: `${completedCount}건` },
-      { col1: 'E', col2: 'F', title: '총 제공금액', val: `${totalSponsored.toLocaleString()}원` },
-      { col1: 'G', col2: 'G', title: '총 결제금액', val: `${totalPaid.toLocaleString()}원` },
-      { col1: 'H', col2: 'I', title: '순 실수익 (누적)', val: `${totalRevenue.toLocaleString()}원`, isHighlight: true }
-    ];
-
+    const kpiCards = [ { col1: 'B', col2: 'B', title: '총 진행 건수', val: `${totalCount}건` }, { col1: 'C', col2: 'D', title: '제출 완료 (정산완료)', val: `${completedCount}건` }, { col1: 'E', col2: 'F', title: '총 제공금액', val: `${totalSponsored.toLocaleString()}원` }, { col1: 'G', col2: 'G', title: '총 결제금액', val: `${totalPaid.toLocaleString()}원` }, { col1: 'H', col2: 'I', title: '순 실수익 (누적)', val: `${totalRevenue.toLocaleString()}원`, isHighlight: true } ];
     kpiCards.forEach(c => {
-      dashSheet.mergeCells(`${c.col1}5:${c.col2}5`);
-      dashSheet.mergeCells(`${c.col1}6:${c.col2}6`);
-      const hCell = dashSheet.getCell(`${c.col1}5`);
-      const vCell = dashSheet.getCell(`${c.col1}6`);
-
-      hCell.value = c.title;
-      hCell.font = { name: '맑은 고딕', size: 9, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : 'FF4B5563' } };
-      hCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF3F4F6' } };
-
-      vCell.value = c.val;
-      vCell.font = { name: '맑은 고딕', size: 12, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : COLOR_TEXT_DARK } };
-      vCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF9FAFB' } };
-
+      dashSheet.mergeCells(`${c.col1}5:${c.col2}5`); dashSheet.mergeCells(`${c.col1}6:${c.col2}6`);
+      const hCell = dashSheet.getCell(`${c.col1}5`); const vCell = dashSheet.getCell(`${c.col1}6`);
+      hCell.value = c.title; hCell.font = { name: '맑은 고딕', size: 9, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : 'FF4B5563' } }; hCell.alignment = { horizontal: 'center', vertical: 'middle' }; hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF3F4F6' } };
+      vCell.value = c.val; vCell.font = { name: '맑은 고딕', size: 12, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : COLOR_TEXT_DARK } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF9FAFB' } };
       [hCell, vCell].forEach(cell => cell.border = borderStyle);
     });
 
-    dashSheet.getCell('B8').value = '1. 월별 정산 및 완료 실적 요약';
-    dashSheet.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
-
+    dashSheet.getCell('B8').value = '1. 월별 정산 및 완료 실적 요약'; dashSheet.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
     const monthHeaders = ['월', '완료 건수', '실수익'];
     ['B', 'C', 'D'].forEach((col, idx) => {
-      const cell = dashSheet.getCell(`${col}9`);
-      cell.value = monthHeaders[idx];
-      cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
-      cell.border = borderStyle;
+      const cell = dashSheet.getCell(`${col}9`); cell.value = monthHeaders[idx]; cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } }; cell.alignment = { horizontal: 'center', vertical: 'middle' }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; cell.border = borderStyle;
     });
-
     monthlySummary.forEach((m, idx) => {
-      const rowIdx = 10 + idx;
-      const cMonth = dashSheet.getCell(`B${rowIdx}`);
-      const cDone = dashSheet.getCell(`C${rowIdx}`);
-      const cRev = dashSheet.getCell(`D${rowIdx}`);
-
-      cMonth.value = `${m.month}월`;
-      cMonth.alignment = { horizontal: 'center' };
-      cDone.value = m.done;
-      cDone.numFmt = '#,##0"건"';
-      cDone.alignment = { horizontal: 'center' };
-      cRev.value = m.revenue;
-      cRev.numFmt = '#,##0"원"';
-      cRev.alignment = { horizontal: 'right' };
-
-      [cMonth, cDone, cRev].forEach(c => {
-        c.font = { name: '맑은 고딕', size: 10 };
-        c.border = borderStyle;
-      });
+      const rowIdx = 10 + idx; const cMonth = dashSheet.getCell(`B${rowIdx}`); const cDone = dashSheet.getCell(`C${rowIdx}`); const cRev = dashSheet.getCell(`D${rowIdx}`);
+      cMonth.value = `${m.month}월`; cMonth.alignment = { horizontal: 'center' }; cDone.value = m.done; cDone.numFmt = '#,##0"건"'; cDone.alignment = { horizontal: 'center' }; cRev.value = m.revenue; cRev.numFmt = '#,##0"원"'; cRev.alignment = { horizontal: 'right' };
+      [cMonth, cDone, cRev].forEach(c => { c.font = { name: '맑은 고딕', size: 10 }; c.border = borderStyle; });
     });
+    const sumRowIdx = 22; dashSheet.getCell(`B${sumRowIdx}`).value = '소계'; dashSheet.getCell(`B${sumRowIdx}`).alignment = { horizontal: 'center' }; dashSheet.getCell(`C${sumRowIdx}`).value = { formula: `SUM(C10:C21)` }; dashSheet.getCell(`C${sumRowIdx}`).numFmt = '#,##0"건"'; dashSheet.getCell(`C${sumRowIdx}`).alignment = { horizontal: 'center' }; dashSheet.getCell(`D${sumRowIdx}`).value = { formula: `SUM(D10:D21)` }; dashSheet.getCell(`D${sumRowIdx}`).numFmt = '#,##0"원"'; dashSheet.getCell(`D${sumRowIdx}`).alignment = { horizontal: 'right' };
+    ['B', 'C', 'D'].forEach(col => { const c = dashSheet.getCell(`${col}${sumRowIdx}`); c.font = { name: '맑은 고딕', size: 10, bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; c.border = { top: { style: 'thin' }, bottom: { style: 'double' } }; });
 
-    const sumRowIdx = 22;
-    dashSheet.getCell(`B${sumRowIdx}`).value = '소계';
-    dashSheet.getCell(`B${sumRowIdx}`).alignment = { horizontal: 'center' };
-    dashSheet.getCell(`C${sumRowIdx}`).value = { formula: `SUM(C10:C21)` };
-    dashSheet.getCell(`C${sumRowIdx}`).numFmt = '#,##0"건"';
-    dashSheet.getCell(`C${sumRowIdx}`).alignment = { horizontal: 'center' };
-    dashSheet.getCell(`D${sumRowIdx}`).value = { formula: `SUM(D10:D21)` };
-    dashSheet.getCell(`D${sumRowIdx}`).numFmt = '#,##0"원"';
-    dashSheet.getCell(`D${sumRowIdx}`).alignment = { horizontal: 'right' };
-
-    ['B', 'C', 'D'].forEach(col => {
-      const c = dashSheet.getCell(`${col}${sumRowIdx}`);
-      c.font = { name: '맑은 고딕', size: 10, bold: true };
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-      c.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
-    });
-
-    dashSheet.getCell('F8').value = '2. 주요 플랫폼별 수익 랭킹';
-    dashSheet.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
-
+    dashSheet.getCell('F8').value = '2. 주요 플랫폼별 수익 랭킹'; dashSheet.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
     const pHeaders = ['플랫폼명', '총 정산 수익'];
     ['F', 'G'].forEach((col, idx) => {
-      const cell = dashSheet.getCell(`${col}9`);
-      cell.value = pHeaders[idx];
-      cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
-      cell.border = borderStyle;
+      const cell = dashSheet.getCell(`${col}9`); cell.value = pHeaders[idx]; cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } }; cell.alignment = { horizontal: 'center', vertical: 'middle' }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; cell.border = borderStyle;
     });
-
     const sortedPlatforms = Object.entries(platformMap).sort((a, b) => b[1] - a[1]);
     sortedPlatforms.forEach(([name, rev], idx) => {
-      const rIdx = 10 + idx;
-      const cName = dashSheet.getCell(`F${rIdx}`);
-      const cRev = dashSheet.getCell(`G${rIdx}`);
-
-      cName.value = name;
-      cName.alignment = { horizontal: 'center' };
-      cRev.value = rev;
-      cRev.numFmt = '#,##0"원"';
-      cRev.alignment = { horizontal: 'right' };
-
-      [cName, cRev].forEach(c => {
-        c.font = { name: '맑은 고딕', size: 10 };
-        c.border = borderStyle;
-      });
+      const rIdx = 10 + idx; const cName = dashSheet.getCell(`F${rIdx}`); const cRev = dashSheet.getCell(`G${rIdx}`);
+      cName.value = name; cName.alignment = { horizontal: 'center' }; cRev.value = rev; cRev.numFmt = '#,##0"원"'; cRev.alignment = { horizontal: 'right' };
+      [cName, cRev].forEach(c => { c.font = { name: '맑은 고딕', size: 10 }; c.border = borderStyle; });
     });
+    dashSheet.columns = [ { width: 3 }, { width: 12 }, { width: 14 }, { width: 16 }, { width: 4 }, { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 } ];
 
-    dashSheet.columns = [
-      { width: 3 }, { width: 12 }, { width: 14 }, { width: 16 }, { width: 4 },
-      { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }
-    ];
-
-    // 2. 정산 세부 내역 (1월 ~ 12월) 시트
+    // 2. 세부 내역 시트
     const detailSheet = workbook.addWorksheet('정산 세부 내역', { views: [{ showGridLines: true }] });
-
     detailSheet.mergeCells('B2:H2');
-    const dTitle = detailSheet.getCell('B2');
-    dTitle.value = '월별 정산 세부 내역 (1월 ~ 12월)';
-    dTitle.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
-    dTitle.alignment = { vertical: 'middle', horizontal: 'left' };
-    detailSheet.getRow(2).height = 24;
-
-    detailSheet.getCell('B3').value = `* 완료된(제출) 체험단의 월별 세부 정산 내역입니다.`;
-    detailSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } };
-    detailSheet.getRow(3).height = 18;
+    const dTitle = detailSheet.getCell('B2'); dTitle.value = '월별 정산 세부 내역 (1월 ~ 12월)'; dTitle.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } }; dTitle.alignment = { vertical: 'middle', horizontal: 'left' }; detailSheet.getRow(2).height = 24;
+    detailSheet.getCell('B3').value = `* 완료된(제출) 체험단의 월별 세부 정산 내역입니다.`; detailSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } }; detailSheet.getRow(3).height = 18;
 
     let dRowIdx = 5;
-
     for (let m = 1; m <= 12; m++) {
       const mItems = rawCampaignList.filter(item => {
-        const effSt = getEffectiveStatus(item);
-        if (effSt !== '제출' && effSt !== '완료') return false;
+        const effSt = getEffectiveStatus(item); if (effSt !== '제출' && effSt !== '완료') return false;
         const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-        if (!refDate || refDate.length < 7) return false;
-        return parseInt(refDate.slice(5, 7)) === m;
+        if (!refDate || refDate.length < 7) return false; return parseInt(refDate.slice(5, 7)) === m;
       }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
 
-      const mCount = mItems.length;
-      let mTotalRev = 0;
-      mItems.forEach(item => {
-        const sp = Number(item.sponsoredAmount || 0);
-        const pd = Number(item.paidAmount || 0);
-        const rev = Number(item.revenue || 0);
-        mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
-      });
+      const mCount = mItems.length; let mTotalRev = 0;
+      mItems.forEach(item => { const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const rev = Number(item.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); });
 
       detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
       const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
-      mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
-      mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } };
-      mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-      mHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-      mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
-      detailSheet.getRow(dRowIdx).height = 24;
-      dRowIdx++;
+      mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`; mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } }; mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; mHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } }; detailSheet.getRow(dRowIdx).height = 24; dRowIdx++;
 
       const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
       mCols.forEach((colName, cIdx) => {
-        const colLetter = String.fromCharCode(66 + cIdx);
-        const c = detailSheet.getCell(`${colLetter}${dRowIdx}`);
-        c.value = colName;
-        c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-        c.alignment = { vertical: 'middle', horizontal: 'center' };
-        c.border = borderStyle;
+        const colLetter = String.fromCharCode(66 + cIdx); const c = detailSheet.getCell(`${colLetter}${dRowIdx}`);
+        c.value = colName; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
       });
-      detailSheet.getRow(dRowIdx).height = 20;
-      dRowIdx++;
+      detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
 
       if (mCount === 0) {
         detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
-        const emptyCell = detailSheet.getCell(`B${dRowIdx}`);
-        emptyCell.value = '해당 월에 완료된 정산 내역이 없습니다.';
-        emptyCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } };
-        emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        emptyCell.border = borderStyle;
-        detailSheet.getRow(dRowIdx).height = 20;
-        dRowIdx++;
+        const emptyCell = detailSheet.getCell(`B${dRowIdx}`); emptyCell.value = '해당 월에 완료된 정산 내역이 없습니다.'; emptyCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; emptyCell.alignment = { vertical: 'middle', horizontal: 'center' }; emptyCell.border = borderStyle; detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
       } else {
         const startItemRow = dRowIdx;
         mItems.forEach(item => {
-          const sp = Number(item.sponsoredAmount || 0);
-          const pd = Number(item.paidAmount || 0);
-          const inputRev = Number(item.revenue || 0);
+          const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const inputRev = Number(item.revenue || 0);
           const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
-
-          const r = detailSheet.getRow(dRowIdx);
-          r.height = 19;
-          r.getCell(2).value = item.storeName || '';
-          r.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
-
-          r.getCell(3).value = item.platformName || '개별';
-          r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
-
-          r.getCell(4).value = formatCleanDate(item.visitDate) || '-';
-          r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
-
-          r.getCell(5).value = formatCleanDate(item.deadlineDate) || '-';
-          r.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
-
-          r.getCell(6).value = sp;
-          r.getCell(6).numFmt = '#,##0"원"';
-          r.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-
-          r.getCell(7).value = pd;
-          r.getCell(7).numFmt = '#,##0"원"';
-          r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
-
-          r.getCell(8).value = calcRev;
-          r.getCell(8).numFmt = '#,##0"원"';
-          r.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
-
-          for (let c = 2; c <= 8; c++) {
-            r.getCell(c).font = { name: '맑은 고딕', size: 9.5 };
-            r.getCell(c).border = borderStyle;
-          }
+          const r = detailSheet.getRow(dRowIdx); r.height = 19;
+          r.getCell(2).value = item.storeName || ''; r.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
+          r.getCell(3).value = item.platformName || '개별'; r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(4).value = formatCleanDate(item.visitDate) || '-'; r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(5).value = formatCleanDate(item.deadlineDate) || '-'; r.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(6).value = sp; r.getCell(6).numFmt = '#,##0"원"'; r.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+          r.getCell(7).value = pd; r.getCell(7).numFmt = '#,##0"원"'; r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+          r.getCell(8).value = calcRev; r.getCell(8).numFmt = '#,##0"원"'; r.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+          for (let c = 2; c <= 8; c++) { r.getCell(c).font = { name: '맑은 고딕', size: 9.5 }; r.getCell(c).border = borderStyle; }
           dRowIdx++;
         });
-
-        const subTotalRow = detailSheet.getRow(dRowIdx);
-        subTotalRow.height = 21;
-        detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
-        subTotalRow.getCell(2).value = `${m}월 소계`;
-        subTotalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-
-        subTotalRow.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 1})` };
-        subTotalRow.getCell(6).numFmt = '#,##0"원"';
-        subTotalRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-
-        subTotalRow.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 1})` };
-        subTotalRow.getCell(7).numFmt = '#,##0"원"';
-        subTotalRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
-
-        subTotalRow.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 1})` };
-        subTotalRow.getCell(8).numFmt = '#,##0"원"';
-        subTotalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
-
-        for (let c = 2; c <= 8; c++) {
-          subTotalRow.getCell(c).font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF1F2937' } };
-          subTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-          subTotalRow.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'thin' } };
-        }
+        const subTotalRow = detailSheet.getRow(dRowIdx); subTotalRow.height = 21; detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
+        subTotalRow.getCell(2).value = `${m}월 소계`; subTotalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+        subTotalRow.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 1})` }; subTotalRow.getCell(6).numFmt = '#,##0"원"'; subTotalRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+        subTotalRow.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 1})` }; subTotalRow.getCell(7).numFmt = '#,##0"원"'; subTotalRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+        subTotalRow.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 1})` }; subTotalRow.getCell(8).numFmt = '#,##0"원"'; subTotalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+        for (let c = 2; c <= 8; c++) { subTotalRow.getCell(c).font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF1F2937' } }; subTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; subTotalRow.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'thin' } }; }
         dRowIdx++;
       }
-
       dRowIdx++;
     }
+    detailSheet.columns = [ { width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 } ];
 
-    detailSheet.columns = [
-      { width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 }
-    ];
-
-    // 목록 시트 생성 공통 헬퍼
     const buildCampaignSheet = (sheetName, items) => {
       const sheet = workbook.addWorksheet(sheetName, { views: [{ showGridLines: true }] });
-
-      const headers = [
-        { header: '매장명 (업체명)', key: 'storeName', width: 24, align: 'left' },
-        { header: '진행 상태', key: 'status', width: 12, align: 'center' },
-        { header: '사이트', key: 'platformName', width: 14, align: 'center' },
-        { header: '방문예정일', key: 'visitDate', width: 14, align: 'center' },
-        { header: '포스팅마감일', key: 'deadlineDate', width: 14, align: 'center' },
-        { header: '제공금액', key: 'sponsoredAmount', width: 15, align: 'right' },
-        { header: '결제금액', key: 'paidAmount', width: 15, align: 'right' },
-        { header: '실수익', key: 'revenue', width: 16, align: 'right' },
-        { header: '비고 / 메모', key: 'memo', width: 26, align: 'left' }
-      ];
-
-      sheet.getRow(1).height = 12;
-      const headerRow = sheet.getRow(2);
-      headerRow.height = 26;
-
-      headers.forEach((h, idx) => {
-        const cell = headerRow.getCell(idx + 1);
-        cell.value = h.header;
-        cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = borderStyle;
-      });
-
+      const headers = [ { header: '매장명 (업체명)', key: 'storeName', width: 24, align: 'left' }, { header: '진행 상태', key: 'status', width: 12, align: 'center' }, { header: '사이트', key: 'platformName', width: 14, align: 'center' }, { header: '방문예정일', key: 'visitDate', width: 14, align: 'center' }, { header: '포스팅마감일', key: 'deadlineDate', width: 14, align: 'center' }, { header: '제공금액', key: 'sponsoredAmount', width: 15, align: 'right' }, { header: '결제금액', key: 'paidAmount', width: 15, align: 'right' }, { header: '실수익', key: 'revenue', width: 16, align: 'right' }, { header: '비고 / 메모', key: 'memo', width: 26, align: 'left' } ];
+      sheet.getRow(1).height = 12; const headerRow = sheet.getRow(2); headerRow.height = 26;
+      headers.forEach((h, idx) => { const cell = headerRow.getCell(idx + 1); cell.value = h.header; cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; cell.border = borderStyle; });
       let currentRowIdx = 3;
       items.forEach(item => {
-        const row = sheet.getRow(currentRowIdx);
-        row.height = 20;
-
-        const effSt = getEffectiveStatus(item);
-        const sp = Number(item.sponsoredAmount || 0);
-        const pd = Number(item.paidAmount || 0);
-        const inputRev = Number(item.revenue || 0);
-        const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
-
-        row.getCell(1).value = item.storeName || '';
-        row.getCell(2).value = displayStatusName(effSt);
-        row.getCell(3).value = item.platformName || '개별';
-        row.getCell(4).value = formatCleanDate(item.visitDate) || '-';
-        row.getCell(5).value = formatCleanDate(item.deadlineDate) || '-';
-        row.getCell(6).value = sp;
-        row.getCell(7).value = pd;
-        row.getCell(8).value = calcRev;
-        row.getCell(9).value = item.memo || '';
-
-        headers.forEach((h, idx) => {
-          const cell = row.getCell(idx + 1);
-          cell.font = { name: '맑은 고딕', size: 9.5 };
-          cell.alignment = { vertical: 'middle', horizontal: h.align };
-          cell.border = borderStyle;
-
-          if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) {
-            cell.numFmt = '#,##0"원"';
-          }
-        });
-
+        const row = sheet.getRow(currentRowIdx); row.height = 20;
+        const effSt = getEffectiveStatus(item); const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const inputRev = Number(item.revenue || 0); const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
+        row.getCell(1).value = item.storeName || ''; row.getCell(2).value = displayStatusName(effSt); row.getCell(3).value = item.platformName || '개별'; row.getCell(4).value = formatCleanDate(item.visitDate) || '-'; row.getCell(5).value = formatCleanDate(item.deadlineDate) || '-'; row.getCell(6).value = sp; row.getCell(7).value = pd; row.getCell(8).value = calcRev; row.getCell(9).value = item.memo || '';
+        headers.forEach((h, idx) => { const cell = row.getCell(idx + 1); cell.font = { name: '맑은 고딕', size: 9.5 }; cell.alignment = { vertical: 'middle', horizontal: h.align }; cell.border = borderStyle; if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) { cell.numFmt = '#,##0"원"'; } });
         currentRowIdx++;
       });
-
       if (items.length > 0) {
-        const totalRow = sheet.getRow(currentRowIdx);
-        totalRow.height = 24;
-
-        totalRow.getCell(1).value = '합계';
-        totalRow.getCell(6).value = { formula: `SUM(F3:F${currentRowIdx - 1})` };
-        totalRow.getCell(7).value = { formula: `SUM(G3:G${currentRowIdx - 1})` };
-        totalRow.getCell(8).value = { formula: `SUM(H3:H${currentRowIdx - 1})` };
-
-        headers.forEach((h, idx) => {
-          const cell = totalRow.getCell(idx + 1);
-          cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_TEXT_DARK } };
-          cell.alignment = { vertical: 'middle', horizontal: h.align };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-          cell.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
-
-          if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) {
-            cell.numFmt = '#,##0"원"';
-          }
-        });
+        const totalRow = sheet.getRow(currentRowIdx); totalRow.height = 24;
+        totalRow.getCell(1).value = '합계'; totalRow.getCell(6).value = { formula: `SUM(F3:F${currentRowIdx - 1})` }; totalRow.getCell(7).value = { formula: `SUM(G3:G${currentRowIdx - 1})` }; totalRow.getCell(8).value = { formula: `SUM(H3:H${currentRowIdx - 1})` };
+        headers.forEach((h, idx) => { const cell = totalRow.getCell(idx + 1); cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_TEXT_DARK } }; cell.alignment = { vertical: 'middle', horizontal: h.align }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; cell.border = { top: { style: 'thin' }, bottom: { style: 'double' } }; if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) { cell.numFmt = '#,##0"원"'; } });
       }
-
       sheet.columns = headers.map(h => ({ width: h.width }));
     };
 
-    // 3. 진행중 체험단 시트
-    const ongoingItems = rawCampaignList.filter(item => {
-      const st = getEffectiveStatus(item);
-      return st !== '제출' && st !== '완료';
-    });
+    // 3 & 4 시트 생성
+    const ongoingItems = rawCampaignList.filter(item => { const st = getEffectiveStatus(item); return st !== '제출' && st !== '완료'; });
     buildCampaignSheet('진행중 체험단', ongoingItems);
-
-    // 4. 완료 체험단 시트
-    const completedItems = rawCampaignList.filter(item => {
-      const st = getEffectiveStatus(item);
-      return st === '제출' || st === '완료';
-    });
+    const completedItems = rawCampaignList.filter(item => { const st = getEffectiveStatus(item); return st === '제출' || st === '완료'; });
     buildCampaignSheet('완료 체험단', completedItems);
 
-    // 다운로드 실행
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const a = document.createElement('a'); a.href = url;
     const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     a.download = `온리뷰_체험단_정산_리포트_${yyyymmdd}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-  } catch (err) {
-    console.error("엑셀 다운로드 오류:", err);
-    alert("엑셀 다운로드 중 오류가 발생했습니다: " + err.message);
-  }
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
+  } catch (err) { alert("엑셀 다운로드 중 오류가 발생했습니다: " + err.message); }
 };
 
 // ======================== 화면 렌더링 ========================
 window.filterAndRender = function() {
   const tableBody = document.getElementById('campaignTableBody');
-  const cardList = document.getElementById('campaignCardList');
   const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
   const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
   const filterYear = document.getElementById('filterYear')?.value || 'ALL';
@@ -1276,12 +997,12 @@ window.filterAndRender = function() {
 
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
-      batchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-rose-500 text-white shadow-sm transition-colors mr-1";
+      batchBtn.className = "px-3 md:px-4 py-1.5 rounded-lg font-bold text-[11px] md:text-xs bg-rose-500 text-white shadow-sm transition-colors mr-1";
       batchBtn.innerText = "취소";
-      saveBatchBtn.className = "px-4 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1";
+      saveBatchBtn.className = "px-3 md:px-4 py-1.5 rounded-lg font-bold text-[11px] md:text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1";
       saveBatchBtn.classList.remove('hidden');
     } else {
-      batchBtn.className = "tab-fixed-btn text-center py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1";
+      batchBtn.className = "tab-fixed-btn py-1.5 px-3 rounded-lg font-bold text-[11px] md:text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1";
       batchBtn.innerText = "수정";
       saveBatchBtn.classList.add('hidden');
     }
@@ -1319,7 +1040,6 @@ window.filterAndRender = function() {
   }
 
   if (tableBody) tableBody.innerHTML = '';
-  if (cardList) cardList.innerHTML = '';
 
   filteredList.forEach((item) => {
     const effSt = getEffectiveStatus(item);
@@ -1331,73 +1051,66 @@ window.filterAndRender = function() {
     let calcRevenue = paid === 0 ? (sponsored > 0 ? sponsored : inputRev) : ((sponsored - paid) + inputRev);
 
     let revDisplayHtml = '<span class="font-normal ' + (isCompleted ? 'text-gray-900' : 'text-gray-400') + '">' + formatRevenueDisplay(calcRevenue) + (isCompleted ? '' : ' (예상)') + '</span>';
-    const overdueBadgeHtml = overdue ? '<span class="text-rose-500 font-bold text-[11px] ml-1.5 shrink-0">[상태확인]</span>' : '';
+    const overdueBadgeHtml = overdue ? '<span class="text-rose-500 font-bold text-[10px] md:text-[11px] ml-1.5 shrink-0">[상태확인]</span>' : '';
 
     if (isBatchEditing) {
       const cleanVisitDate = formatCleanDate(item.visitDate);
       const cleanDeadlineDate = formatCleanDate(item.deadlineDate);
       const row = document.createElement('tr');
-      row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
-      row.innerHTML = '<td class="p-2 text-left"><div class="flex items-center"><input type="text" id="batch_store_' + item.id + '" value="' + (item.storeName || '') + '" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal">' + overdueBadgeHtml + '</div></td>'
-        + '<td class="p-2 text-center col-fixed-status"><select id="batch_status_' + item.id + '" onchange="this.style.color = window.getStatusColor(this.value);" style="color: ' + window.getStatusColor(item.status) + '; font-weight: 600;" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white text-center focus:border-theme">'
-        + '<option value="신청" ' + (item.status === '신청' ? 'selected' : '') + '>신청</option><option value="선정" ' + (item.status === '선정' ? 'selected' : '') + '>선정</option><option value="방문" ' + (item.status === '방문' ? 'selected' : '') + '>방문</option><option value="미제출" ' + (item.status === '미제출' ? 'selected' : '') + '>미제출</option><option value="제출" ' + (item.status === '제출' ? 'selected' : '') + '>제출</option><option value="배송" ' + (item.status === '배송' ? 'selected' : '') + '>배송</option><option value="원고료" ' + (item.status === '원고료' ? 'selected' : '') + '>원고료</option></select></td>'
-        + '<td class="p-2 text-center col-fixed-platform"><input type="text" id="batch_platform_' + item.id + '" value="' + (item.platformName || '') + '" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center"></td>'
-        + '<td class="p-2 text-center col-fixed-visit"><div class="flex items-center gap-1 justify-center"><input type="date" min="2000-01-01" max="2099-12-31" id="batch_visitDate_' + item.id + '" value="' + cleanVisitDate + '" class="border p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-28"><button type="button" onclick="window.openEditModalFromId(\'' + item.id + '\')" class="p-1 text-gray-500 hover:text-theme transition-colors" title="시간/세부 정보 수정">🕒</button></div><input type="hidden" id="batch_visitTime_' + item.id + '" value="' + (item.visitTime || '') + '"></td>'
-        + '<td class="p-2 text-center col-fixed-deadline"><input type="date" min="2000-01-01" max="2099-12-31" id="batch_deadlineDate_' + item.id + '" value="' + cleanDeadlineDate + '" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal"></td>'
-        + '<td class="p-2 text-center col-fixed-sponsored"><input type="text" id="batch_sponsored_' + item.id + '" value="' + formatCurrencyInput(item.sponsoredAmount || 0) + '" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center"></td>'
-        + '<td class="p-2 text-center col-fixed-paid"><input type="text" id="batch_paid_' + item.id + '" value="' + formatCurrencyInput(item.paidAmount || 0) + '" class="w-full border p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center"></td>'
-        + '<td class="p-2 text-center font-normal text-gray-700 col-fixed-revenue">' + formatRevenueDisplay(calcRevenue) + '</td>'
-        + '<td class="p-2 text-center col-fixed-note"><button onclick="window.deleteCampaign(\'' + item.id + '\')" class="text-xs bg-rose-500 text-white hover:bg-rose-600 px-2 py-1 rounded-lg font-bold shadow-sm">삭제</button></td>';
+      row.className = 'bg-amber-50/60 border-b border-amber-200 text-[11px] text-gray-900';
+      row.innerHTML = '<td class="py-1 px-2.5 text-left"><div class="flex items-center"><input type="text" id="batch_store_' + item.id + '" value="' + (item.storeName || '') + '" class="w-full border p-1 rounded-lg outline-none text-[11px] bg-white font-normal">' + overdueBadgeHtml + '</div></td>'
+        + '<td class="py-1 px-1 text-center"><select id="batch_status_' + item.id + '" onchange="this.style.color = window.getStatusColor(this.value);" style="color: ' + window.getStatusColor(item.status) + '; font-weight: 600;" class="select-center w-full border border-gray-300 py-1 px-0.5 rounded-lg outline-none text-[11px] bg-white text-center focus:border-theme"><option value="신청" ' + (item.status === '신청' ? 'selected' : '') + '>신청</option><option value="선정" ' + (item.status === '선정' ? 'selected' : '') + '>선정</option><option value="방문" ' + (item.status === '방문' ? 'selected' : '') + '>방문</option><option value="미제출" ' + (item.status === '미제출' ? 'selected' : '') + '>미제출</option><option value="제출" ' + (item.status === '제출' ? 'selected' : '') + '>제출</option><option value="배송" ' + (item.status === '배송' ? 'selected' : '') + '>배송</option><option value="원고료" ' + (item.status === '원고료' ? 'selected' : '') + '>원고료</option></select></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="batch_platform_' + item.id + '" value="' + (item.platformName || '') + '" class="w-full border p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-center"></td>'
+        + '<td class="py-1 px-2 text-center"><div class="flex items-center gap-1 justify-center"><input type="date" min="2000-01-01" max="2099-12-31" id="batch_visitDate_' + item.id + '" value="' + cleanVisitDate + '" class="border p-1 rounded-lg outline-none text-[10px] md:text-[11px] bg-white font-normal w-[85px]"><button type="button" onclick="window.openEditModalFromId(\'' + item.id + '\')" class="p-1 text-gray-500 hover:text-theme transition-colors">🕒</button></div><input type="hidden" id="batch_visitTime_' + item.id + '" value="' + (item.visitTime || '') + '"></td>'
+        + '<td class="py-1 px-2 text-center"><input type="date" min="2000-01-01" max="2099-12-31" id="batch_deadlineDate_' + item.id + '" value="' + cleanDeadlineDate + '" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[10px] md:text-[11px] bg-white font-normal"></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="batch_sponsored_' + item.id + '" value="' + formatCurrencyInput(item.sponsoredAmount || 0) + '" class="w-full border p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-right"></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="batch_paid_' + item.id + '" value="' + formatCurrencyInput(item.paidAmount || 0) + '" class="w-full border p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-right"></td>'
+        + '<td class="py-1 px-2 text-right font-normal text-gray-700">' + formatRevenueDisplay(calcRevenue) + '</td>'
+        + '<td class="py-1 px-2 text-center"><button onclick="window.deleteCampaign(\'' + item.id + '\')" class="text-[11px] bg-rose-500 text-white hover:bg-rose-600 px-2 py-1 rounded-lg font-bold shadow-sm">삭제</button></td>';
       tableBody?.appendChild(row);
     } else {
       let noteBadge = isCompleted ? '<span class="text-gray-900 font-normal">정산완료</span>' : '<span class="text-gray-400 font-normal">미정산</span>';
-      const statusSelectHtml = '<select onchange="window.quickUpdateStatus(\'' + item.id + '\', this.value); this.style.color = window.getStatusColor(this.value);" style="color: ' + window.getStatusColor(effSt) + '; font-weight: 600;" class="select-center border-0 bg-transparent text-xs outline-none cursor-pointer text-center">'
+      const statusSelectHtml = '<select onchange="window.quickUpdateStatus(\'' + item.id + '\', this.value); this.style.color = window.getStatusColor(this.value);" style="color: ' + window.getStatusColor(effSt) + '; font-weight: 600;" class="select-center border-0 bg-transparent text-[11px] outline-none cursor-pointer text-center">'
         + '<option value="신청" ' + (effSt === '신청' ? 'selected' : '') + ' class="text-gray-800 font-normal">신청</option><option value="선정" ' + (effSt === '선정' ? 'selected' : '') + ' class="text-gray-800 font-normal">선정</option><option value="방문" ' + (effSt === '방문' ? 'selected' : '') + ' class="text-gray-800 font-normal">방문</option><option value="미제출" ' + (effSt === '미제출' ? 'selected' : '') + ' class="text-gray-800 font-normal">미제출</option><option value="제출" ' + (effSt === '제출' ? 'selected' : '') + ' class="text-gray-800 font-normal">제출</option><option value="배송" ' + (effSt === '배송' ? 'selected' : '') + ' class="text-gray-800 font-normal">배송</option><option value="원고료" ' + (effSt === '원고료' ? 'selected' : '') + ' class="text-gray-800 font-normal">원고료</option></select>';
 
       const row = document.createElement('tr');
-      row.className = 'border-b border-gray-100 hover:bg-theme-light text-xs text-gray-900 font-normal';
-      row.innerHTML = '<td class="p-3 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-xs text-left truncate" onclick="window.openDetailItemModal(\'' + item.id + '\')"><div class="flex items-center"><span class="truncate">' + item.storeName + '</span>' + overdueBadgeHtml + '</div></td>'
-        + '<td class="p-3 text-xs text-center col-fixed-status">' + statusSelectHtml + '</td>'
-        + '<td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-platform">' + (item.platformName || '-') + '</td>'
-        + '<td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-visit">' + formatShortDate(item.visitDate) + '</td>'
-        + '<td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-deadline">' + formatShortDate(item.deadlineDate) + '</td>'
-        + '<td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-sponsored">' + sponsored.toLocaleString() + '원</td>'
-        + '<td class="p-3 text-gray-900 text-xs font-normal text-center col-fixed-paid">' + paid.toLocaleString() + '원</td>'
-        + '<td class="p-3 text-xs font-normal text-center col-fixed-revenue">' + revDisplayHtml + '</td>'
-        + '<td class="p-3 text-xs font-normal text-center col-fixed-note">' + noteBadge + '</td>';
+      row.className = 'border-b border-gray-100 hover:bg-theme-light text-[11px] text-gray-900 font-normal';
+      row.innerHTML = '<td class="py-2.5 px-2.5 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-[11px] md:text-xs text-left truncate" onclick="window.openDetailItemModal(\'' + item.id + '\')"><div class="flex items-center"><span class="truncate">' + item.storeName + '</span>' + overdueBadgeHtml + '</div></td>'
+        + '<td class="py-2.5 px-1 text-[11px] text-center">' + statusSelectHtml + '</td>'
+        + '<td class="py-2.5 px-2 text-gray-900 text-[11px] font-normal text-center">' + (item.platformName || '-') + '</td>'
+        + '<td class="py-2.5 px-2 text-gray-900 text-[11px] font-normal text-center">' + formatShortDate(item.visitDate) + '</td>'
+        + '<td class="py-2.5 px-2 text-gray-900 text-[11px] font-normal text-center">' + formatShortDate(item.deadlineDate) + '</td>'
+        + '<td class="py-2.5 px-2 text-gray-900 text-[11px] font-normal text-right">' + sponsored.toLocaleString() + '원</td>'
+        + '<td class="py-2.5 px-2 text-gray-900 text-[11px] font-normal text-right">' + paid.toLocaleString() + '원</td>'
+        + '<td class="py-2.5 px-2 text-[11px] font-normal text-right">' + revDisplayHtml + '</td>'
+        + '<td class="py-2.5 px-2 text-[11px] font-normal text-center">' + noteBadge + '</td>';
       tableBody?.appendChild(row);
     }
-
-    const card = document.createElement('div');
-    card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2 text-xs text-gray-900';
-    card.innerHTML = '<div class="flex justify-between items-start"><div><span style="color: ' + window.getStatusColor(effSt) + '; font-weight: 600;" class="text-xs mr-1.5">' + displayStatusName(effSt) + '</span><span class="text-xs text-gray-400 font-normal">' + (item.platformName || '') + '</span><div class="flex items-center mt-1"><h3 class="font-normal text-xs text-gray-900 cursor-pointer hover:text-theme" onclick="window.openDetailItemModal(\'' + item.id + '\')">' + item.storeName + '</h3>' + overdueBadgeHtml + '</div></div><span class="text-xs font-normal text-gray-900 bg-gray-100 px-2 py-1 rounded">' + (isCompleted ? formatRevenueDisplay(calcRevenue) : formatRevenueDisplay(calcRevenue) + "(예상)") + '</span></div>'
-      + '<div class="text-xs text-gray-800 space-y-0.5 font-normal"><div>방문일: ' + formatShortDate(item.visitDate) + ' | 마감일: <span class="font-normal text-gray-900">' + formatShortDate(item.deadlineDate) + '</span></div><div>동반인원: <span class="font-normal text-gray-900">' + (item.companions || '없음') + '</span></div></div>';
-    cardList?.appendChild(card);
   });
 
   if (isBatchEditing) {
     newBatchRows.forEach((row, idx) => {
       const newRow = document.createElement('tr');
-      newRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
+      newRow.className = 'bg-amber-50/60 border-b border-amber-200 text-[11px] text-gray-900';
       const defaultStatus = listSubTab === 'submitted' ? '제출' : '선정';
-      newRow.innerHTML = '<td class="p-2 text-left"><input type="text" id="new_batch_store_' + idx + '" placeholder="+ 새 매장명 입력..." class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal focus:border-theme"></td>'
-        + '<td class="p-2 text-center col-fixed-status"><select id="new_batch_status_' + idx + '" style="color: ' + window.getStatusColor(defaultStatus) + '; font-weight: 600;" class="select-center w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white text-center focus:border-theme"><option value="신청" ' + (defaultStatus === '신청' ? 'selected' : '') + '>신청</option><option value="선정" ' + (defaultStatus === '선정' ? 'selected' : '') + '>선정</option><option value="방문" ' + (defaultStatus === '방문' ? 'selected' : '') + '>방문</option><option value="미제출" ' + (defaultStatus === '미제출' ? 'selected' : '') + '>미제출</option><option value="제출" ' + (defaultStatus === '제출' ? 'selected' : '') + '>제출</option><option value="배송" ' + (defaultStatus === '배송' ? 'selected' : '') + '>배송</option><option value="원고료" ' + (defaultStatus === '원고료' ? 'selected' : '') + '>원고료</option></select></td>'
-        + '<td class="p-2 text-center col-fixed-platform"><input type="text" id="new_batch_platform_' + idx + '" placeholder="사이트" value="개별" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme"></td>'
-        + '<td class="p-2 text-center col-fixed-visit"><div class="flex items-center gap-1 justify-center"><input type="date" min="2000-01-01" max="2099-12-31" id="new_batch_visitDate_' + idx + '" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-28 focus:border-theme"><button type="button" onclick="window.toggleNewRowTimeInput(' + idx + ')" class="p-1 text-gray-500 hover:text-gray-800 transition-colors" title="시간 설정">🕒</button></div><div id="newTimeContainer_' + idx + '" class="hidden mt-1"><input type="time" id="new_batch_visitTime_' + idx + '" class="border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal w-20 focus:border-theme"></div></td>'
-        + '<td class="p-2 text-center col-fixed-deadline"><input type="date" min="2000-01-01" max="2099-12-31" id="new_batch_deadlineDate_' + idx + '" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-[11px] bg-white font-normal focus:border-theme"></td>'
-        + '<td class="p-2 text-center col-fixed-sponsored"><input type="text" id="new_batch_sponsored_' + idx + '" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme"></td>'
-        + '<td class="p-2 text-center col-fixed-paid"><input type="text" id="new_batch_paid_' + idx + '" placeholder="0" class="w-full border border-gray-300 p-1.5 rounded-lg outline-none text-xs bg-white font-normal text-center focus:border-theme"></td>'
-        + '<td class="p-2 text-center font-normal text-gray-400 col-fixed-revenue">자동계산</td>'
-        + '<td class="p-2 text-center col-fixed-note"><button onclick="window.removeNewBatchRow(' + idx + ')" class="text-xs bg-gray-400 text-white hover:bg-gray-500 px-2 py-1 rounded-lg font-bold shadow-sm">취소</button></td>';
+      newRow.innerHTML = '<td class="py-1 px-2 text-left"><input type="text" id="new_batch_store_' + idx + '" placeholder="+ 매장명 입력" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal focus:border-theme"></td>'
+        + '<td class="py-1 px-1 text-center"><select id="new_batch_status_' + idx + '" style="color: ' + window.getStatusColor(defaultStatus) + '; font-weight: 600;" class="select-center w-full border border-gray-300 py-1 px-0.5 rounded-lg outline-none text-[11px] bg-white text-center focus:border-theme"><option value="신청" ' + (defaultStatus === '신청' ? 'selected' : '') + '>신청</option><option value="선정" ' + (defaultStatus === '선정' ? 'selected' : '') + '>선정</option><option value="방문" ' + (defaultStatus === '방문' ? 'selected' : '') + '>방문</option><option value="미제출" ' + (defaultStatus === '미제출' ? 'selected' : '') + '>미제출</option><option value="제출" ' + (defaultStatus === '제출' ? 'selected' : '') + '>제출</option><option value="배송" ' + (defaultStatus === '배송' ? 'selected' : '') + '>배송</option><option value="원고료" ' + (defaultStatus === '원고료' ? 'selected' : '') + '>원고료</option></select></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="new_batch_platform_' + idx + '" placeholder="사이트" value="개별" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-center focus:border-theme"></td>'
+        + '<td class="py-1 px-2 text-center"><div class="flex items-center gap-1 justify-center"><input type="date" min="2000-01-01" max="2099-12-31" id="new_batch_visitDate_' + idx + '" class="border border-gray-300 p-1 rounded-lg outline-none text-[10px] bg-white font-normal w-20 md:w-24 focus:border-theme"><button type="button" onclick="window.toggleNewRowTimeInput(' + idx + ')" class="p-1 text-gray-500 hover:text-gray-800 transition-colors">🕒</button></div><div id="newTimeContainer_' + idx + '" class="hidden mt-1"><input type="time" id="new_batch_visitTime_' + idx + '" class="border border-gray-300 p-1 rounded-lg outline-none text-[10px] bg-white font-normal w-16 focus:border-theme"></div></td>'
+        + '<td class="py-1 px-2 text-center"><input type="date" min="2000-01-01" max="2099-12-31" id="new_batch_deadlineDate_' + idx + '" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[10px] bg-white font-normal focus:border-theme"></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="new_batch_sponsored_' + idx + '" placeholder="0" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-right focus:border-theme"></td>'
+        + '<td class="py-1 px-2 text-center"><input type="text" id="new_batch_paid_' + idx + '" placeholder="0" class="w-full border border-gray-300 p-1 rounded-lg outline-none text-[11px] bg-white font-normal text-right focus:border-theme"></td>'
+        + '<td class="py-1 px-2 text-right font-normal text-gray-400">자동계산</td>'
+        + '<td class="py-1 px-2 text-center"><button onclick="window.removeNewBatchRow(' + idx + ')" class="text-[11px] bg-gray-400 text-white hover:bg-gray-500 px-2 py-1 rounded-lg font-bold shadow-sm">취소</button></td>';
       tableBody?.appendChild(newRow);
     });
     const addBtnRow = document.createElement('tr');
-    addBtnRow.innerHTML = '<td colspan="9" class="p-3 text-center bg-gray-50/80"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors">+ 새 체험 추가</button></td>';
+    addBtnRow.innerHTML = '<td colspan="9" class="p-3 text-center bg-gray-50/80"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] md:text-xs rounded-xl shadow-sm transition-colors">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addBtnRow);
   }
 
   if (filteredList.length === 0 && !isBatchEditing && tableBody) {
-    tableBody.innerHTML = '<tr><td colspan="10"><div class="p-6 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="9"><div class="p-6 text-center text-gray-400 text-[11px] font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
   }
 };
 
@@ -1411,7 +1124,7 @@ window.renderCalendar = function(year, month) {
 
   days.forEach((d, idx) => {
     const dh = document.createElement('div');
-    dh.className = "text-center text-[11px] font-bold pb-1.5 " + (idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500');
+    dh.className = "text-center text-[10px] md:text-[11px] font-bold pb-1.5 " + (idx === 0 ? 'text-rose-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500');
     dh.innerText = d;
     calGrid.appendChild(dh);
   });
@@ -1433,13 +1146,13 @@ window.renderCalendar = function(year, month) {
 
     let badgeHtml = '';
     if (visitMatches.length > 0) {
-      badgeHtml += '<div class="text-[11px] text-emerald-600 font-bold text-left whitespace-nowrap leading-tight">🟢 방문 ' + visitMatches.length + '건</div>';
+      badgeHtml += '<div class="text-[9px] md:text-[10px] text-emerald-600 font-bold text-left whitespace-nowrap leading-tight">🟢 방문 ' + visitMatches.length + '건</div>';
     }
     if (deadlineMatches.length > 0) {
-      badgeHtml += '<div class="text-[11px] text-rose-500 font-bold text-left whitespace-nowrap leading-tight">🔴 마감 ' + deadlineMatches.length + '건</div>';
+      badgeHtml += '<div class="text-[9px] md:text-[10px] text-rose-500 font-bold text-left whitespace-nowrap leading-tight">🔴 마감 ' + deadlineMatches.length + '건</div>';
     }
 
-    dayCell.innerHTML = '<div class="text-[10px] font-normal text-gray-500 pl-0.5 mb-1 text-left">' + date + '</div>'
+    dayCell.innerHTML = '<div class="text-[9px] md:text-[10px] font-normal text-gray-500 pl-0.5 mb-0.5 text-left">' + date + '</div>'
       + '<div class="space-y-0.5 w-full flex flex-col pl-0.5">' + badgeHtml + '</div>';
 
     const allMatched = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr || (formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청'));
@@ -1551,13 +1264,13 @@ window.renderSettlementView = function() {
     const compareContainer = document.getElementById('yearlyCompareContainer');
     if (compareContainer) {
       if (!hasPrevYearData) {
-        compareContainer.innerHTML = '<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="text-xs text-gray-400 font-normal">비교 데이터 없음</span></div>';
+        compareContainer.innerHTML = '<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="text-[11px] text-gray-400 font-normal">비교 데이터 없음</span></div>';
       } else {
         const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
         let diffStr = diffAmount >= 0 ? "+" + diffAmount.toLocaleString() + "원" : diffAmount.toLocaleString() + "원";
         let rateStr = diffAmount >= 0 ? "+" + rate + "%" : rate + "%";
         let badgeClass = diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
-        compareContainer.innerHTML = '<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="font-normal text-gray-900 text-lg">' + diffStr + '</span><span class="px-2 py-0.5 rounded-full text-[11px] font-normal ' + badgeClass + '">' + rateStr + '</span></div>';
+        compareContainer.innerHTML = '<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="font-normal text-gray-900 text-sm md:text-base">' + diffStr + '</span><span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-normal ' + badgeClass + '">' + rateStr + '</span></div>';
       }
     }
 
@@ -1667,9 +1380,9 @@ window.renderSettlementView = function() {
         const cardDiv = document.createElement('div');
         cardDiv.className = "bg-white pt-2.5 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden transition-colors min-h-[48px]";
         let html = '<div onclick="window.toggleMonthlyDetailsCard(' + m + ')" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">'
-          + '<span class="text-xs font-bold text-gray-800">' + m + '월</span><div class="flex items-center gap-2">'
-          + (isCollapsed ? '<span class="text-xs text-gray-900 font-normal">' + totalMCount + '건 · ' + totalMRevenue.toLocaleString() + '원</span>' : '')
-          + '<span class="text-xs text-gray-400 font-bold">' + (isCollapsed ? '▼' : '▲') + '</span></div></div>';
+          + '<span class="text-[13px] md:text-xs font-bold text-gray-800">' + m + '월</span><div class="flex items-center gap-2">'
+          + (isCollapsed ? '<span class="text-[11px] md:text-xs text-gray-900 font-normal">' + totalMCount + '건 · ' + totalMRevenue.toLocaleString() + '원</span>' : '')
+          + '<span class="text-[11px] md:text-xs text-gray-400 font-bold">' + (isCollapsed ? '▼' : '▲') + '</span></div></div>';
 
         if (!isCollapsed) {
           html += '<div class="flex-1 flex flex-col justify-between min-h-[200px] mt-2.5"><div class="flex-1 overflow-y-auto widget-scroll max-h-[200px] my-1 pr-1 space-y-1.5">';
@@ -1680,7 +1393,7 @@ window.renderSettlementView = function() {
               html += '<div class="flex items-center justify-between text-[11px] py-1 border-b border-dashed border-gray-50"><span class="w-1/2 font-normal text-gray-800 truncate" title="' + item.storeName + '">' + item.storeName + '</span><span class="w-1/4 text-right font-normal text-gray-500">' + item.sponsoredAmount.toLocaleString() + '원</span><span class="w-1/4 text-right font-normal text-gray-400">' + (item.paidAmount > 0 ? item.paidAmount.toLocaleString() + '원' : '0원') + '</span></div>';
             });
           }
-          html += '</div><div class="mt-2.5 p-2 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs"><span class="text-[10px] font-normal text-gray-400">소계 <b class="text-gray-900 text-xs font-normal ml-1">' + totalMCount + '건</b></span><span class="text-[10px] font-normal text-gray-400">실수익 <b class="text-gray-900 text-xs font-normal ml-1">' + totalMRevenue.toLocaleString() + '원</b></span></div></div>';
+          html += '</div><div class="mt-2.5 p-2 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-[11px] md:text-xs"><span class="text-[10px] font-normal text-gray-400">소계 <b class="text-gray-900 text-[11px] md:text-xs font-normal ml-1">' + totalMCount + '건</b></span><span class="text-[10px] font-normal text-gray-400">실수익 <b class="text-gray-900 text-[11px] md:text-xs font-normal ml-1">' + totalMRevenue.toLocaleString() + '원</b></span></div></div>';
         }
         cardDiv.innerHTML = html;
         monthlyDetailsGrid.appendChild(cardDiv);
@@ -1708,15 +1421,15 @@ function renderUpcomingDeadlines() {
   }).filter(c => c.diffDays <= deadlineAlertDays).sort((a, b) => a.diffDays - b.diffDays);
 
   if (deadlineList.length === 0) {
-    container.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">마감 임박 (' + deadlineAlertDays + '일 이내) 일정이 없습니다.</div>';
+    container.innerHTML = '<div class="text-[11px] md:text-xs text-gray-400 py-4 text-center font-normal">마감 임박 (' + deadlineAlertDays + '일 이내) 일정이 없습니다.</div>';
     return;
   }
   deadlineList.forEach(item => {
     const card = document.createElement('div');
-    card.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex items-center justify-between text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
+    card.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex items-center justify-between text-[11px] md:text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
     card.onclick = () => window.openDetailItemModal(item.id);
     let dText = item.diffDays < 0 ? "지연 (D+" + Math.abs(item.diffDays) + ")" : (item.diffDays === 0 ? '오늘 마감' : "D-" + item.diffDays);
-    card.innerHTML = '<div><span class="font-normal text-gray-900">' + item.storeName + '</span><span class="text-[11px] text-gray-400 ml-1.5 font-normal">(' + formatShortDate(item.deadlineDate) + ')</span></div><span class="px-2 py-0.5 rounded-lg text-[10px] bg-rose-500 text-white font-normal">' + dText + '</span>';
+    card.innerHTML = '<div><span class="font-normal text-gray-900">' + item.storeName + '</span><span class="text-[10px] md:text-[11px] text-gray-400 ml-1.5 font-normal">(' + formatShortDate(item.deadlineDate) + ')</span></div><span class="px-2 py-0.5 rounded-lg text-[9px] md:text-[10px] bg-rose-500 text-white font-normal">' + dText + '</span>';
     container.appendChild(card);
   });
 }
@@ -1735,26 +1448,26 @@ function renderAllScheduledVisits() {
     return vDateObj >= now;
   }).sort((a, b) => (formatCleanDate(a.visitDate) + " " + (a.visitTime || '00:00')).localeCompare(formatCleanDate(b.visitDate) + " " + (b.visitTime || '00:00')));
 
-  if (scheduledItems.length === 0) visitContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">예정된 방문 일정이 없습니다.</div>';
+  if (scheduledItems.length === 0) visitContainer.innerHTML = '<div class="text-[11px] md:text-xs text-gray-400 py-4 text-center font-normal">예정된 방문 일정이 없습니다.</div>';
   else {
     scheduledItems.forEach(item => {
       const div = document.createElement('div');
-      div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 space-y-0.5 text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
+      div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 space-y-0.5 text-[11px] md:text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
       div.onclick = () => window.openDetailItemModal(item.id);
       const dateFormatted = formatShortDate(item.visitDate) + (item.visitTime ? " (" + item.visitTime + ")" : '');
-      div.innerHTML = '<div class="flex justify-between items-center text-gray-600 font-normal"><span>' + dateFormatted + '</span>' + (item.companions ? '<span class="text-[11px] text-gray-400 font-normal">' + item.companions + '</span>' : '') + '</div><div class="font-normal text-gray-900 text-sm truncate">' + item.storeName + '</div>';
+      div.innerHTML = '<div class="flex justify-between items-center text-gray-600 font-normal"><span>' + dateFormatted + '</span>' + (item.companions ? '<span class="text-[10px] md:text-[11px] text-gray-400 font-normal">' + item.companions + '</span>' : '') + '</div><div class="font-normal text-gray-900 text-[13px] md:text-sm truncate">' + item.storeName + '</div>';
       visitContainer.appendChild(div);
     });
   }
 
   const unscheduledItems = rawCampaignList.filter(c => (getEffectiveStatus(c) === '선정' || getEffectiveStatus(c) === '방문') && !c.visitDate);
-  if (unscheduledItems.length === 0) unscheduledContainer.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center font-normal">일정 미지정 항목이 없습니다.</div>';
+  if (unscheduledItems.length === 0) unscheduledContainer.innerHTML = '<div class="text-[11px] md:text-xs text-gray-400 py-4 text-center font-normal">일정 미지정 항목이 없습니다.</div>';
   else {
     unscheduledItems.forEach(item => {
       const div = document.createElement('div');
-      div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex justify-between items-center text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
+      div.className = 'p-2.5 bg-white rounded-xl border border-gray-100 flex justify-between items-center text-[11px] md:text-xs cursor-pointer hover:border-theme transition-colors shadow-sm';
       div.onclick = () => window.openDetailItemModal(item.id);
-      div.innerHTML = '<div class="truncate mr-2"><span class="font-normal text-gray-900">' + item.storeName + '</span><span class="text-[11px] text-gray-400 ml-1 font-normal">(' + (formatShortDate(item.deadlineDate) || '마감미정') + ')</span></div>'
+      div.innerHTML = '<div class="truncate mr-2"><span class="font-normal text-gray-900">' + item.storeName + '</span><span class="text-[10px] md:text-[11px] text-gray-400 ml-1 font-normal">(' + (formatShortDate(item.deadlineDate) || '마감미정') + ')</span></div>'
         + (!isReadOnly ? '<button onclick="event.stopPropagation(); window.openEditModalFromId(\'' + item.id + '\')" class="shrink-0 text-[10px] bg-theme bg-theme-hover text-white px-2 py-1 rounded-lg font-normal shadow-sm transition-colors">일정 잡기</button>' : '');
       unscheduledContainer.appendChild(div);
     });
@@ -1784,14 +1497,14 @@ window.openCounterListModal = function(counterType, titleName) {
   const modalList = document.getElementById('modalItemList');
   if (modalList) {
     modalList.innerHTML = '';
-    if (matchedItems.length === 0) modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal">' + titleName + ' 항목이 없습니다.</div>';
+    if (matchedItems.length === 0) modalList.innerHTML = '<div class="text-[11px] md:text-xs text-gray-400 py-6 text-center font-normal">' + titleName + ' 항목이 없습니다.</div>';
     else {
       matchedItems.forEach(item => {
         const effSt = getEffectiveStatus(item); const overdue = isItemOverdue(item);
         const div = document.createElement('div');
-        div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
+        div.className = 'p-3 md:p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-[11px] md:text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
         div.onclick = () => window.openDetailItemModal(item.id);
-        div.innerHTML = '<div class="flex justify-between items-center"><div class="flex items-center gap-1.5"><span class="font-normal text-sm text-gray-900">' + item.storeName + '</span>' + (overdue ? '<span class="text-rose-500 font-bold text-[11px]">[상태확인]</span>' : '') + '</div><span style="color: ' + window.getStatusColor(effSt) + ';" class="font-bold">' + displayStatusName(effSt) + '</span></div><div class="flex justify-between text-gray-500 text-[11px] font-normal"><span>사이트: ' + (item.platformName || '개별') + '</span><span>' + (item.visitDate ? "방문일: " + formatShortDate(item.visitDate) : (item.deadlineDate ? "마감일: " + formatShortDate(item.deadlineDate) : '')) + '</span></div>';
+        div.innerHTML = '<div class="flex justify-between items-center"><div class="flex items-center gap-1.5"><span class="font-normal text-[13px] md:text-sm text-gray-900">' + item.storeName + '</span>' + (overdue ? '<span class="text-rose-500 font-bold text-[10px] md:text-[11px]">[상태확인]</span>' : '') + '</div><span style="color: ' + window.getStatusColor(effSt) + ';" class="font-bold">' + displayStatusName(effSt) + '</span></div><div class="flex justify-between text-gray-500 text-[10px] md:text-[11px] font-normal"><span>사이트: ' + (item.platformName || '개별') + '</span><span>' + (item.visitDate ? "방문일: " + formatShortDate(item.visitDate) : (item.deadlineDate ? "마감일: " + formatShortDate(item.deadlineDate) : '')) + '</span></div>';
         modalList.appendChild(div);
       });
     }
@@ -1804,15 +1517,15 @@ window.openDayModal = function(dateStr, items) {
   const modalList = document.getElementById('modalItemList');
   if (modalList) {
     modalList.innerHTML = '';
-    if (items.length === 0) modalList.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal">등록된 일정이 없습니다.</div>';
+    if (items.length === 0) modalList.innerHTML = '<div class="text-[11px] md:text-xs text-gray-400 py-6 text-center font-normal">등록된 일정이 없습니다.</div>';
     else {
       const sortedItems = [...items].sort((a, b) => (a.visitTime || '23:59').localeCompare(b.visitTime || '23:59'));
       sortedItems.forEach(item => {
         const overdue = isItemOverdue(item);
         const div = document.createElement('div');
-        div.className = 'p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
+        div.className = 'p-3 md:p-3.5 bg-white rounded-2xl border border-gray-100 space-y-2 text-[11px] md:text-xs shadow-sm cursor-pointer hover:border-theme transition-colors';
         div.onclick = () => window.openDetailItemModal(item.id);
-        div.innerHTML = '<div class="flex justify-between items-center"><div class="flex items-center gap-1.5">' + ((formatCleanDate(item.visitDate) === dateStr && item.visitTime) ? '<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-normal">' + item.visitTime + '</span>' : '') + '<span class="font-normal text-sm text-gray-900">' + item.storeName + '</span>' + (overdue ? '<span class="text-rose-500 font-bold text-[11px]">[상태확인]</span>' : '') + '</div><span class="text-xs font-normal text-gray-400">' + (item.platformName || '개별') + '</span></div>' + (item.memo ? '<div class="pt-1.5 text-gray-600 text-[11px] font-normal">비고: ' + item.memo + '</div>' : '');
+        div.innerHTML = '<div class="flex justify-between items-center"><div class="flex items-center gap-1.5">' + ((formatCleanDate(item.visitDate) === dateStr && item.visitTime) ? '<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[9px] md:text-[10px] font-normal">' + item.visitTime + '</span>' : '') + '<span class="font-normal text-[13px] md:text-sm text-gray-900">' + item.storeName + '</span>' + (overdue ? '<span class="text-rose-500 font-bold text-[10px] md:text-[11px]">[상태확인]</span>' : '') + '</div><span class="text-[10px] md:text-[11px] font-normal text-gray-400">' + (item.platformName || '개별') + '</span></div>' + (item.memo ? '<div class="pt-1.5 text-gray-600 text-[10px] md:text-[11px] font-normal">비고: ' + item.memo + '</div>' : '');
         modalList.appendChild(div);
       });
     }
@@ -1827,7 +1540,7 @@ window.openDetailItemModal = function(id) {
   document.getElementById('modalDateTitle').innerText = item.storeName + " 상세 정보";
   const modalList = document.getElementById('modalItemList');
   if (modalList) {
-    modalList.innerHTML = '<div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm"><div class="flex justify-between items-center border-b pb-2"><span class="text-sm font-bold text-gray-900">' + item.storeName + '</span><span style="color: ' + window.getStatusColor(effSt) + ';" class="font-bold">' + displayStatusName(effSt) + '</span></div><div class="grid grid-cols-2 gap-2 text-gray-600"><div>체험단 사이트: <span class="font-normal text-gray-800">' + (item.platformName || '-') + '</span></div><div>신청일: <span class="font-normal text-gray-800">' + (formatCleanDate(item.applyDate) || '-') + '</span></div><div>방문일시: <span class="font-normal text-gray-800">' + (item.visitDate ? formatCleanDate(item.visitDate) + (item.visitTime ? " (" + item.visitTime + ")" : '') : '미정') + '</span></div><div>포스팅 마감일: <span class="font-normal text-gray-800">' + (formatCleanDate(item.deadlineDate) || '미정') + '</span></div><div>제공금액: <span class="font-normal text-gray-800">' + Number(item.sponsoredAmount || 0).toLocaleString() + '원</span></div><div>동반인원: <span class="font-normal text-gray-800">' + (item.companions || '없음') + '</span></div><div>결제금액: <span class="font-normal text-gray-800">' + Number(item.paidAmount || 0).toLocaleString() + '원</span></div><div>실수익·원고료: <span class="font-normal text-gray-800">' + formatRevenueDisplay(item.revenue || 0) + '</span></div></div><div class="pt-2 border-t text-gray-600 space-y-1"><div>업체 연락처: <span class="font-normal text-gray-800">' + (item.contact || '없음') + '</span></div><div class="pt-0.5 text-gray-600">메모: <span class="font-normal text-gray-800">' + (item.memo || '없음') + '</span></div></div>' + (!isReadOnly ? '<div class="flex gap-2 pt-2"><button onclick="document.getElementById(\'dayModal\').classList.add(\'hidden\'); window.openEditModalFromId(\'' + item.id + '\');" class="flex-1 bg-theme text-white py-2.5 rounded-xl font-bold">수정하기</button></div>' : '') + '</div>';
+    modalList.innerHTML = '<div class="p-3 md:p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-[11px] md:text-xs shadow-sm"><div class="flex justify-between items-center border-b pb-2"><span class="text-[13px] md:text-sm font-bold text-gray-900">' + item.storeName + '</span><span style="color: ' + window.getStatusColor(effSt) + ';" class="font-bold">' + displayStatusName(effSt) + '</span></div><div class="grid grid-cols-2 gap-2 text-gray-600"><div>체험단 사이트: <span class="font-normal text-gray-800">' + (item.platformName || '-') + '</span></div><div>신청일: <span class="font-normal text-gray-800">' + (formatCleanDate(item.applyDate) || '-') + '</span></div><div>방문일시: <span class="font-normal text-gray-800">' + (item.visitDate ? formatCleanDate(item.visitDate) + (item.visitTime ? " (" + item.visitTime + ")" : '') : '미정') + '</span></div><div>포스팅 마감일: <span class="font-normal text-gray-800">' + (formatCleanDate(item.deadlineDate) || '미정') + '</span></div><div>제공금액: <span class="font-normal text-gray-800">' + Number(item.sponsoredAmount || 0).toLocaleString() + '원</span></div><div>동반인원: <span class="font-normal text-gray-800">' + (item.companions || '없음') + '</span></div><div>결제금액: <span class="font-normal text-gray-800">' + Number(item.paidAmount || 0).toLocaleString() + '원</span></div><div>실수익·원고료: <span class="font-normal text-gray-800">' + formatRevenueDisplay(item.revenue || 0) + '</span></div></div><div class="pt-2 border-t text-gray-600 space-y-1"><div>업체 연락처: <span class="font-normal text-gray-800">' + (item.contact || '없음') + '</span></div><div class="pt-0.5 text-gray-600">메모: <span class="font-normal text-gray-800">' + (item.memo || '없음') + '</span></div></div>' + (!isReadOnly ? '<div class="flex gap-2 pt-2"><button onclick="document.getElementById(\'dayModal\').classList.add(\'hidden\'); window.openEditModalFromId(\'' + item.id + '\');" class="flex-1 bg-theme text-white py-2 md:py-2.5 rounded-xl font-bold">수정하기</button></div>' : '') + '</div>';
   }
   document.getElementById('dayModal')?.classList.remove('hidden');
 };
@@ -1857,34 +1570,39 @@ function populateYearFilter() {
 
 function updateFormVisibility() {
   const readOnlyBadge = document.getElementById('readOnlyBadge');
-  const resetBtn = document.getElementById('resetToMyDataBtn');
+  const resetBtns = document.querySelectorAll('.reset-data-btn');
   const dashRegisterBtn = document.getElementById('dashRegisterBtn');
-  const navForm = document.getElementById('nav-form');
-  const navSettlement = document.getElementById('nav-settlement');
-  const navSettings = document.getElementById('nav-settings');
-  const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+  const navForm = document.querySelectorAll('#nav-form, #bottom-nav-form');
+  const navSettlement = document.querySelectorAll('#nav-settlement, #bottom-nav-settlement');
+  const navSettings = document.querySelectorAll('#nav-settings, #bottom-nav-settings');
+  const excelBtns = document.querySelectorAll('.excel-down-btn');
 
   if (isReadOnly) {
     readOnlyBadge?.classList.remove('hidden');
-    resetBtn?.classList.remove('hidden');
+    resetBtns.forEach(btn => {
+      btn.classList.remove('hidden');
+      if (btn.id === 'sidebarResetBtn') btn.classList.add('block');
+      if (btn.id === 'settingsResetBtn') btn.classList.add('block', 'sm:block');
+    });
     dashRegisterBtn?.classList.add('hidden');
-    navForm?.classList.add('hidden');
-    navSettings?.classList.add('hidden');
-    downloadExcelBtn?.classList.add('hidden');
+    navForm.forEach(n => n.classList.add('hidden'));
+    navSettings.forEach(n => n.classList.add('hidden'));
+    excelBtns.forEach(btn => btn.classList.add('hidden'));
 
-    if (isSettlementShared) {
-      navSettlement?.classList.remove('hidden');
-    } else {
-      navSettlement?.classList.add('hidden');
-    }
+    if (isSettlementShared) navSettlement.forEach(n => n.classList.remove('hidden'));
+    else navSettlement.forEach(n => n.classList.add('hidden'));
   } else {
     readOnlyBadge?.classList.add('hidden');
-    resetBtn?.classList.add('hidden');
+    resetBtns.forEach(btn => {
+      btn.classList.add('hidden');
+      if (btn.id === 'sidebarResetBtn') btn.classList.remove('block');
+      if (btn.id === 'settingsResetBtn') btn.classList.remove('block', 'sm:block');
+    });
     dashRegisterBtn?.classList.remove('hidden');
-    navForm?.classList.remove('hidden');
-    navSettlement?.classList.remove('hidden');
-    navSettings?.classList.remove('hidden');
-    downloadExcelBtn?.classList.remove('hidden');
+    navForm.forEach(n => n.classList.remove('hidden'));
+    navSettlement.forEach(n => n.classList.remove('hidden'));
+    navSettings.forEach(n => n.classList.remove('hidden'));
+    excelBtns.forEach(btn => btn.classList.remove('hidden'));
   }
 }
 
@@ -1926,13 +1644,9 @@ async function fetchUserCustomCode() {
       localStorage.setItem('onlyview_customCode', myCustomCode);
       localStorage.setItem('onlyview_shareSettlement', 'false');
       await setDoc(userDocRef, { 
-        customCode: myCustomCode, 
-        uid: currentUser.uid, 
-        shareSettlement: false,
-        theme: localStorage.getItem('onlyview_theme') || 'slate',
-        chartMode: currentChartMode,
-        statusColors: customStatusColors,
-        deadlineAlertDays: deadlineAlertDays
+        customCode: myCustomCode, uid: currentUser.uid, shareSettlement: false,
+        theme: localStorage.getItem('onlyview_theme') || 'slate', chartMode: currentChartMode,
+        statusColors: customStatusColors, deadlineAlertDays: deadlineAlertDays
       }, { merge: true });
       await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid, shareSettlement: false });
     }
@@ -1997,7 +1711,7 @@ onAuthStateChanged(auth, async (user) => {
     isReadOnly = false;
     authSec?.classList.add('hidden');
     appSec?.classList.remove('hidden');
-    appSec?.classList.add('flex');
+    appSec?.classList.add('flex', 'lg:flex');
     const userNameElem = document.getElementById('userName');
     if (userNameElem) userNameElem.innerText = user.displayName || user.email;
     await fetchUserCustomCode();
@@ -2008,11 +1722,10 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = null;
     authSec?.classList.remove('hidden');
     appSec?.classList.add('hidden');
-    appSec?.classList.remove('flex');
+    appSec?.classList.remove('flex', 'lg:flex');
   }
 });
 
-// DOM 준비 시점 이벤트 연결
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', (e) => {
     if (e.key === 'Enter') window.enterWithInviteCode();
@@ -2128,13 +1841,17 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch(err) { alert("조회 실패: " + err.message); }
   });
 
-  document.getElementById('resetToMyDataBtn')?.addEventListener('click', async () => {
-    if (!currentUser) return;
-    targetUserId = currentUser.uid; isReadOnly = false;
-    document.getElementById('partnerCodeInput').value = '';
-    await loadTargetUserSettings(currentUser.uid);
-    updateFormVisibility(); 
-    await loadCampaigns();
+  document.querySelectorAll('.reset-data-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      targetUserId = currentUser.uid; isReadOnly = false;
+      const pInput = document.getElementById('partnerCodeInput');
+      if(pInput) pInput.value = '';
+      await loadTargetUserSettings(currentUser.uid);
+      updateFormVisibility(); 
+      await loadCampaigns();
+      window.switchTab('dashboard');
+    });
   });
 
   applySidebarUI(); 
