@@ -12,22 +12,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
-
-  <!-- 화면 상단 자가진단 에러 표시기 (문제가 있으면 화면에 즉시 빨간 박스로 출력) -->
-  <script>
-    window.addEventListener('error', function(e) {
-      var box = document.getElementById('debugErrorBox');
-      if (box) {
-        box.classList.remove('hidden');
-        box.innerHTML += '<div>❌ <b>오류 발생:</b> ' + (e.message || '스크립트 로드 실패') + ' <span class="text-xs text-gray-500">(' + (e.filename || '') + ':' + (e.lineno || '') + ')</span></div>';
-      }
-    });
-  </script>
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal">
-
-  <!-- 디버그 에러 안내창 (오류 없으면 안 뜸) -->
-  <div id="debugErrorBox" class="hidden fixed top-0 left-0 right-0 z-50 bg-rose-50 border-b border-rose-300 p-3 text-rose-800 text-xs space-y-1 shadow-md"></div>
 
   <!-- 로그인 화면 -->
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
@@ -252,7 +238,7 @@
               <button onclick="window.changeTheme('mustard')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#9C6A00]"></span><span class="text-[10px] font-normal">머스타드</span></button>
               <button onclick="window.changeTheme('indigo')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#3446A8]"></span><span class="text-[10px] font-normal">인디고</span></button>
               <button onclick="window.changeTheme('emerald')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#0E7C66]"></span><span class="text-[10px] font-normal">에메랄드</span></button>
-              <button onclick="window.changeTheme('ink')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#232830]"></span><span class="text-[10px] font-normal">잉크블랙</span></button>
+              <button onclick="window.changeTheme('ink')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition"><span class="w-6 h-6 rounded-full bg-[#232830]"></span><span class="text-[10px] font-normal">잉크블랙</span></button>
             </div>
           </div>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
@@ -333,20 +319,26 @@
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">체험단 사이트</label><div id="modalPlatformChipsContainer" class="flex flex-wrap gap-1.5"></div><input type="hidden" id="modalPlatformName" value="개별"></div>
         <div><label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="modalStoreName" required class="w-full border p-2.5 rounded-xl text-sm"></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border p-2.5 rounded-xl text-sm"></div>
-          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-gray-50"></div>
-          <div id="modalRowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white"></div>
+          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50"></div>
+          <div id="modalRowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div>
         </div>
         <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border p-2.5 rounded-xl text-xs bg-white"><input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs"></div></div>
-          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border p-2.5 rounded-xl text-sm"></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"><input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
         </div>
         <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
         </div>
-        <div id="modalRowContact" class="hidden"><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
-        <div id="modalRowMemo" class="hidden"><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none"></textarea></div>
+        <div id="modalRowContact" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+        </div>
+        <div id="modalRowMemo" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none"></textarea>
+        </div>
         <div class="flex gap-2 pt-2 border-t"><button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button></div>
       </form>
     </div>
@@ -396,6 +388,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <!-- 통합 스크립트 하나로 연결 -->
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
