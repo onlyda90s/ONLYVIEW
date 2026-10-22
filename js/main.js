@@ -100,6 +100,13 @@ function initApp() {
   updateDeadlineButtons();
   updateChartModeButtonsUI();
 
+  // 초대 코드 입력창 엔터(Enter) 키 리스너 복구
+  document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      window.enterWithInviteCode();
+    }
+  });
+
   // 검색/필터 바인딩
   document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
   document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
@@ -162,7 +169,6 @@ function initApp() {
   });
 }
 
-// DOM 준비 시점 체크 (즉시 실행 보장)
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
