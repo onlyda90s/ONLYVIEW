@@ -1,40 +1,35 @@
 import { auth, db, provider } from '../firebase-config.js';
 import { store } from '../store.js';
-import { updateFormVisibility, applyStatusCSSColors, renderStatusColorPickers } from './settings.js';
 import { signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// 구글 로그인 함수 (즉시 window 전역 등록)
+// 구글 로그인 함수: 전역 window에 즉시 등록
 window.loginWithGoogle = async function() {
   try {
     if (!auth || !provider) {
-      return alert("Firebase 인증 모듈이 초기화되지 않았습니다. 인터넷 연결을 확인해 주세요.");
+      return alert("Firebase 인증 모듈이 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
     }
     await signInWithPopup(auth, provider);
   } catch (err) {
     if (err.code === 'auth/unauthorized-domain') {
-      alert("현재 도메인이 Firebase에 등록되어 있지 않습니다.\nFirebase 콘솔 > Authentication > Settings > Authorized domains에서 현재 주소(예: onlyda90s.github.io)를 추가해 주세요.");
-    } else if (err.code === 'auth/popup-closed-by-user') {
-      // 사용자가 팝업을 닫은 경우는 조용히 무시
-    } else {
+      alert("현재 도메인이 Firebase 승인 도메인(Authorized Domains)에 등록되어 있지 않습니다.\nFirebase 콘솔 > Authentication > Settings > Authorized domains에서 현재 주소(예: onlyda90s.github.io)를 추가해 주세요.");
+    } else if (err.code !== 'auth/popup-closed-by-user') {
       alert("로그인 오류 (" + err.code + "): " + err.message);
     }
   }
 };
 
 window.logout = function() {
-  signOut(auth);
+  if (auth) signOut(auth);
   window.location.reload();
 };
 
-// 초대코드 입장 함수 (즉시 window 전역 등록)
+// 초대코드 입장 함수: 전역 window에 즉시 등록
 window.enterWithInviteCode = async function() {
   const codeInput = document.getElementById('loginInviteCodeInput')?.value.trim();
   if (!codeInput) return alert("초대 코드를 입력해주세요.");
   try {
-    if (!db) {
-      return alert("데이터베이스에 연결되지 않았습니다.");
-    }
+    if (!db) return alert("데이터베이스에 연결되지 않았습니다.");
     const codeSnap = await getDoc(doc(db, "userCodes", codeInput));
     if (!codeSnap.exists()) {
       return alert("유효하지 않은 초대 코드입니다. 코드를 다시 확인해 주세요.");
@@ -47,15 +42,12 @@ window.enterWithInviteCode = async function() {
     appSec?.classList.add('flex');
     const userNameElem = document.getElementById('userName');
     if (userNameElem) userNameElem.innerText = "초대 접속자 (" + codeInput + ")";
-    updateFormVisibility();
+    
+    if (window.updateFormVisibility) window.updateFormVisibility();
     if (window.loadCampaigns) await window.loadCampaigns();
-    window.switchTab('dashboard', false);
+    if (window.switchTab) window.switchTab('dashboard', false);
   } catch (err) {
-    if (err.message && err.message.includes('permission')) {
-      alert("데이터베이스 접근 권한 오류입니다. Firebase Firestore 보안 규칙에서 읽기(read) 권한을 허용해 주세요.");
-    } else {
-      alert("초대 코드 조회 실패: " + err.message);
-    }
+    alert("초대 코드 조회 실패: " + err.message);
   }
 };
 
@@ -88,9 +80,9 @@ export function initAuth(onUserReady) {
       if (userNameElem) userNameElem.innerText = user.displayName || user.email;
       
       await fetchUserCustomCode();
-      updateFormVisibility();
+      if (window.updateFormVisibility) window.updateFormVisibility();
       if (onUserReady) await onUserReady();
-      window.switchTab('dashboard', false);
+      if (window.switchTab) window.switchTab('dashboard', false);
     } else if (!store.targetUserId) {
       store.currentUser = null;
       authSec?.classList.remove('hidden');
@@ -111,8 +103,9 @@ export async function fetchUserCustomCode() {
       if (data.deadlineAlertDays) store.deadlineAlertDays = data.deadlineAlertDays;
       if (data.statusColors) {
         Object.assign(store.customStatusColors, data.statusColors);
-        applyStatusCSSColors();
-        renderStatusColorPickers();
+        localStorage.setItem('onlyview_statusColors', JSON.stringify(store.customStatusColors));
+        if (window.applyStatusCSSColors) window.applyStatusCSSColors();
+        if (window.renderStatusColorPickers) window.renderStatusColorPickers();
       }
     } else {
       store.myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
