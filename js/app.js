@@ -38,6 +38,7 @@ resetAutoLogoutTimer();
 let currentUser = null;
 let targetUserId = null;
 let isReadOnly = false;
+let isSettlementShared = false; // 동반자에게 정산 공개 여부
 let rawCampaignList = [];
 let isBatchEditing = false; 
 let listSubTab = 'ongoing'; 
@@ -106,7 +107,7 @@ const themeColors = {
   ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
 };
 
-// [수정사항 4] YYYYYY-MM-DD 오작동 완전 정규화
+// YYYYYY-MM-DD 오작동 완전 정규화
 function formatCleanDate(dateVal) {
   if (!dateVal) return "";
   let str = String(dateVal).trim().replace(/[/.]/g, '-');
@@ -165,7 +166,6 @@ function isItemOverdue(item) {
 function getEffectiveStatus(item) { return item.status || '신청'; }
 function displayStatusName(status) { return status || '신청'; }
 
-// [수정사항 3] 사용자 지정 상태 색상 가져오기
 window.getStatusColor = function(status) {
   const colors = customStatusColors || {};
   switch(status) {
@@ -285,6 +285,39 @@ window.logout = function() {
   window.location.reload();
 };
 
+// 동반자 정산 공개/비공개 토글 UI 업데이트
+function updateShareSettlementUI() {
+  const label = document.getElementById('shareSettlementLabel');
+  const btn = document.getElementById('toggleShareSettlementBtn');
+  const circle = document.getElementById('toggleShareSettlementCircle');
+
+  if (isSettlementShared) {
+    if (label) { label.innerText = "공개"; label.className = "text-xs font-bold text-theme"; }
+    if (btn) { btn.className = "w-11 h-6 bg-theme rounded-full p-1 transition-colors relative flex items-center"; }
+    if (circle) { circle.className = "w-4 h-4 bg-white rounded-full transition-transform transform translate-x-5 shadow-sm"; }
+  } else {
+    if (label) { label.innerText = "비공개"; label.className = "text-xs font-bold text-gray-500"; }
+    if (btn) { btn.className = "w-11 h-6 bg-gray-300 rounded-full p-1 transition-colors relative flex items-center"; }
+    if (circle) { circle.className = "w-4 h-4 bg-white rounded-full transition-transform transform translate-x-0 shadow-sm"; }
+  }
+}
+
+// 동반자 정산 공개 토글 함수
+window.toggleShareSettlement = async function() {
+  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
+  isSettlementShared = !isSettlementShared;
+  updateShareSettlementUI();
+
+  if (currentUser && !isReadOnly) {
+    try {
+      await setDoc(doc(db, "users", currentUser.uid), { shareSettlement: isSettlementShared }, { merge: true });
+      if (myCustomCode) {
+        await setDoc(doc(db, "userCodes", myCustomCode), { shareSettlement: isSettlementShared }, { merge: true });
+      }
+    } catch(e) { console.error("공개 범위 설정 저장 실패:", e); }
+  }
+};
+
 window.enterWithInviteCode = async function() {
   const codeInput = document.getElementById('loginInviteCodeInput')?.value.trim();
   if (!codeInput) return alert("초대 코드를 입력해주세요.");
@@ -292,14 +325,19 @@ window.enterWithInviteCode = async function() {
     if (!db) return alert("데이터베이스 연결 실패");
     const codeSnap = await getDoc(doc(db, "userCodes", codeInput));
     if (!codeSnap.exists()) return alert("유효하지 않은 초대 코드입니다.");
-    targetUserId = codeSnap.data().uid;
+    
+    const codeData = codeSnap.data();
+    targetUserId = codeData.uid;
+    isSettlementShared = codeData.shareSettlement === true; // 상대방이 설정한 정산 공개 여부 로드
     isReadOnly = true;
+
     document.getElementById('authSection')?.classList.add('hidden');
     const appSec = document.getElementById('appSection');
     appSec?.classList.remove('hidden');
     appSec?.classList.add('flex');
     const userNameElem = document.getElementById('userName');
     if (userNameElem) userNameElem.innerText = "초대 접속자 (" + codeInput + ")";
+    
     updateFormVisibility();
     await loadCampaigns();
     window.switchTab('dashboard', false);
@@ -407,6 +445,8 @@ window.toggleMonthlyDetailsCard = function(month) {
 
 window.switchTab = function(tabName, pushState = true) {
   if (isReadOnly && (tabName === 'form' || tabName === 'settings')) return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
+  if (isReadOnly && !isSettlementShared && tabName === 'settlement') return alert("상대방이 정산 내역을 비공개로 설정했습니다.");
+
   ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
   document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
   const activeBtn = document.getElementById("nav-" + tabName);
@@ -430,7 +470,7 @@ window.switchTab = function(tabName, pushState = true) {
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
   }
   else if (tabName === 'settlement') { document.getElementById('sectionSettlement')?.classList.remove('hidden'); window.setSettlementSubTab('report'); }
-  else if (tabName === 'settings') { document.getElementById('sectionSettings')?.classList.remove('hidden'); renderStatusColorPickers(); }
+  else if (tabName === 'settings') { document.getElementById('sectionSettings')?.classList.remove('hidden'); renderStatusColorPickers(); updateShareSettlementUI(); }
 };
 
 window.setStatusBtn = function(status) {
@@ -867,7 +907,6 @@ window.filterAndRender = function() {
   }
 };
 
-// [수정사항 1 & 2] 캘린더 위치 및 문구 복구
 window.renderCalendar = function(year, month) {
   const calGrid = document.getElementById('calendarGrid');
   if (!calGrid) return;
@@ -898,7 +937,6 @@ window.renderCalendar = function(year, month) {
     const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
     const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
 
-    // 노란색 박스 영역에 들어갈 세로 뱃지
     let badgeHtml = '';
     if (visitMatches.length > 0) {
       badgeHtml += '<div class="text-[11px] text-emerald-600 font-bold text-left whitespace-nowrap leading-tight">🟢 방문 ' + visitMatches.length + '건</div>';
@@ -1328,12 +1366,32 @@ function updateFormVisibility() {
   const resetBtn = document.getElementById('resetToMyDataBtn');
   const dashRegisterBtn = document.getElementById('dashRegisterBtn');
   const navForm = document.getElementById('nav-form');
+  const navSettlement = document.getElementById('nav-settlement');
   const navSettings = document.getElementById('nav-settings');
   const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+
   if (isReadOnly) {
-    readOnlyBadge?.classList.remove('hidden'); resetBtn?.classList.remove('hidden'); dashRegisterBtn?.classList.add('hidden'); navForm?.classList.add('hidden'); navSettings?.classList.add('hidden'); downloadExcelBtn?.classList.add('hidden');
+    readOnlyBadge?.classList.remove('hidden');
+    resetBtn?.classList.remove('hidden');
+    dashRegisterBtn?.classList.add('hidden');
+    navForm?.classList.add('hidden');
+    navSettings?.classList.add('hidden');
+    downloadExcelBtn?.classList.add('hidden');
+
+    // [요청사항 1] 동반자 접속 시 정산 공개 여부에 따른 메뉴 제어
+    if (isSettlementShared) {
+      navSettlement?.classList.remove('hidden');
+    } else {
+      navSettlement?.classList.add('hidden');
+    }
   } else {
-    readOnlyBadge?.classList.add('hidden'); resetBtn?.classList.add('hidden'); dashRegisterBtn?.classList.remove('hidden'); navForm?.classList.remove('hidden'); navSettings?.classList.remove('hidden'); downloadExcelBtn?.classList.remove('hidden');
+    readOnlyBadge?.classList.add('hidden');
+    resetBtn?.classList.add('hidden');
+    dashRegisterBtn?.classList.remove('hidden');
+    navForm?.classList.remove('hidden');
+    navSettlement?.classList.remove('hidden'); // 본인은 항상 표시
+    navSettings?.classList.remove('hidden');
+    downloadExcelBtn?.classList.remove('hidden');
   }
 }
 
@@ -1346,6 +1404,10 @@ async function fetchUserCustomCode() {
       const data = userSnap.data();
       if (data.customCode) myCustomCode = data.customCode;
       if (data.deadlineAlertDays) { deadlineAlertDays = data.deadlineAlertDays; updateDeadlineButtons(); }
+      if (data.shareSettlement !== undefined) {
+        isSettlementShared = data.shareSettlement === true;
+        updateShareSettlementUI();
+      }
       if (data.statusColors) {
         Object.assign(customStatusColors, data.statusColors);
         localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
@@ -1354,11 +1416,13 @@ async function fetchUserCustomCode() {
       }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
-      await setDoc(userDocRef, { customCode: myCustomCode, uid: currentUser.uid }, { merge: true });
-      await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid });
+      isSettlementShared = false;
+      await setDoc(userDocRef, { customCode: myCustomCode, uid: currentUser.uid, shareSettlement: false }, { merge: true });
+      await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid, shareSettlement: false });
     }
     const codeElem = document.getElementById('myShareCode');
     if (codeElem) codeElem.innerText = myCustomCode;
+    updateShareSettlementUI();
   } catch (e) { console.error(e); }
 }
 
@@ -1509,12 +1573,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리):", myCustomCode);
     if (!newCode) return;
     const trimmed = newCode.trim();
-    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("4자리 또는 6자리여야 합니다.");
+    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("공유 코드는 4자리 또는 6자리여야 합니다.");
     try {
       const snap = await getDoc(doc(db, "userCodes", trimmed));
       if (snap.exists() && snap.data().uid !== currentUser.uid) return alert("이미 사용 중인 코드입니다.");
       if (myCustomCode && myCustomCode !== trimmed) { try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(e){} }
-      await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid }, { merge: true });
+      await setDoc(doc(db, "userCodes", trimmed), { uid: currentUser.uid, shareSettlement: isSettlementShared }, { merge: true });
       await setDoc(doc(db, "users", currentUser.uid), { customCode: trimmed }, { merge: true });
       myCustomCode = trimmed; document.getElementById('myShareCode').innerText = myCustomCode; alert("변경되었습니다!");
     } catch(err) { alert(err.message); }
@@ -1524,9 +1588,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const partnerCode = document.getElementById('partnerCodeInput')?.value.trim();
     if (!partnerCode) return alert("코드를 입력해주세요.");
     try {
-      let realUid = partnerCode;
       const snap = await getDoc(doc(db, "userCodes", partnerCode));
-      if (snap.exists()) realUid = snap.data().uid;
+      if (!snap.exists()) return alert("유효하지 않은 코드입니다.");
+      const codeData = snap.data();
+      let realUid = codeData.uid;
+      isSettlementShared = codeData.shareSettlement === true;
+
       if (currentUser && realUid === currentUser.uid) { targetUserId = currentUser.uid; isReadOnly = false; alert("본인 모드로 전환되었습니다."); } 
       else { targetUserId = realUid; isReadOnly = true; alert("동반자 모드로 전환되었습니다."); }
       updateFormVisibility(); loadCampaigns(); window.switchTab('dashboard');
