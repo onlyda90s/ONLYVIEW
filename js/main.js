@@ -1,176 +1,428 @@
-import { store } from './store.js';
-import { db } from './firebase-config.js';
-import { initAuth } from './modules/auth.js';
-import { renderDashboardView } from './modules/dashboard.js';
-import { filterAndRender, populateYearFilter } from './modules/list.js';
-import { renderSettlementView } from './modules/settlement.js';
-import { applyStatusCSSColors, updateDeadlineButtons, updateChartModeButtonsUI, renderStatusColorPickers, applySidebarUI, updateFormVisibility } from './modules/settings.js';
-import { initFormHandlers, renderPlatformChips } from './modules/form.js';
-import { formatCleanDate } from './utils.js';
-import './modules/excel.js';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>온리뷰 (onlyview) - 대시보드</title>
+  
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <link rel="stylesheet" href="css/style.css">
 
-import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  <!-- 강력한 자가진단 에러 감지기 (누락된 404 파일명을 즉시 화면에 띄움) -->
+  <script>
+    // 클릭 에러 방지용 기본 방어 함수
+    window.loginWithGoogle = function() {
+      alert("로그인 모듈을 불러오는 중입니다. 잠시만 기다려주세요...\n(화면 상단에 붉은 에러 박스가 뜬다면 안내된 파일 누락 여부를 확인해 주세요.)");
+    };
+    window.enterWithInviteCode = function() {
+      alert("초대 코드 모듈을 불러오는 중입니다. 잠시만 기다려주세요...");
+    };
 
-window.renderDashboardView = renderDashboardView;
-window.filterAndRender = filterAndRender;
-window.renderSettlementView = renderSettlementView;
+    // 404 Not Found 및 스크립트 로드 실패 실시간 감지 (Capture Phase 적용)
+    window.addEventListener('error', function(e) {
+      var box = document.getElementById('debugErrorBox');
+      if (box) {
+        var target = e.target;
+        if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+          box.classList.remove('hidden');
+          box.innerHTML += '<div>❌ <b>파일 로드 실패 (404 Not Found):</b> ' + (target.src || target.href) + '</div>';
+        }
+      }
+    }, true);
 
-window.refreshAllViews = function() {
-  filterAndRender();
-  renderDashboardView();
-  renderSettlementView();
-};
-
-window.loadCampaigns = async function() {
-  if (!db || !store.targetUserId) return;
-  try {
-    let querySnapshot;
-    try {
-      const q = query(collection(db, "campaigns"), where("userId", "==", store.targetUserId));
-      querySnapshot = await getDocs(q);
-    } catch (err) {
-      querySnapshot = await getDocs(collection(db, "campaigns"));
-    }
-    store.rawCampaignList = [];
-    querySnapshot.forEach((docSnap) => {
-      const d = docSnap.data();
-      if (d.userId === store.targetUserId || !d.userId) {
-        store.rawCampaignList.push({
-          id: docSnap.id, ...d,
-          applyDate: formatCleanDate(d.applyDate || ''),
-          visitDate: formatCleanDate(d.visitDate || ''),
-          deadlineDate: formatCleanDate(d.deadlineDate || '')
-        });
+    window.addEventListener('unhandledrejection', function(e) {
+      var box = document.getElementById('debugErrorBox');
+      if (box) {
+        box.classList.remove('hidden');
+        var msg = e.reason ? (e.reason.message || e.reason) : '모듈 로드 중단';
+        box.innerHTML += '<div>❌ <b>모듈 로드 실패:</b> ' + msg + '</div>';
       }
     });
+  </script>
+</head>
+<body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal">
 
-    const now = new Date(); const targetYear = now.getFullYear(); const yearGroup = {};
-    store.rawCampaignList.forEach(item => {
-      const date = item.visitDate || '';
-      if (date && date.length >= 7) {
-        const y = date.slice(0, 4); const m = parseInt(date.slice(5, 7));
-        if (y === String(targetYear) && m >= 1 && m <= 12) yearGroup[m] = (yearGroup[m] || 0) + 1;
-      }
-    });
-    for (let m = 1; m <= 12; m++) {
-      const saved = localStorage.getItem("onlyview_monthlyDetailCollapsed_" + m);
-      if (saved === null) store.monthlyDetailsCollapseState[m] = !(yearGroup[m] && yearGroup[m] > 0);
-      else store.monthlyDetailsCollapseState[m] = (saved === 'true');
-    }
+  <!-- 실시간 디버그 진단창 (정상 구동 시에는 뜨지 않습니다) -->
+  <div id="debugErrorBox" class="hidden fixed top-0 left-0 right-0 z-50 bg-rose-50 border-b border-rose-300 p-3 text-rose-800 text-xs space-y-1 shadow-md"></div>
 
-    populateYearFilter();
-    window.refreshAllViews();
-  } catch (e) { console.error("데이터 로드 실패:", e); }
-};
+  <!-- 로그인 화면 -->
+  <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
+    <div class="text-center space-y-3 mb-12">
+      <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
+      <p class="text-xs tracking-widest text-gray-400 font-normal uppercase">ONLYVIEW</p>
+      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-normal">체험단 방문, 마감, 정산을<br>한곳에서</p>
+    </div>
+    <div class="w-full space-y-3 mb-6">
+      <div class="space-y-2">
+        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm font-normal">
+        <button id="enterInviteBtn" onclick="window.enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition-colors">초대 코드로 대시보드 보기</button>
+      </div>
+      <div class="relative flex py-2 items-center">
+        <div class="flex-grow border-t border-gray-200"></div><span class="flex-shrink mx-3 text-gray-400 text-xs font-normal">또는</span><div class="flex-grow border-t border-gray-200"></div>
+      </div>
+      <button id="loginBtn" onclick="window.loginWithGoogle()" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">Google로 계속하기
+      </button>
+      <p class="text-[11px] text-center text-gray-400 mt-3 font-normal">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
+    </div>
+  </div>
 
-window.switchTab = function(tabName, pushState = true) {
-  if (store.isReadOnly && (tabName === 'form' || tabName === 'settings')) return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
-  ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
-  document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
-  const activeBtn = document.getElementById("nav-" + tabName);
-  if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
-  if (pushState && window.location.hash !== "#" + tabName) history.pushState({ tab: tabName }, '', "#" + tabName);
-  ['dayModal', 'editModal', 'colorPickerModal', 'dashRegisterModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  <!-- 메인 앱 화면 -->
+  <div id="appSection" class="hidden h-screen w-full flex-col md:flex-row overflow-hidden">
+    
+    <!-- 사이드바 -->
+    <aside id="mainSidebar" class="w-full md:w-64 bg-sidebar border-r border-black/5 p-4 flex flex-col justify-between shrink-0 h-screen transition-all duration-200 relative">
+      <div class="space-y-5">
+        <div class="flex items-center justify-between">
+          <div class="sidebar-text-label">
+            <h1 class="text-2xl font-black text-theme tracking-tight">온리뷰</h1>
+            <p class="text-[10px] text-sidebar-muted font-normal uppercase tracking-widest">ONLYVIEW DASHBOARD</p>
+          </div>
+          <button id="sidebarToggleBtn" onclick="window.toggleSidebar()" class="hidden md:flex p-1.5 rounded-lg bg-black/5 text-sidebar text-xs hover:bg-black/10 transition">◀</button>
+        </div>
+        <div class="sidebar-text-label p-2 bg-theme-light rounded-xl flex items-center justify-between border border-theme/10">
+          <span id="userName" class="text-xs font-normal text-theme truncate"></span>
+        </div>
+        <nav class="space-y-1 text-sm font-bold">
+          <button id="nav-dashboard" onclick="window.switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white"><span class="sidebar-text-label">대시보드</span></button>
+          <button id="nav-form" onclick="window.switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 등록</span></button>
+          <button id="nav-list" onclick="window.switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 목록</span></button>
+          <button id="nav-settlement" onclick="window.switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 정산</span></button>
+          <button id="nav-settings" onclick="window.switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">설정 및 공유</span></button>
+        </nav>
+      </div>
+      <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-16">
+        <button id="resetToMyDataBtn" class="hidden w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm"><span class="sidebar-text-label">내 목록으로 돌아가기</span></button>
+        <button id="downloadExcelBtn" onclick="window.downloadExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1.5"><span class="sidebar-text-label">엑셀 내보내기</span></button>
+        <button id="logoutBtn" onclick="window.logout()" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center"><span class="sidebar-text-label">로그아웃</span></button>
+      </div>
+    </aside>
 
-  if (tabName === 'dashboard') { store.currentCalDate = new Date(); document.getElementById('sectionDashboard')?.classList.remove('hidden'); renderDashboardView(); }
-  else if (tabName === 'list') {
-    store.isBatchEditing = false; store.newBatchRows = []; store.listSubTab = 'ongoing'; store.isFilterExpanded = false;
-    const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
-    if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
-    document.getElementById('searchInput').value = ''; document.getElementById('filterStatus').value = 'ALL'; document.getElementById('filterYear').value = 'ALL'; document.getElementById('filterMonth').value = 'ALL';
-    document.getElementById('sectionList')?.classList.remove('hidden');
-    filterAndRender();
-  }
-  else if (tabName === 'form') {
-    document.getElementById('campaignForm')?.reset();
-    window.setStatusBtn('신청'); window.selectPlatformChip('개별');
-    document.getElementById('sectionForm')?.classList.remove('hidden');
-    document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
-  }
-  else if (tabName === 'settlement') { document.getElementById('sectionSettlement')?.classList.remove('hidden'); window.setSettlementSubTab('report'); }
-  else if (tabName === 'settings') { document.getElementById('sectionSettings')?.classList.remove('hidden'); renderStatusColorPickers(); }
-};
+    <main class="flex-1 px-6 md:px-8 pr-4 py-4 pb-8 space-y-4 h-screen overflow-y-auto flex flex-col justify-between">
+      <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
-function initApp() {
-  initAuth(window.loadCampaigns);
-  initFormHandlers();
-  applyStatusCSSColors();
-  applySidebarUI();
-  renderPlatformChips();
-  updateDeadlineButtons();
-  updateChartModeButtonsUI();
+      <!-- 1. 대시보드 탭 -->
+      <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden">
+        <div class="flex items-center justify-between shrink-0">
+          <h2 id="dashMonthTitle" class="text-2xl md:text-3xl font-black text-theme"></h2>
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1">
+              <button id="prevMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">이전달</button>
+              <button id="todayMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">오늘</button>
+              <button id="nextMonthBtn" class="bg-white border text-gray-600 text-xs px-2.5 py-1.5 rounded-xl font-normal hover:bg-gray-50">다음달</button>
+            </div>
+            <button id="dashRegisterBtn" onclick="window.openDashRegisterModal()" class="bg-theme bg-theme-hover text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-sm transition-colors">+ 체험 등록</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
+          <div onclick="window.openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-gray-900 font-normal">선정 현황</div><div id="cntSelect" class="text-lg font-bold text-gray-900 mt-0.5">0건</div></div>
+          <div onclick="window.openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-gray-500 font-normal">예약 대기</div><div id="cntVisitWait" class="text-lg font-bold text-gray-500 mt-0.5">0건</div></div>
+          <div onclick="window.openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-orange-500 font-normal">방문 예정</div><div id="cntVisitPlan" class="text-lg font-bold text-orange-500 mt-0.5">0건</div></div>
+          <div onclick="window.openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-gray-500 font-normal">미제출</div><div id="cntSubmitWait" class="text-lg font-bold text-gray-500 mt-0.5">0건</div></div>
+          <div onclick="window.openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-emerald-600 font-normal">제출 완료</div><div id="cntSubmitDone" class="text-lg font-bold text-emerald-600 mt-0.5">0건</div></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
+          <div class="lg:col-span-2 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
+          </div>
+          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+            <h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">방문 일정</h3><div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-60 shrink-0">
+          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden"><h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">제출 마감 임박</h3><div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div></div>
+          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden"><h3 class="font-bold text-gray-800 text-xs mb-1.5 shrink-0">예약 대기</h3><div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div></div>
+        </div>
+      </div>
 
-  // 초대 코드 입력창 엔터(Enter) 키 리스너 복구
-  document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter') {
-      window.enterWithInviteCode();
-    }
-  });
+      <!-- 2. 체험단 등록 탭 -->
+      <div id="sectionForm" class="hidden space-y-4 w-full overflow-y-auto max-h-screen py-2">
+        <div class="flex items-center h-10 mb-4 shrink-0"><h2 class="text-2xl font-black text-theme">체험단 등록</h2></div>
+        <div id="formContainer" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+          <form id="campaignForm" class="space-y-4 text-sm">
+            <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태</label>
+              <div class="flex gap-1.5">
+                <button type="button" id="btnStatus_신청" onclick="window.setStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm">신청</button>
+                <button type="button" id="btnStatus_선정" onclick="window.setStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">선정</button>
+                <button type="button" id="btnStatus_배송" onclick="window.setStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">배송</button>
+                <button type="button" id="btnStatus_원고료" onclick="window.setStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors">원고료</button>
+              </div>
+            </div>
+            <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">체험단 사이트</label><div id="platformChipsContainer" class="flex flex-wrap gap-1.5"></div><input type="hidden" id="platformName" value="개별"></div>
+            <div><label id="storeNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="storeName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label id="sponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+              <div id="rowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal"></div>
+              <div id="rowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div>
+            </div>
+            <div id="rowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"><input type="time" id="visitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div></div>
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+            </div>
+            <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="paidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="revenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+            </div>
+            <div id="rowContact" class="hidden"><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="contact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+            <div id="rowMemo" class="hidden"><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="memo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm resize-none font-normal"></textarea></div>
+            <div class="flex justify-end pt-3 border-t border-gray-100"><button type="submit" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-8 rounded-xl transition-colors shadow-sm text-sm">등록하기</button></div>
+          </form>
+        </div>
+      </div>
 
-  // 검색/필터 바인딩
-  document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
-  document.getElementById('filterStatus')?.addEventListener('change', filterAndRender);
-  document.getElementById('filterYear')?.addEventListener('change', filterAndRender);
-  document.getElementById('filterMonth')?.addEventListener('change', filterAndRender);
-  document.getElementById('settlementYearSelect')?.addEventListener('change', renderSettlementView);
+      <!-- 3. 체험단 목록 탭 -->
+      <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
+        <div class="flex items-center justify-between h-10 shrink-0">
+          <div class="flex items-center gap-1.5"><h2 class="text-2xl font-black text-theme">체험단 목록</h2></div>
+          <div class="flex items-center gap-2">
+            <button id="filterToggleBtn" onclick="window.toggleFilterArea()" class="px-3.5 py-1.5 rounded-lg font-normal text-xs bg-white border border-gray-200 text-gray-700 shadow-sm transition-colors hover:bg-gray-50">▼ 필터</button>
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button id="subTabOngoing" onclick="window.setListSubTab('ongoing')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">진행중인 체험</button>
+              <button id="subTabSubmitted" onclick="window.setListSubTab('submitted')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">완료된 체험</button>
+            </div>
+            <button id="saveBatchBtn" onclick="window.saveAllBatchEdits()" class="hidden px-4 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 mr-1">저장</button>
+            <button id="batchEditBtn" onclick="window.toggleBatchEdit()" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1">수정</button>
+          </div>
+        </div>
+        <div id="filterBoxContainer" class="hidden items-center justify-end gap-2 shrink-0 flex-wrap pr-1 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+          <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm font-normal">
+          <select id="filterYear" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal"></select>
+          <select id="filterMonth" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal">
+            <option value="ALL">월 전체</option><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+          </select>
+          <select id="filterStatus" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal">
+            <option value="ALL">상태 전체</option><option value="신청">신청</option><option value="선정">선정</option><option value="방문">방문</option><option value="미제출">미제출</option><option value="제출">제출/완료</option><option value="배송">배송</option><option value="원고료">원고료</option>
+          </select>
+        </div>
+        <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table class="w-full text-left border-collapse table-auto">
+            <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs">
+              <tr>
+                <th onclick="window.handleSort('storeName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-left">매장명 <span id="sortInd_storeName" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('status')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-status">상태 <span id="sortInd_status" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('platformName')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-platform">사이트 <span id="sortInd_platformName" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('visitDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-visit">방문일 <span id="sortInd_visitDate" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('deadlineDate')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-deadline">마감일 <span id="sortInd_deadlineDate" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('sponsoredAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-sponsored">제공금액 <span id="sortInd_sponsoredAmount" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('paidAmount')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-paid">결제금액 <span id="sortInd_paidAmount" class="text-gray-300 ml-0.5">↕</span></th>
+                <th onclick="window.handleSort('revenue')" class="p-3 cursor-pointer hover:bg-gray-100 transition-colors select-none font-bold text-xs text-center col-fixed-revenue">실수익 <span id="sortInd_revenue" class="text-gray-300 ml-0.5">↕</span></th>
+                <th class="p-3 font-bold text-xs text-center col-fixed-note">비고</th>
+              </tr>
+            </thead>
+            <tbody id="campaignTableBody"></tbody>
+          </table>
+        </div>
+        <div id="campaignCardList" class="block md:hidden space-y-3"></div>
+      </div>
 
-  // 대시보드 월 이동
-  document.getElementById('prevMonthBtn')?.addEventListener('click', () => { store.currentCalDate.setMonth(store.currentCalDate.getMonth() - 1); renderDashboardView(); });
-  document.getElementById('todayMonthBtn')?.addEventListener('click', () => { store.currentCalDate = new Date(); renderDashboardView(); });
-  document.getElementById('nextMonthBtn')?.addEventListener('click', () => { store.currentCalDate.setMonth(store.currentCalDate.getMonth() + 1); renderDashboardView(); });
+      <!-- 4. 정산 탭 -->
+      <div id="sectionSettlement" class="hidden space-y-4 overflow-y-auto max-h-screen py-2 pr-2">
+        <div class="flex items-center justify-between h-10 mb-1 shrink-0">
+          <h2 class="text-2xl font-black text-theme">체험단 정산</h2>
+          <div class="flex items-center gap-3">
+            <select id="settlementYearSelect" class="border p-2 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal text-gray-800"></select>
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button id="settlementSubTabReport" onclick="window.setSettlementSubTab('report')" class="tab-fixed-btn py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors">정산 리포트</button>
+              <button id="settlementSubTabDetail" onclick="window.setSettlementSubTab('detail')" class="tab-fixed-btn py-1.5 rounded-lg font-normal text-xs bg-[#EAECEF] hover:bg-gray-200 text-gray-700 transition-colors">세부 내역</button>
+            </div>
+          </div>
+        </div>
+        <div id="settlementPanelReport" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+            <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none"><span class="text-xs font-bold text-gray-800">연간 수익</span><span id="yearlyAccumulatedLabel" class="text-[11px] text-gray-400 font-normal">누적</span></div>
+              <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center mt-2 flex-1 relative"><div class="col-span-2 relative flex items-center justify-center h-48 w-full"><canvas id="yearlyDonutChart"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center"><span id="yearlyTotalRevenueText" class="text-xl font-black text-gray-900 tracking-tight">0원</span></div></div><div class="col-span-3 space-y-3.5 text-xs text-left pl-10 ml-2"><div class="space-y-1 py-1"><div class="flex items-center justify-between font-normal text-gray-800 text-xs"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span><span>정산 완료</span></span><span class="flex items-center gap-1.5"><span id="yearlyDoneCount" class="w-8 text-right">0건</span><span class="text-gray-300 font-normal">|</span><span id="yearlyDoneAmount" class="w-20 text-right">0원</span></span></div><div class="flex items-center justify-between font-normal text-gray-800 text-xs"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span><span>정산 예정</span></span><span class="flex items-center gap-1.5"><span id="yearlyPlanCount" class="w-8 text-right">0건</span><span class="text-gray-300 font-normal">|</span><span id="yearlyPlanAmount" class="w-20 text-right">0원</span></span></div></div><div id="yearlyCompareContainer" class="pt-0.5"></div></div></div>
+            </div>
+            <div id="monthlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none"><span class="text-xs font-bold text-gray-800">월간 수익</span><span id="monthlySubText" class="text-[10px] text-gray-400 font-normal">단위 : 만원</span></div>
+              <div id="monthlyCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between"><div class="relative h-44 w-full"><canvas id="monthlyBarChart"></canvas></div><div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs"><div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3"><span class="text-[10px] text-gray-400 font-normal">최고 수익 달</span><span id="monthlyBestMonthText" class="font-normal text-gray-900 text-xs">-</span></div><div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3"><span class="text-[10px] text-gray-400 font-normal">이번 달</span><span id="monthlyCurrentMonthText" class="font-normal text-gray-900 text-xs">-</span></div></div></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+            <div id="platformAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start overflow-hidden min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none"><span class="text-xs font-bold text-gray-800">플랫폼 분석</span><span id="platformAnalysisCountInfo" class="text-[10px] text-gray-400 font-normal">올해 건수·실수익 (0개 플랫폼)</span></div>
+              <div id="platformAnalysisCardBody" class="mt-3 flex-1"><div class="grid grid-cols-2 gap-x-6 gap-y-2 max-h-56 overflow-y-auto widget-scroll pr-1"><div id="platformColLeft" class="space-y-2"></div><div id="platformColRight" class="space-y-2"></div></div></div>
+            </div>
+            <div id="monthlyAnalysisCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden min-h-[320px]">
+              <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none"><span class="text-xs font-bold text-gray-800">월간 분석</span><span id="monthlyAnalysisSubText" class="text-[10px] text-gray-400 font-normal">단위 : 건</span></div>
+              <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between"><div class="relative h-44 w-full"><canvas id="monthlyAnalysisLineChart"></canvas></div><div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs"><div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3"><span class="text-[10px] text-gray-400 font-normal">최고 건의 달</span><span id="monthlyAnalysisBestText" class="font-normal text-gray-900 text-xs">-</span></div><div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex items-center justify-between px-3"><span class="text-[10px] text-gray-400 font-normal">이번 달</span><span id="monthlyAnalysisCurrentText" class="font-normal text-gray-900 text-xs">-</span></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div id="settlementPanelDetail" class="hidden space-y-3"><div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div></div>
+      </div>
 
-  // 모달 닫기
-  document.getElementById('closeModalBtn')?.addEventListener('click', () => document.getElementById('dayModal')?.classList.add('hidden'));
-  document.getElementById('closeEditModalBtn')?.addEventListener('click', () => document.getElementById('editModal')?.classList.add('hidden'));
-  document.getElementById('closeColorModalBtn')?.addEventListener('click', () => document.getElementById('colorPickerModal')?.classList.add('hidden'));
-  document.getElementById('closeDashRegisterModalBtn')?.addEventListener('click', window.closeDashRegisterModal);
+      <!-- 5. 설정 탭 -->
+      <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
+        <div class="flex items-center justify-between h-10 shrink-0"><h2 class="text-2xl font-black text-theme">설정 및 공유</h2></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">테마 설정</h3>
+            <div class="grid grid-cols-5 gap-3 text-xs">
+              <button onclick="window.changeTheme('slate')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#3B6FB6]"></span><span class="text-[10px] font-normal">슬레이트</span></button>
+              <button onclick="window.changeTheme('terracotta')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#C2571F]"></span><span class="text-[10px] font-normal">테라코타</span></button>
+              <button onclick="window.changeTheme('forest')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#2E6B4A]"></span><span class="text-[10px] font-normal">포레스트</span></button>
+              <button onclick="window.changeTheme('violet')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#6D4FC2]"></span><span class="text-[10px] font-normal">바이올렛</span></button>
+              <button onclick="window.changeTheme('graphite')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#2B2F36]"></span><span class="text-[10px] font-normal">그래파이트</span></button>
+              <button onclick="window.changeTheme('brick')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#B2382F]"></span><span class="text-[10px] font-normal">브릭레드</span></button>
+              <button onclick="window.changeTheme('mustard')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#9C6A00]"></span><span class="text-[10px] font-normal">머스타드</span></button>
+              <button onclick="window.changeTheme('indigo')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#3446A8]"></span><span class="text-[10px] font-normal">인디고</span></button>
+              <button onclick="window.changeTheme('emerald')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#0E7C66]"></span><span class="text-[10px] font-normal">에메랄드</span></button>
+              <button onclick="window.changeTheme('ink')" class="p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-6 h-6 rounded-full bg-[#232830]"></span><span class="text-[10px] font-normal">잉크블랙</span></button>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">정산 색상 설정</h3>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button id="btnChartMode_default" onclick="window.setChartMode('default')" class="py-1.5 px-3.5 rounded-lg text-xs">기본</button>
+              <button id="btnChartMode_light" onclick="window.setChartMode('light')" class="py-1.5 px-3.5 rounded-lg text-xs">연하게</button>
+              <button id="btnChartMode_outline" onclick="window.setChartMode('outline')" class="py-1.5 px-3.5 rounded-lg text-xs">윤곽선</button>
+              <button id="btnChartMode_theme" onclick="window.setChartMode('theme')" class="py-1.5 px-3.5 rounded-lg text-xs">테마</button>
+            </div>
+          </div>
+        </div>
 
-  // 동반자/초대 관리
-  document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
-    if (store.isReadOnly) return alert("읽기 전용 모드입니다.");
-    const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리):", store.myCustomCode);
-    if (!newCode) return;
-    const trimmed = newCode.trim();
-    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("4자리 또는 6자리여야 합니다.");
-    try {
-      const snap = await getDoc(doc(db, "userCodes", trimmed));
-      if (snap.exists() && snap.data().uid !== store.currentUser.uid) return alert("이미 사용 중인 코드입니다.");
-      if (store.myCustomCode && store.myCustomCode !== trimmed) { try { await deleteDoc(doc(db, "userCodes", store.myCustomCode)); } catch(e){} }
-      await setDoc(doc(db, "userCodes", trimmed), { uid: store.currentUser.uid }, { merge: true });
-      await setDoc(doc(db, "users", store.currentUser.uid), { customCode: trimmed }, { merge: true });
-      store.myCustomCode = trimmed;
-      document.getElementById('myShareCode').innerText = store.myCustomCode;
-      alert("공유 코드가 변경되었습니다!");
-    } catch(err) { alert(err.message); }
-  });
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">상태별 색상 설정</h3>
+            <div class="grid grid-cols-2 md:grid-cols-7 gap-3 text-xs">
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">신청</span><button onclick="window.openColorPickerModal('apply', '신청')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_apply"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">선정</span><button onclick="window.openColorPickerModal('select', '선정')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_select"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">방문</span><button onclick="window.openColorPickerModal('visit', '방문')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_visit"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">미제출</span><button onclick="window.openColorPickerModal('unsubmitted', '미제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_unsubmitted"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">제출</span><button onclick="window.openColorPickerModal('submit', '제출')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_submit"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">배송</span><button onclick="window.openColorPickerModal('delivery', '배송')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_delivery"></button></div>
+              <div class="p-3 bg-gray-50 rounded-xl text-center space-y-2"><span class="block text-gray-700">원고료</span><button onclick="window.openColorPickerModal('fee', '원고료')" class="w-8 h-8 rounded-full border-2 border-white shadow-md inline-block" id="picker_badge_fee"></button></div>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">마감 알림 기준 설정</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-600 font-normal mr-2">D-Day 범위:</span>
+              <button id="btnDeadlineDay_7" onclick="window.setDeadlineDays(7)" class="py-1.5 px-3.5 rounded-lg text-xs">7일 전</button>
+              <button id="btnDeadlineDay_10" onclick="window.setDeadlineDays(10)" class="py-1.5 px-3.5 rounded-lg text-xs">10일 전</button>
+              <button id="btnDeadlineDay_14" onclick="window.setDeadlineDays(14)" class="py-1.5 px-3.5 rounded-lg text-xs">14일 전</button>
+            </div>
+          </div>
+        </div>
 
-  document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
-    const partnerCode = document.getElementById('partnerCodeInput')?.value.trim();
-    if (!partnerCode) return alert("코드를 입력해주세요.");
-    try {
-      let realUid = partnerCode;
-      const snap = await getDoc(doc(db, "userCodes", partnerCode));
-      if (snap.exists()) realUid = snap.data().uid;
-      if (store.currentUser && realUid === store.currentUser.uid) { store.targetUserId = store.currentUser.uid; store.isReadOnly = false; alert("본인 모드로 전환되었습니다."); }
-      else { store.targetUserId = realUid; store.isReadOnly = true; alert("동반자 모드로 전환되었습니다."); }
-      updateFormVisibility();
-      await window.loadCampaigns();
-      window.switchTab('dashboard');
-    } catch(err) { alert(err.message); }
-  });
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">공유 코드 관리</h3>
+            <div class="p-4 bg-theme-light rounded-2xl flex items-center justify-between border border-theme/10">
+              <div><div class="text-xs text-gray-500 font-normal">내 초대 코드</div><div id="myShareCode" class="text-xl font-mono font-bold text-theme"></div></div>
+              <button id="editCodeBtn" class="bg-white border text-gray-700 text-xs px-3 py-2 rounded-xl">코드 변경 (4/6자리)</button>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="font-bold text-gray-800 text-base">동반자 내역 조회 (읽기 전용)</h3>
+            <div class="flex gap-2">
+              <input type="text" id="partnerCodeInput" placeholder="동반자 코드 입력" class="border p-2.5 rounded-xl text-xs w-full">
+              <button id="applyPartnerCodeBtn" class="bg-gray-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold shrink-0">조회</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-  document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
-    if (!store.currentUser) return;
-    store.targetUserId = store.currentUser.uid;
-    store.isReadOnly = false;
-    document.getElementById('partnerCodeInput').value = '';
-    updateFormVisibility();
-    window.loadCampaigns();
-  });
-}
+  <!-- 공통 모달 -->
+  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-3"><h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3><button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto"></div>
+    </div>
+  </div>
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}
+  <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <form id="modalCampaignForm" class="space-y-4 text-sm">
+        <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnModalStatus_신청" onclick="window.setModalStatusBtn('신청')" class="py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs">신청</button>
+            <button type="button" id="btnModalStatus_선정" onclick="window.setModalStatusBtn('선정')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs">선정</button>
+            <button type="button" id="btnModalStatus_배송" onclick="window.setModalStatusBtn('배송')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs">배송</button>
+            <button type="button" id="btnModalStatus_원고료" onclick="window.setModalStatusBtn('원고료')" class="py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs">원고료</button>
+          </div>
+        </div>
+        <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">체험단 사이트</label><div id="modalPlatformChipsContainer" class="flex flex-wrap gap-1.5"></div><input type="hidden" id="modalPlatformName" value="개별"></div>
+        <div><label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="modalStoreName" required class="w-full border p-2.5 rounded-xl text-sm"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50"></div>
+          <div id="modalRowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div>
+        </div>
+        <div id="modalRowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"><input type="time" id="modalVisitTime" class="w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+        </div>
+        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+        </div>
+        <div id="modalRowContact" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
+          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm">
+        </div>
+        <div id="modalRowMemo" class="hidden">
+          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
+          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2 border-t"><button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">등록하기</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <form id="editForm" class="space-y-4 text-sm">
+        <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnEditStatus_신청" onclick="window.setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">신청</button>
+            <button type="button" id="btnEditStatus_선정" onclick="window.setEditStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">선정</button>
+            <button type="button" id="btnEditStatus_방문" onclick="window.setEditStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">방문</button>
+            <button type="button" id="btnEditStatus_미제출" onclick="window.setEditStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">미제출</button>
+            <button type="button" id="btnEditStatus_제출" onclick="window.setEditStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">제출</button>
+            <button type="button" id="btnEditStatus_배송" onclick="window.setEditStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">배송</button>
+            <button type="button" id="btnEditStatus_원고료" onclick="window.setEditStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">원고료</button>
+          </div>
+        </div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="editStoreName" required class="w-full border p-2.5 rounded-xl text-sm"></div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label><input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+          <div><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white"><input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white"></div></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="editRevenue" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+        </div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm"></div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none"></textarea></div>
+        <div class="flex gap-2 pt-2 border-t"><button type="submit" class="w-full bg-theme text-white py-3 rounded-xl font-bold shadow-sm">수정 저장하기</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl text-center">
+      <div class="flex justify-between items-center border-b pb-3"><h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3><button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <p class="text-xs text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
+      <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
