@@ -43,7 +43,7 @@
   <!-- 메인 앱 화면 -->
   <div id="appSection" class="hidden h-screen w-full flex-col lg:flex-row overflow-hidden relative">
     
-    <!-- 데스크톱 사이드바 (SVG 아이콘 탑재) -->
+    <!-- 데스크톱 사이드바 -->
     <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-screen transition-all duration-200 relative z-10">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -114,7 +114,7 @@
     <main class="flex-1 px-4 md:px-6 lg:px-8 py-4 pb-24 lg:pb-8 space-y-4 h-screen overflow-y-auto flex flex-col justify-start w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
-      <!-- 1. 대시보드 탭 (스크롤 정상화: overflow-y-auto 적용) -->
+      <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-4 w-full">
         <div class="flex items-center justify-between shrink-0">
           <h2 id="dashMonthTitle" class="text-xl md:text-3xl font-black text-theme tracking-tight"></h2>
@@ -128,7 +128,7 @@
           </div>
         </div>
 
-        <!-- 모바일/태블릿: 4개(예약대기/방문예정/미제출/제출완료), PC: 5개(선정현황 포함) -->
+        <!-- 모바일/태블릿: 4개(예약대기/방문예정/미제출/제출완료), PC: 5개 -->
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 shrink-0">
           <div id="boxCntSelect" onclick="window.openCounterListModal('select', '선정 현황')" class="hidden lg:block bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-gray-900 font-normal">선정 현황</div><div id="cntSelect" class="text-base md:text-lg font-bold text-gray-900 mt-0.5">0건</div></div>
           <div onclick="window.openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-gray-500 font-normal">예약 대기</div><div id="cntVisitWait" class="text-base md:text-lg font-bold text-gray-500 mt-0.5">0건</div></div>
@@ -137,21 +137,27 @@
           <div onclick="window.openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-emerald-600 font-normal">제출 완료</div><div id="cntSubmitDone" class="text-base md:text-lg font-bold text-emerald-600 mt-0.5">0건</div></div>
         </div>
 
-        <!-- 캘린더 및 방문 일정 (비율 확대 및 시인성 확보) -->
+        <!-- 캘린더 & 방문 일정 (모바일 높이 h-52 통일) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="lg:col-span-2 bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-start">
             <div id="calendarGrid" class="grid grid-cols-7 gap-1 md:gap-1.5 w-full"></div>
           </div>
-          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[220px]">
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-52 lg:h-auto lg:min-h-[260px]">
             <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">방문 일정</h3>
-            <div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-[360px] overflow-y-auto"></div>
+            <div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 overflow-y-auto"></div>
           </div>
         </div>
 
-        <!-- 마감 임박 및 예약 대기 -->
+        <!-- 하단 2열: 마감 임박 & 예약 대기 (모바일 높이 h-52 통일) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
-          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[160px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">제출 마감 임박</h3><div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-56 overflow-y-auto"></div></div>
-          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[160px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">예약 대기</h3><div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-56 overflow-y-auto"></div></div>
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-52 md:h-56">
+            <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">제출 마감 임박</h3>
+            <div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1 overflow-y-auto"></div>
+          </div>
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-52 md:h-56">
+            <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">예약 대기</h3>
+            <div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 overflow-y-auto"></div>
+          </div>
         </div>
       </div>
 
@@ -473,6 +479,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=4"></script>
+  <script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>
