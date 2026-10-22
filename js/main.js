@@ -91,7 +91,7 @@ window.switchTab = function(tabName, pushState = true) {
   else if (tabName === 'settings') { document.getElementById('sectionSettings')?.classList.remove('hidden'); renderStatusColorPickers(); }
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+function initApp() {
   initAuth(window.loadCampaigns);
   initFormHandlers();
   applyStatusCSSColors();
@@ -99,11 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
   renderPlatformChips();
   updateDeadlineButtons();
   updateChartModeButtonsUI();
-
-  // 헤더 정렬 바인딩
-  ['storeName', 'status', 'platformName', 'visitDate', 'deadlineDate', 'sponsoredAmount', 'paidAmount', 'revenue'].forEach(col => {
-    document.getElementById('th_' + col)?.addEventListener('click', () => window.handleSort(col));
-  });
 
   // 검색/필터 바인딩
   document.getElementById('searchInput')?.addEventListener('input', filterAndRender);
@@ -165,4 +160,11 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFormVisibility();
     window.loadCampaigns();
   });
-});
+}
+
+// DOM 준비 시점 체크 (즉시 실행 보장)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
