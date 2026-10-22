@@ -2,7 +2,25 @@ import { auth, db, provider } from '../firebase-config.js';
 import { store } from '../store.js';
 import { updateFormVisibility } from './settings.js';
 import { signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDoc, setDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// 구글 로그인 직접 실행 함수
+window.loginWithGoogle = async function() {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err.code === 'auth/unauthorized-domain') {
+      alert("현재 도메인이 Firebase 승인된 도메인(Authorized Domains)에 등록되어 있지 않습니다.\nFirebase 콘솔 > Authentication > Settings > Authorized domains에서 현재 접속 주소(예: onlyda90s.github.io)를 추가해 주세요.");
+    } else {
+      alert("로그인 오류: " + err.message);
+    }
+  }
+};
+
+window.logout = function() {
+  signOut(auth);
+  window.location.reload();
+};
 
 export function initAuth(onUserReady) {
   let autoLogoutTimer;
@@ -18,15 +36,6 @@ export function initAuth(onUserReady) {
   }
   ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetTimer));
   resetTimer();
-
-  document.getElementById('loginBtn')?.addEventListener('click', async () => {
-    try { await signInWithPopup(auth, provider); } catch (err) { alert("로그인 오류: " + err.message); }
-  });
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    signOut(auth);
-    window.location.reload();
-  });
-  document.getElementById('enterInviteBtn')?.addEventListener('click', window.enterWithInviteCode);
 
   onAuthStateChanged(auth, async (user) => {
     const authSec = document.getElementById('authSection');
