@@ -822,13 +822,11 @@ window.downloadExcel = async function() {
     workbook.creator = 'ONLYVIEW';
     workbook.created = new Date();
 
-    // 슬레이트 기본 테마 색상 팔레트 정의 (ARGB 규격)
     const COLOR_PRIMARY = 'FF3B6FB6';       // 슬레이트 블루 (헤더 메인)
     const COLOR_LIGHT = 'FFE5EBF4';         // 슬레이트 연한 배경
     const COLOR_TEXT_DARK = 'FF1F2937';     // 짙은 텍스트
     const COLOR_WHITE = 'FFFFFFFF';         // 흰색
     const COLOR_BORDER = 'FFD1D5DB';        // 연한 테두리
-    const COLOR_ACCENT = 'FF2563EB';
 
     const borderStyle = {
       top: { style: 'thin', color: { argb: COLOR_BORDER } },
@@ -837,10 +835,9 @@ window.downloadExcel = async function() {
       right: { style: 'thin', color: { argb: COLOR_BORDER } }
     };
 
-    // ------------------- 1. 대시보드 시트 -------------------
+    // 1. 대시보드 시트
     const dashSheet = workbook.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
 
-    // 타이틀
     dashSheet.mergeCells('B2:H2');
     const titleCell = dashSheet.getCell('B2');
     titleCell.value = '온리뷰 (ONLYVIEW) 체험단 정산 & 일정 종합 리포트';
@@ -851,7 +848,6 @@ window.downloadExcel = async function() {
     dashSheet.getCell('B3').value = `기준일시: ${todayStr} | 기본 슬레이트 정산 규격`;
     dashSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } };
 
-    // KPI 집계 계산
     let totalCount = rawCampaignList.length;
     let completedCount = 0;
     let totalSponsored = 0;
@@ -888,7 +884,6 @@ window.downloadExcel = async function() {
       }
     });
 
-    // KPI 카드 블록 배치 (5~6행)
     const kpiCards = [
       { col1: 'B', col2: 'B', title: '총 진행 건수', val: `${totalCount}건` },
       { col1: 'C', col2: 'D', title: '제출 완료 (정산완료)', val: `${completedCount}건` },
@@ -916,7 +911,6 @@ window.downloadExcel = async function() {
       [hCell, vCell].forEach(cell => cell.border = borderStyle);
     });
 
-    // 월별 요약 테이블 (8행~)
     dashSheet.getCell('B8').value = '1. 월별 정산 및 완료 실적 요약';
     dashSheet.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
 
@@ -951,7 +945,6 @@ window.downloadExcel = async function() {
       });
     });
 
-    // 월별 합계 행
     const sumRowIdx = 22;
     dashSheet.getCell(`B${sumRowIdx}`).value = '소계';
     dashSheet.getCell(`B${sumRowIdx}`).alignment = { horizontal: 'center' };
@@ -969,7 +962,6 @@ window.downloadExcel = async function() {
       c.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
     });
 
-    // 플랫폼별 요약 테이블 (F열~)
     dashSheet.getCell('F8').value = '2. 주요 플랫폼별 수익 랭킹';
     dashSheet.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
 
@@ -1002,18 +994,11 @@ window.downloadExcel = async function() {
     });
 
     dashSheet.columns = [
-      { width: 3 },  // A
-      { width: 12 }, // B
-      { width: 14 }, // C
-      { width: 16 }, // D
-      { width: 4 },  // E
-      { width: 16 }, // F
-      { width: 18 }, // G
-      { width: 16 }, // H
-      { width: 16 }  // I
+      { width: 3 }, { width: 12 }, { width: 14 }, { width: 16 }, { width: 4 },
+      { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }
     ];
 
-    // ------------------- 목록 시트 생성 공통 헬퍼 -------------------
+    // 목록 시트 빌더
     const buildCampaignSheet = (sheetName, items) => {
       const sheet = workbook.addWorksheet(sheetName, { views: [{ showGridLines: true }] });
 
@@ -1029,7 +1014,6 @@ window.downloadExcel = async function() {
         { header: '비고 / 메모', key: 'memo', width: 26, align: 'left' }
       ];
 
-      // 헤더 행 설정 (2행에 배치)
       sheet.getRow(1).height = 12;
       const headerRow = sheet.getRow(2);
       headerRow.height = 26;
@@ -1043,7 +1027,6 @@ window.downloadExcel = async function() {
         cell.border = borderStyle;
       });
 
-      // 데이터 채우기 (3행부터)
       let currentRowIdx = 3;
       items.forEach(item => {
         const row = sheet.getRow(currentRowIdx);
@@ -1065,7 +1048,6 @@ window.downloadExcel = async function() {
         row.getCell(8).value = calcRev;
         row.getCell(9).value = item.memo || '';
 
-        // 정렬 및 서식
         headers.forEach((h, idx) => {
           const cell = row.getCell(idx + 1);
           cell.font = { name: '맑은 고딕', size: 9.5 };
@@ -1080,7 +1062,6 @@ window.downloadExcel = async function() {
         currentRowIdx++;
       });
 
-      // 최하단 합계 행 (데이터가 있는 경우)
       if (items.length > 0) {
         const totalRow = sheet.getRow(currentRowIdx);
         totalRow.height = 24;
@@ -1103,25 +1084,24 @@ window.downloadExcel = async function() {
         });
       }
 
-      // 열 너비 부여
       sheet.columns = headers.map(h => ({ width: h.width }));
     };
 
-    // ------------------- 2. 진행중 체험단 시트 -------------------
+    // 2. 진행중 체험단 시트
     const ongoingItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st !== '제출' && st !== '완료';
     });
     buildCampaignSheet('진행중 체험단', ongoingItems);
 
-    // ------------------- 3. 완료 체험단 시트 -------------------
+    // 3. 완료 체험단 시트
     const completedItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st === '제출' || st === '완료';
     });
     buildCampaignSheet('완료 체험단', completedItems);
 
-    // ------------------- 엑셀 파일 저장 및 브라우저 다운로드 -------------------
+    // 다운로드 실행
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
