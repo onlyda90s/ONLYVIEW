@@ -1,4 +1,4 @@
-import { store } from './store.js';
+import { store } from './store.js'; 
 import { db } from './firebase-config.js';
 import { formatCleanDate } from './utils.js';
 import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
