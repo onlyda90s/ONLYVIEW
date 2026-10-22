@@ -1,130 +1,125 @@
-import { store } from './store.js';
+import { auth, db, provider } from '../firebase-config.js';
+import { store } from '../store.js';
+import { updateFormVisibility, applyStatusCSSColors, renderStatusColorPickers } from './settings.js';
+import { signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-export function formatCleanDate(dateVal) {
-  if (!dateVal) return "";
-  let str = String(dateVal).trim().replace(/[/.]/g, '-');
-  if (!str) return "";
-  const parts = str.split("-");
-  if (parts.length === 3) {
-    let year = parts[0].replace(/[^0-9]/g, '');
-    let month = parts[1].replace(/[^0-9]/g, '').padStart(2, '0');
-    let day = parts[2].replace(/[^0-9]/g, '').padStart(2, '0');
-
-    // 2자리 연도 보정 (예: 26 -> 2026)
-    if (year.length === 2) {
-      year = "20" + year;
+// 구글 로그인 함수 (즉시 window 전역 등록)
+window.loginWithGoogle = async function() {
+  try {
+    if (!auth || !provider) {
+      return alert("Firebase 인증 모듈이 초기화되지 않았습니다. 인터넷 연결을 확인해 주세요.");
     }
-    // 4자리를 초과하는 비정상 연도 (예: 202222 -> 앞의 4자리 2022/2026 추출)
-    else if (year.length > 4) {
-      year = year.slice(0, 4);
-    }
-
-    if (year.length === 4 && month && day) {
-      return year + "-" + month + "-" + day;
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err.code === 'auth/unauthorized-domain') {
+      alert("현재 도메인이 Firebase에 등록되어 있지 않습니다.\nFirebase 콘솔 > Authentication > Settings > Authorized domains에서 현재 주소(예: onlyda90s.github.io)를 추가해 주세요.");
+    } else if (err.code === 'auth/popup-closed-by-user') {
+      // 사용자가 팝업을 닫은 경우는 조용히 무시
+    } else {
+      alert("로그인 오류 (" + err.code + "): " + err.message);
     }
   }
-  return str;
-}
+};
 
-export function formatShortDate(dateVal) {
-  if (!dateVal) return "-";
-  const str = formatCleanDate(dateVal);
-  if (!str) return "-";
-  const parts = str.split("-");
-  if (parts.length === 3) {
-    const yy = parts[0].length === 4 ? parts[0].substring(2, 4) : parts[0];
-    const mm = String(Number(parts[1])).padStart(2, '0');
-    const dd = String(Number(parts[2])).padStart(2, '0');
-    return yy + "-" + mm + "-" + dd;
-  }
-  return str;
-}
+window.logout = function() {
+  signOut(auth);
+  window.location.reload();
+};
 
-export function isItemOverdue(item) {
-  const rawSt = item.status;
-  if (rawSt === '제출' || rawSt === '완료' || rawSt === '미제출') return false;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  if (item.deadlineDate) {
-    const cleanDDate = formatCleanDate(item.deadlineDate);
-    if (cleanDDate) {
-      const dDateObj = new Date(cleanDDate);
-      dDateObj.setHours(0, 0, 0, 0);
-      if (!isNaN(dDateObj.getTime()) && dDateObj < now) return true;
+// 초대코드 입장 함수 (즉시 window 전역 등록)
+window.enterWithInviteCode = async function() {
+  const codeInput = document.getElementById('loginInviteCodeInput')?.value.trim();
+  if (!codeInput) return alert("초대 코드를 입력해주세요.");
+  try {
+    if (!db) {
+      return alert("데이터베이스에 연결되지 않았습니다.");
+    }
+    const codeSnap = await getDoc(doc(db, "userCodes", codeInput));
+    if (!codeSnap.exists()) {
+      return alert("유효하지 않은 초대 코드입니다. 코드를 다시 확인해 주세요.");
+    }
+    store.targetUserId = codeSnap.data().uid;
+    store.isReadOnly = true;
+    document.getElementById('authSection')?.classList.add('hidden');
+    const appSec = document.getElementById('appSection');
+    appSec?.classList.remove('hidden');
+    appSec?.classList.add('flex');
+    const userNameElem = document.getElementById('userName');
+    if (userNameElem) userNameElem.innerText = "초대 접속자 (" + codeInput + ")";
+    updateFormVisibility();
+    if (window.loadCampaigns) await window.loadCampaigns();
+    window.switchTab('dashboard', false);
+  } catch (err) {
+    if (err.message && err.message.includes('permission')) {
+      alert("데이터베이스 접근 권한 오류입니다. Firebase Firestore 보안 규칙에서 읽기(read) 권한을 허용해 주세요.");
+    } else {
+      alert("초대 코드 조회 실패: " + err.message);
     }
   }
-  if (item.visitDate) {
-    const cleanVDate = formatCleanDate(item.visitDate);
-    if (cleanVDate) {
-      const vDateObj = new Date(cleanVDate);
-      vDateObj.setHours(0, 0, 0, 0);
-      if (!isNaN(vDateObj.getTime()) && vDateObj < now) return true;
+};
+
+export function initAuth(onUserReady) {
+  let autoLogoutTimer;
+  function resetTimer() {
+    clearTimeout(autoLogoutTimer);
+    autoLogoutTimer = setTimeout(() => {
+      if (auth && auth.currentUser) {
+        signOut(auth);
+        alert("2시간 동안 활동이 없어 자동 로그아웃 되었습니다.");
+        window.location.reload();
+      }
+    }, 2 * 60 * 60 * 1000);
+  }
+  ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetTimer));
+  resetTimer();
+
+  onAuthStateChanged(auth, async (user) => {
+    const authSec = document.getElementById('authSection');
+    const appSec = document.getElementById('appSection');
+    if (user) {
+      store.currentUser = user;
+      store.targetUserId = user.uid;
+      store.isReadOnly = false;
+      authSec?.classList.add('hidden');
+      appSec?.classList.remove('hidden');
+      appSec?.classList.add('flex');
+      const userNameElem = document.getElementById('userName');
+      if (userNameElem) userNameElem.innerText = user.displayName || user.email;
+      
+      await fetchUserCustomCode();
+      updateFormVisibility();
+      if (onUserReady) await onUserReady();
+      window.switchTab('dashboard', false);
+    } else if (!store.targetUserId) {
+      store.currentUser = null;
+      authSec?.classList.remove('hidden');
+      appSec?.classList.add('hidden');
+      appSec?.classList.remove('flex');
     }
-  }
-  return false;
+  });
 }
 
-export function getEffectiveStatus(item) { return item.status || '신청'; }
-export function displayStatusName(status) { return status || '신청'; }
-
-// 사용자가 설정한 커스텀 상태 색상을 실시간으로 가져오는 함수
-export function getStatusColor(status) {
-  const colors = store.customStatusColors || {};
-  switch(status) {
-    case '신청': return colors.apply || '#6B7280';
-    case '선정': return colors.select || '#111827';
-    case '방문': return colors.visit || '#F4A261';
-    case '미제출': return colors.unsubmitted || '#E63946';
-    case '제출':
-    case '완료': return colors.submit || '#059669';
-    case '배송': return colors.delivery || '#2563EB';
-    case '원고료': return colors.fee || '#9333EA';
-    default: return colors.apply || '#6B7280';
-  }
-}
-
-export function getStatusTextClass(status) {
-  switch(status) {
-    case '신청': return 'status-text-apply';
-    case '선정': return 'status-text-select';
-    case '방문': return 'status-text-visit';
-    case '미제출': return 'status-text-unsubmitted';
-    case '제출': case '완료': return 'status-text-submit';
-    case '배송': return 'status-text-delivery';
-    case '원고료': return 'status-text-fee';
-    default: return 'status-text-apply';
-  }
-}
-
-export function formatCurrencyInput(value) {
-  if (!value && value !== 0) return "";
-  const num = String(value).replace(/[^0-9]/g, '');
-  return num ? Number(num).toLocaleString() : "";
-}
-
-export function parseCurrencyValue(value) {
-  if (!value) return 0;
-  return Number(String(value).replace(/[^0-9]/g, '')) || 0;
-}
-
-export function formatRevenueDisplay(num) {
-  const val = Number(num) || 0;
-  if (val < 0) return "-" + Math.abs(val).toLocaleString() + "원";
-  return val.toLocaleString() + "원";
-}
-
-export function formatPhoneNumber(value) {
-  if (!value) return "";
-  const num = value.replace(/[^0-9]/g, '');
-  if (num.length < 3) return num;
-  if (num.startsWith("02")) {
-    if (num.length <= 5) return num.slice(0, 2) + "-" + num.slice(2);
-    if (num.length <= 9) return num.slice(0, 2) + "-" + num.slice(2, 5) + "-" + num.slice(5);
-    return num.slice(0, 2) + "-" + num.slice(2, 6) + "-" + num.slice(6, 10);
-  } else {
-    if (num.length <= 6) return num.slice(0, 3) + "-" + num.slice(3);
-    if (num.length <= 10) return num.slice(0, 3) + "-" + num.slice(3, 6) + "-" + num.slice(6);
-    return num.slice(0, 3) + "-" + num.slice(3, 7) + "-" + num.slice(7, 11);
-  }
+export async function fetchUserCustomCode() {
+  if (!store.currentUser) return;
+  try {
+    const userDocRef = doc(db, "users", store.currentUser.uid);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      if (data.customCode) store.myCustomCode = data.customCode;
+      if (data.deadlineAlertDays) store.deadlineAlertDays = data.deadlineAlertDays;
+      if (data.statusColors) {
+        Object.assign(store.customStatusColors, data.statusColors);
+        applyStatusCSSColors();
+        renderStatusColorPickers();
+      }
+    } else {
+      store.myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      await setDoc(userDocRef, { customCode: store.myCustomCode, uid: store.currentUser.uid }, { merge: true });
+      await setDoc(doc(db, "userCodes", store.myCustomCode), { uid: store.currentUser.uid });
+    }
+    const codeElem = document.getElementById('myShareCode');
+    if (codeElem) codeElem.innerText = store.myCustomCode;
+  } catch (e) { console.error("설정 로드 실패:", e); }
 }
