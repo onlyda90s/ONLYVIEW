@@ -34,11 +34,11 @@ function resetAutoLogoutTimer() {
 ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetAutoLogoutTimer));
 resetAutoLogoutTimer();
 
-// 전역 상태
+// 전역 상태 변수
 let currentUser = null;
 let targetUserId = null;
 let isReadOnly = false;
-let isSettlementShared = false; // 동반자에게 정산 공개 여부
+let isSettlementShared = false;
 let rawCampaignList = [];
 let isBatchEditing = false; 
 let listSubTab = 'ongoing'; 
@@ -64,7 +64,6 @@ let platformList = JSON.parse(localStorage.getItem('onlyview_platforms')) || ['�
 
 const presetPalette = ['#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A', '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706', '#EC4899', '#0891B2'];
 
-// 로컬 스토리지에 저장된 색상 우선 로드
 const savedColors = JSON.parse(localStorage.getItem('onlyview_statusColors') || '{}');
 const customStatusColors = {
   apply: savedColors.apply || '#6B7280',
@@ -107,7 +106,7 @@ const themeColors = {
   ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
 };
 
-// YYYYYY-MM-DD 오작동 완전 정규화
+// 유틸 함수
 function formatCleanDate(dateVal) {
   if (!dateVal) return "";
   let str = String(dateVal).trim().replace(/[/.]/g, '-');
@@ -221,6 +220,18 @@ function applyStatusCSSColors() {
 }
 applyStatusCSSColors();
 
+function applyThemeCSS(colorKey) {
+  const theme = themeColors[colorKey] || themeColors.slate;
+  document.documentElement.style.setProperty('--primary', theme.primary);
+  document.documentElement.style.setProperty('--primary-hover', theme.hover);
+  document.documentElement.style.setProperty('--primary-text', theme.text);
+  document.documentElement.style.setProperty('--primary-light', theme.light);
+  document.documentElement.style.setProperty('--main-bg', theme.bg);
+  document.documentElement.style.setProperty('--sidebar-bg', theme.sidebarBg);
+  document.documentElement.style.setProperty('--sidebar-text', theme.sidebarText);
+  document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
+}
+
 function getSortIndicatorHtml(colName) {
   if (sortColumn !== colName || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
   return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
@@ -266,6 +277,38 @@ function renderStatusColorPickers() {
   });
 }
 
+// 대상 사용자의 설정(색상, 테마, 차트스타일 등)을 동기화하여 화면에 적용하는 핵심 함수
+async function loadTargetUserSettings(uid) {
+  if (!uid || !db) return;
+  try {
+    const userDocRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      if (data.statusColors) {
+        Object.assign(customStatusColors, data.statusColors);
+        applyStatusCSSColors();
+        renderStatusColorPickers();
+      }
+      if (data.theme) {
+        applyThemeCSS(data.theme);
+        localStorage.setItem('onlyview_theme', data.theme);
+      }
+      if (data.chartMode) {
+        currentChartMode = data.chartMode;
+        localStorage.setItem('onlyview_chartMode', data.chartMode);
+        updateChartModeButtonsUI();
+      }
+      if (data.deadlineAlertDays) {
+        deadlineAlertDays = data.deadlineAlertDays;
+        updateDeadlineButtons();
+      }
+    }
+  } catch (err) {
+    console.error("대상 사용자 설정 동기화 실패:", err);
+  }
+}
+
 // ======================== 전역 바인딩 함수 ========================
 window.loginWithGoogle = async function() {
   try {
@@ -285,7 +328,6 @@ window.logout = function() {
   window.location.reload();
 };
 
-// 동반자 정산 공개/비공개 토글 UI 업데이트
 function updateShareSettlementUI() {
   const label = document.getElementById('shareSettlementLabel');
   const btn = document.getElementById('toggleShareSettlementBtn');
@@ -302,7 +344,6 @@ function updateShareSettlementUI() {
   }
 }
 
-// 동반자 정산 공개 토글 함수
 window.toggleShareSettlement = async function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
   isSettlementShared = !isSettlementShared;
@@ -328,8 +369,11 @@ window.enterWithInviteCode = async function() {
     
     const codeData = codeSnap.data();
     targetUserId = codeData.uid;
-    isSettlementShared = codeData.shareSettlement === true; // 상대방이 설정한 정산 공개 여부 로드
+    isSettlementShared = codeData.shareSettlement === true;
     isReadOnly = true;
+
+    // 대상 사용자의 테마 및 상태 색상 설정 실시간 동기화
+    await loadTargetUserSettings(targetUserId);
 
     document.getElementById('authSection')?.classList.add('hidden');
     const appSec = document.getElementById('appSection');
@@ -386,21 +430,19 @@ window.setChartMode = function(modeKey) {
   localStorage.setItem('onlyview_chartMode', modeKey);
   updateChartModeButtonsUI();
   window.renderSettlementView();
+  if (currentUser && !isReadOnly) {
+    try { setDoc(doc(db, "users", currentUser.uid), { chartMode: modeKey }, { merge: true }); } catch(e) {}
+  }
 };
 
 window.changeTheme = function(colorKey) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  const theme = themeColors[colorKey] || themeColors.slate;
-  document.documentElement.style.setProperty('--primary', theme.primary);
-  document.documentElement.style.setProperty('--primary-hover', theme.hover);
-  document.documentElement.style.setProperty('--primary-text', theme.text);
-  document.documentElement.style.setProperty('--primary-light', theme.light);
-  document.documentElement.style.setProperty('--main-bg', theme.bg);
-  document.documentElement.style.setProperty('--sidebar-bg', theme.sidebarBg);
-  document.documentElement.style.setProperty('--sidebar-text', theme.sidebarText);
-  document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
+  applyThemeCSS(colorKey);
   localStorage.setItem('onlyview_theme', colorKey);
   if (currentChartMode === 'theme') window.renderSettlementView();
+  if (currentUser && !isReadOnly) {
+    try { setDoc(doc(db, "users", currentUser.uid), { theme: colorKey }, { merge: true }); } catch(e) {}
+  }
 };
 
 window.toggleSidebar = function() {
@@ -443,18 +485,33 @@ window.toggleMonthlyDetailsCard = function(month) {
   window.renderSettlementView(); 
 };
 
+// 뒤로/앞으로 가기 연동을 포함한 switchTab
 window.switchTab = function(tabName, pushState = true) {
-  if (isReadOnly && (tabName === 'form' || tabName === 'settings')) return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
-  if (isReadOnly && !isSettlementShared && tabName === 'settlement') return alert("상대방이 정산 내역을 비공개로 설정했습니다.");
+  if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
+    if (!pushState) { window.switchTab('dashboard', false); return; }
+    return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
+  }
+  if (isReadOnly && !isSettlementShared && tabName === 'settlement') {
+    if (!pushState) { window.switchTab('dashboard', false); return; }
+    return alert("상대방이 정산 내역을 비공개로 설정했습니다.");
+  }
 
   ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
   document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
   const activeBtn = document.getElementById("nav-" + tabName);
   if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
-  if (pushState && window.location.hash !== "#" + tabName) history.pushState({ tab: tabName }, '', "#" + tabName);
+  
+  if (pushState && window.location.hash !== "#" + tabName) {
+    history.pushState({ tab: tabName }, '', "#" + tabName);
+  }
+  
   ['dayModal', 'editModal', 'colorPickerModal', 'dashRegisterModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
 
-  if (tabName === 'dashboard') { currentCalDate = new Date(); document.getElementById('sectionDashboard')?.classList.remove('hidden'); window.renderDashboardView(); }
+  if (tabName === 'dashboard') {
+    currentCalDate = new Date();
+    document.getElementById('sectionDashboard')?.classList.remove('hidden');
+    window.renderDashboardView();
+  }
   else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; listSubTab = 'ongoing'; isFilterExpanded = false; 
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
@@ -469,9 +526,27 @@ window.switchTab = function(tabName, pushState = true) {
     document.getElementById('sectionForm')?.classList.remove('hidden');
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
   }
-  else if (tabName === 'settlement') { document.getElementById('sectionSettlement')?.classList.remove('hidden'); window.setSettlementSubTab('report'); }
-  else if (tabName === 'settings') { document.getElementById('sectionSettings')?.classList.remove('hidden'); renderStatusColorPickers(); updateShareSettlementUI(); }
+  else if (tabName === 'settlement') {
+    document.getElementById('sectionSettlement')?.classList.remove('hidden');
+    window.setSettlementSubTab('report');
+  }
+  else if (tabName === 'settings') {
+    document.getElementById('sectionSettings')?.classList.remove('hidden');
+    renderStatusColorPickers();
+    updateShareSettlementUI();
+  }
 };
+
+// 뒤로 가기 / 앞으로 가기 브라우저 버튼 리스너
+window.addEventListener('popstate', (e) => {
+  const hash = (window.location.hash || '').replace('#', '');
+  const validTabs = ['dashboard', 'form', 'list', 'settlement', 'settings'];
+  if (validTabs.includes(hash)) {
+    window.switchTab(hash, false);
+  } else {
+    window.switchTab('dashboard', false);
+  }
+});
 
 window.setStatusBtn = function(status) {
   selectedStatus = status;
@@ -588,15 +663,6 @@ window.setDeadlineDays = async function(days) {
     try { await setDoc(doc(db, "users", currentUser.uid), { deadlineAlertDays: deadlineAlertDays }, { merge: true }); } catch(e) {}
   }
 };
-function updateDeadlineButtons() {
-  [7, 10, 14].forEach(d => {
-    const btn = document.getElementById("btnDeadlineDay_" + d);
-    if (btn) {
-      if (d === deadlineAlertDays) btn.className = "py-1.5 px-3.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs transition-colors shadow-sm";
-      else btn.className = "py-1.5 px-3.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs hover:border-gray-300 transition-colors";
-    }
-  });
-}
 
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
@@ -1378,7 +1444,6 @@ function updateFormVisibility() {
     navSettings?.classList.add('hidden');
     downloadExcelBtn?.classList.add('hidden');
 
-    // [요청사항 1] 동반자 접속 시 정산 공개 여부에 따른 메뉴 제어
     if (isSettlementShared) {
       navSettlement?.classList.remove('hidden');
     } else {
@@ -1389,7 +1454,7 @@ function updateFormVisibility() {
     resetBtn?.classList.add('hidden');
     dashRegisterBtn?.classList.remove('hidden');
     navForm?.classList.remove('hidden');
-    navSettlement?.classList.remove('hidden'); // 본인은 항상 표시
+    navSettlement?.classList.remove('hidden');
     navSettings?.classList.remove('hidden');
     downloadExcelBtn?.classList.remove('hidden');
   }
@@ -1407,6 +1472,15 @@ async function fetchUserCustomCode() {
       if (data.shareSettlement !== undefined) {
         isSettlementShared = data.shareSettlement === true;
         updateShareSettlementUI();
+      }
+      if (data.theme) {
+        applyThemeCSS(data.theme);
+        localStorage.setItem('onlyview_theme', data.theme);
+      }
+      if (data.chartMode) {
+        currentChartMode = data.chartMode;
+        localStorage.setItem('onlyview_chartMode', data.chartMode);
+        updateChartModeButtonsUI();
       }
       if (data.statusColors) {
         Object.assign(customStatusColors, data.statusColors);
@@ -1573,7 +1647,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리):", myCustomCode);
     if (!newCode) return;
     const trimmed = newCode.trim();
-    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("공유 코드는 4자리 또는 6자리여야 합니다.");
+    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("4자리 또는 6자리여야 합니다.");
     try {
       const snap = await getDoc(doc(db, "userCodes", trimmed));
       if (snap.exists() && snap.data().uid !== currentUser.uid) return alert("이미 사용 중인 코드입니다.");
@@ -1594,17 +1668,32 @@ document.addEventListener("DOMContentLoaded", () => {
       let realUid = codeData.uid;
       isSettlementShared = codeData.shareSettlement === true;
 
-      if (currentUser && realUid === currentUser.uid) { targetUserId = currentUser.uid; isReadOnly = false; alert("본인 모드로 전환되었습니다."); } 
-      else { targetUserId = realUid; isReadOnly = true; alert("동반자 모드로 전환되었습니다."); }
-      updateFormVisibility(); loadCampaigns(); window.switchTab('dashboard');
+      if (currentUser && realUid === currentUser.uid) {
+        targetUserId = currentUser.uid;
+        isReadOnly = false;
+        await loadTargetUserSettings(currentUser.uid);
+        alert("본인 모드로 전환되었습니다.");
+      } else {
+        targetUserId = realUid;
+        isReadOnly = true;
+        await loadTargetUserSettings(realUid);
+        alert("동반자 모드로 전환되었습니다.");
+      }
+      updateFormVisibility();
+      await loadCampaigns();
+      window.switchTab('dashboard');
     } catch(err) { alert("조회 실패: " + err.message); }
   });
 
-  document.getElementById('resetToMyDataBtn')?.addEventListener('click', () => {
+  document.getElementById('resetToMyDataBtn')?.addEventListener('click', async () => {
     if (!currentUser) return;
-    targetUserId = currentUser.uid; isReadOnly = false;
+    targetUserId = currentUser.uid;
+    isReadOnly = false;
     document.getElementById('partnerCodeInput').value = '';
-    updateFormVisibility(); loadCampaigns();
+    // 본인의 원래 테마 및 색상 복구
+    await loadTargetUserSettings(currentUser.uid);
+    updateFormVisibility();
+    await loadCampaigns();
   });
 
   applySidebarUI(); renderPlatformChips(); updateDeadlineButtons(); populateYearFilter();
