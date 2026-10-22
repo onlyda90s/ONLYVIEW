@@ -231,7 +231,6 @@ function applyThemeCSS(colorKey) {
   document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
 }
 
-// 앱 구동 즉시 로컬 스토리지에 저장된 테마와 색상 즉각 적용
 applyStatusCSSColors();
 applyThemeCSS(localStorage.getItem('onlyview_theme') || 'slate');
 
@@ -300,7 +299,6 @@ function updateShareSettlementUI() {
   }
 }
 
-// 설정 화면의 모든 요소(초대코드, 공개범위, 색상, 버튼 상태 등)를 완전히 갱신하는 통합 함수
 function renderSettingsUI() {
   const codeElem = document.getElementById('myShareCode');
   if (codeElem) codeElem.innerText = myCustomCode || "------";
@@ -310,7 +308,6 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
-// 대상 사용자의 모든 설정값을 DB에서 가져와 즉각 반영하는 함수
 async function loadTargetUserSettings(uid) {
   if (!uid || !db) return;
   try {
@@ -390,7 +387,6 @@ window.enterWithInviteCode = async function() {
     isSettlementShared = codeData.shareSettlement === true;
     isReadOnly = true;
 
-    // 대상 사용자의 테마 및 상태 색상 설정 실시간 동기화
     await loadTargetUserSettings(targetUserId);
 
     document.getElementById('authSection')?.classList.add('hidden');
@@ -503,7 +499,6 @@ window.toggleMonthlyDetailsCard = function(month) {
   window.renderSettlementView(); 
 };
 
-// 브라우저 뒤로/앞으로 가기 연동을 포함한 switchTab
 window.switchTab = function(tabName, pushState = true) {
   if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
     if (!pushState) { window.switchTab('dashboard', false); return; }
@@ -550,11 +545,10 @@ window.switchTab = function(tabName, pushState = true) {
   }
   else if (tabName === 'settings') {
     document.getElementById('sectionSettings')?.classList.remove('hidden');
-    renderSettingsUI(); // 설정 탭 진입 시 초대 코드 및 설정값 완전 갱신
+    renderSettingsUI();
   }
 };
 
-// 브라우저 뒤로 가기 / 앞으로 가기 감지 리스너
 window.addEventListener('popstate', () => {
   const hash = (window.location.hash || '').replace('#', '');
   const validTabs = ['dashboard', 'form', 'list', 'settlement', 'settings'];
@@ -814,56 +808,336 @@ window.openEditModalFromId = function(id) {
   document.getElementById('editModal')?.classList.remove('hidden');
 };
 
-// 엑셀 내보내기
+// ======================== [방법 B] ExcelJS 자동 디자인 엑셀 생성 ========================
 window.downloadExcel = async function() {
-  if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
+  if (!rawCampaignList || rawCampaignList.length === 0) {
+    return alert("내보낼 체험단 데이터가 없습니다.");
+  }
+  if (typeof ExcelJS === 'undefined') {
+    return alert("엑셀 라이브러리를 로드 중입니다. 잠시 후 다시 시도해 주세요.");
+  }
+
   try {
-    const response = await fetch('체험단_정산_리포트_양식.xlsx');
-    if (!response.ok) throw new Error("양식 파일(체험단_정산_리포트_양식.xlsx)을 찾을 수 없습니다.");
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'ONLYVIEW';
+    workbook.created = new Date();
 
-    const targetYear = new Date().getFullYear();
-    const dashSheet = workbook.Sheets['대시보드'];
-    if (dashSheet) XLSX.utils.sheet_add_aoa(dashSheet, [[targetYear]], { origin: 'C2' });
+    // 슬레이트 기본 테마 색상 팔레트 정의 (ARGB 규격)
+    const COLOR_PRIMARY = 'FF3B6FB6';       // 슬레이트 블루 (헤더 메인)
+    const COLOR_LIGHT = 'FFE5EBF4';         // 슬레이트 연한 배경
+    const COLOR_TEXT_DARK = 'FF1F2937';     // 짙은 텍스트
+    const COLOR_WHITE = 'FFFFFFFF';         // 흰색
+    const COLOR_BORDER = 'FFD1D5DB';        // 연한 테두리
+    const COLOR_ACCENT = 'FF2563EB';
 
-    const ongoingSheet = workbook.Sheets['진행중 체험단'];
-    if (ongoingSheet) {
-      const ongoingItems = rawCampaignList.filter(item => { const st = getEffectiveStatus(item); return st !== '제출' && st !== '완료'; });
-      const ongoingRows = [];
-      for (let i = 0; i < Math.max(ongoingItems.length, 10); i++) {
-        if (i < ongoingItems.length) {
-          const item = ongoingItems[i];
-          const rowNum = 4 + i;
-          ongoingRows.push([
-            item.storeName || "", getEffectiveStatus(item), item.platformName || "개별", formatCleanDate(item.visitDate), formatCleanDate(item.deadlineDate),
-            Number(item.sponsoredAmount || 0), Number(item.paidAmount || 0), "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", item.memo || ""
-          ]);
-        } else { const rowNum = 4 + i; ongoingRows.push(["", "", "", "", "", "", "", "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", ""]); }
+    const borderStyle = {
+      top: { style: 'thin', color: { argb: COLOR_BORDER } },
+      left: { style: 'thin', color: { argb: COLOR_BORDER } },
+      bottom: { style: 'thin', color: { argb: COLOR_BORDER } },
+      right: { style: 'thin', color: { argb: COLOR_BORDER } }
+    };
+
+    // ------------------- 1. 대시보드 시트 -------------------
+    const dashSheet = workbook.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
+
+    // 타이틀
+    dashSheet.mergeCells('B2:H2');
+    const titleCell = dashSheet.getCell('B2');
+    titleCell.value = '온리뷰 (ONLYVIEW) 체험단 정산 & 일정 종합 리포트';
+    titleCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    const todayStr = new Date().toLocaleDateString('ko-KR');
+    dashSheet.getCell('B3').value = `기준일시: ${todayStr} | 기본 슬레이트 정산 규격`;
+    dashSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } };
+
+    // KPI 집계 계산
+    let totalCount = rawCampaignList.length;
+    let completedCount = 0;
+    let totalSponsored = 0;
+    let totalPaid = 0;
+    let totalRevenue = 0;
+    const monthlySummary = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, total: 0, done: 0, revenue: 0 }));
+    const platformMap = {};
+
+    rawCampaignList.forEach(item => {
+      const effSt = getEffectiveStatus(item);
+      const isDone = (effSt === '제출' || effSt === '완료');
+      const sp = Number(item.sponsoredAmount || 0);
+      const pd = Number(item.paidAmount || 0);
+      const rev = Number(item.revenue || 0);
+      const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+
+      if (isDone) {
+        completedCount++;
+        totalSponsored += sp;
+        totalPaid += pd;
+        totalRevenue += calcRev;
+
+        const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+        if (refDate && refDate.length >= 7) {
+          const m = parseInt(refDate.slice(5, 7));
+          if (m >= 1 && m <= 12) {
+            monthlySummary[m - 1].done++;
+            monthlySummary[m - 1].revenue += calcRev;
+          }
+        }
+
+        const pName = item.platformName || '개별';
+        platformMap[pName] = (platformMap[pName] || 0) + calcRev;
       }
-      XLSX.utils.sheet_add_aoa(ongoingSheet, ongoingRows, { origin: "A4" });
-    }
+    });
 
-    const completedSheet = workbook.Sheets['완료 체험단'];
-    if (completedSheet) {
-      const completedItems = rawCampaignList.filter(item => { const st = getEffectiveStatus(item); return st === '제출' || st === '완료'; });
-      const completedRows = [];
-      for (let i = 0; i < Math.max(completedItems.length, 10); i++) {
-        if (i < completedItems.length) {
-          const item = completedItems[i];
-          const rowNum = 4 + i;
-          completedRows.push([
-            item.storeName || "", getEffectiveStatus(item), item.platformName || "개별", formatCleanDate(item.visitDate), formatCleanDate(item.deadlineDate),
-            Number(item.sponsoredAmount || 0), Number(item.paidAmount || 0), "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", item.memo || "정산완료"
-          ]);
-        } else { const rowNum = 4 + i; completedRows.push(["", "", "", "", "", "", "", "=IF(F" + rowNum + "=\"\",\"\",F" + rowNum + "-G" + rowNum + ")", ""]); }
+    // KPI 카드 블록 배치 (5~6행)
+    const kpiCards = [
+      { col1: 'B', col2: 'B', title: '총 진행 건수', val: `${totalCount}건` },
+      { col1: 'C', col2: 'D', title: '제출 완료 (정산완료)', val: `${completedCount}건` },
+      { col1: 'E', col2: 'F', title: '총 제공금액', val: `${totalSponsored.toLocaleString()}원` },
+      { col1: 'G', col2: 'G', title: '총 결제금액', val: `${totalPaid.toLocaleString()}원` },
+      { col1: 'H', col2: 'I', title: '순 실수익 (누적)', val: `${totalRevenue.toLocaleString()}원`, isHighlight: true }
+    ];
+
+    kpiCards.forEach(c => {
+      dashSheet.mergeCells(`${c.col1}5:${c.col2}5`);
+      dashSheet.mergeCells(`${c.col1}6:${c.col2}6`);
+      const hCell = dashSheet.getCell(`${c.col1}5`);
+      const vCell = dashSheet.getCell(`${c.col1}6`);
+
+      hCell.value = c.title;
+      hCell.font = { name: '맑은 고딕', size: 9, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : 'FF4B5563' } };
+      hCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF3F4F6' } };
+
+      vCell.value = c.val;
+      vCell.font = { name: '맑은 고딕', size: 12, bold: true, color: { argb: c.isHighlight ? COLOR_PRIMARY : COLOR_TEXT_DARK } };
+      vCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.isHighlight ? COLOR_LIGHT : 'FFF9FAFB' } };
+
+      [hCell, vCell].forEach(cell => cell.border = borderStyle);
+    });
+
+    // 월별 요약 테이블 (8행~)
+    dashSheet.getCell('B8').value = '1. 월별 정산 및 완료 실적 요약';
+    dashSheet.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
+
+    const monthHeaders = ['월', '완료 건수', '실수익'];
+    ['B', 'C', 'D'].forEach((col, idx) => {
+      const cell = dashSheet.getCell(`${col}9`);
+      cell.value = monthHeaders[idx];
+      cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
+      cell.border = borderStyle;
+    });
+
+    monthlySummary.forEach((m, idx) => {
+      const rowIdx = 10 + idx;
+      const cMonth = dashSheet.getCell(`B${rowIdx}`);
+      const cDone = dashSheet.getCell(`C${rowIdx}`);
+      const cRev = dashSheet.getCell(`D${rowIdx}`);
+
+      cMonth.value = `${m.month}월`;
+      cMonth.alignment = { horizontal: 'center' };
+      cDone.value = m.done;
+      cDone.numFmt = '#,##0"건"';
+      cDone.alignment = { horizontal: 'center' };
+      cRev.value = m.revenue;
+      cRev.numFmt = '#,##0"원"';
+      cRev.alignment = { horizontal: 'right' };
+
+      [cMonth, cDone, cRev].forEach(c => {
+        c.font = { name: '맑은 고딕', size: 10 };
+        c.border = borderStyle;
+      });
+    });
+
+    // 월별 합계 행
+    const sumRowIdx = 22;
+    dashSheet.getCell(`B${sumRowIdx}`).value = '소계';
+    dashSheet.getCell(`B${sumRowIdx}`).alignment = { horizontal: 'center' };
+    dashSheet.getCell(`C${sumRowIdx}`).value = { formula: `SUM(C10:C21)` };
+    dashSheet.getCell(`C${sumRowIdx}`).numFmt = '#,##0"건"';
+    dashSheet.getCell(`C${sumRowIdx}`).alignment = { horizontal: 'center' };
+    dashSheet.getCell(`D${sumRowIdx}`).value = { formula: `SUM(D10:D21)` };
+    dashSheet.getCell(`D${sumRowIdx}`).numFmt = '#,##0"원"';
+    dashSheet.getCell(`D${sumRowIdx}`).alignment = { horizontal: 'right' };
+
+    ['B', 'C', 'D'].forEach(col => {
+      const c = dashSheet.getCell(`${col}${sumRowIdx}`);
+      c.font = { name: '맑은 고딕', size: 10, bold: true };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
+      c.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
+    });
+
+    // 플랫폼별 요약 테이블 (F열~)
+    dashSheet.getCell('F8').value = '2. 주요 플랫폼별 수익 랭킹';
+    dashSheet.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: COLOR_TEXT_DARK } };
+
+    const pHeaders = ['플랫폼명', '총 정산 수익'];
+    ['F', 'G'].forEach((col, idx) => {
+      const cell = dashSheet.getCell(`${col}9`);
+      cell.value = pHeaders[idx];
+      cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
+      cell.border = borderStyle;
+    });
+
+    const sortedPlatforms = Object.entries(platformMap).sort((a, b) => b[1] - a[1]);
+    sortedPlatforms.forEach(([name, rev], idx) => {
+      const rIdx = 10 + idx;
+      const cName = dashSheet.getCell(`F${rIdx}`);
+      const cRev = dashSheet.getCell(`G${rIdx}`);
+
+      cName.value = name;
+      cName.alignment = { horizontal: 'center' };
+      cRev.value = rev;
+      cRev.numFmt = '#,##0"원"';
+      cRev.alignment = { horizontal: 'right' };
+
+      [cName, cRev].forEach(c => {
+        c.font = { name: '맑은 고딕', size: 10 };
+        c.border = borderStyle;
+      });
+    });
+
+    dashSheet.columns = [
+      { width: 3 },  // A
+      { width: 12 }, // B
+      { width: 14 }, // C
+      { width: 16 }, // D
+      { width: 4 },  // E
+      { width: 16 }, // F
+      { width: 18 }, // G
+      { width: 16 }, // H
+      { width: 16 }  // I
+    ];
+
+    // ------------------- 목록 시트 생성 공통 헬퍼 -------------------
+    const buildCampaignSheet = (sheetName, items) => {
+      const sheet = workbook.addWorksheet(sheetName, { views: [{ showGridLines: true }] });
+
+      const headers = [
+        { header: '매장명 (업체명)', key: 'storeName', width: 24, align: 'left' },
+        { header: '진행 상태', key: 'status', width: 12, align: 'center' },
+        { header: '사이트', key: 'platformName', width: 14, align: 'center' },
+        { header: '방문예정일', key: 'visitDate', width: 14, align: 'center' },
+        { header: '포스팅마감일', key: 'deadlineDate', width: 14, align: 'center' },
+        { header: '제공금액', key: 'sponsoredAmount', width: 15, align: 'right' },
+        { header: '결제금액', key: 'paidAmount', width: 15, align: 'right' },
+        { header: '실수익', key: 'revenue', width: 16, align: 'right' },
+        { header: '비고 / 메모', key: 'memo', width: 26, align: 'left' }
+      ];
+
+      // 헤더 행 설정 (2행에 배치)
+      sheet.getRow(1).height = 12;
+      const headerRow = sheet.getRow(2);
+      headerRow.height = 26;
+
+      headers.forEach((h, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = h.header;
+        cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_WHITE } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = borderStyle;
+      });
+
+      // 데이터 채우기 (3행부터)
+      let currentRowIdx = 3;
+      items.forEach(item => {
+        const row = sheet.getRow(currentRowIdx);
+        row.height = 20;
+
+        const effSt = getEffectiveStatus(item);
+        const sp = Number(item.sponsoredAmount || 0);
+        const pd = Number(item.paidAmount || 0);
+        const inputRev = Number(item.revenue || 0);
+        const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
+
+        row.getCell(1).value = item.storeName || '';
+        row.getCell(2).value = displayStatusName(effSt);
+        row.getCell(3).value = item.platformName || '개별';
+        row.getCell(4).value = formatCleanDate(item.visitDate) || '-';
+        row.getCell(5).value = formatCleanDate(item.deadlineDate) || '-';
+        row.getCell(6).value = sp;
+        row.getCell(7).value = pd;
+        row.getCell(8).value = calcRev;
+        row.getCell(9).value = item.memo || '';
+
+        // 정렬 및 서식
+        headers.forEach((h, idx) => {
+          const cell = row.getCell(idx + 1);
+          cell.font = { name: '맑은 고딕', size: 9.5 };
+          cell.alignment = { vertical: 'middle', horizontal: h.align };
+          cell.border = borderStyle;
+
+          if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) {
+            cell.numFmt = '#,##0"원"';
+          }
+        });
+
+        currentRowIdx++;
+      });
+
+      // 최하단 합계 행 (데이터가 있는 경우)
+      if (items.length > 0) {
+        const totalRow = sheet.getRow(currentRowIdx);
+        totalRow.height = 24;
+
+        totalRow.getCell(1).value = '합계';
+        totalRow.getCell(6).value = { formula: `SUM(F3:F${currentRowIdx - 1})` };
+        totalRow.getCell(7).value = { formula: `SUM(G3:G${currentRowIdx - 1})` };
+        totalRow.getCell(8).value = { formula: `SUM(H3:H${currentRowIdx - 1})` };
+
+        headers.forEach((h, idx) => {
+          const cell = totalRow.getCell(idx + 1);
+          cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: COLOR_TEXT_DARK } };
+          cell.alignment = { vertical: 'middle', horizontal: h.align };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
+          cell.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
+
+          if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(h.key)) {
+            cell.numFmt = '#,##0"원"';
+          }
+        });
       }
-      XLSX.utils.sheet_add_aoa(completedSheet, completedRows, { origin: "A4" });
-    }
 
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    XLSX.writeFile(workbook, "체험단_정산_리포트_" + todayStr + ".xlsx");
-  } catch (err) { alert("엑셀 다운로드 오류: " + err.message); }
+      // 열 너비 부여
+      sheet.columns = headers.map(h => ({ width: h.width }));
+    };
+
+    // ------------------- 2. 진행중 체험단 시트 -------------------
+    const ongoingItems = rawCampaignList.filter(item => {
+      const st = getEffectiveStatus(item);
+      return st !== '제출' && st !== '완료';
+    });
+    buildCampaignSheet('진행중 체험단', ongoingItems);
+
+    // ------------------- 3. 완료 체험단 시트 -------------------
+    const completedItems = rawCampaignList.filter(item => {
+      const st = getEffectiveStatus(item);
+      return st === '제출' || st === '완료';
+    });
+    buildCampaignSheet('완료 체험단', completedItems);
+
+    // ------------------- 엑셀 파일 저장 및 브라우저 다운로드 -------------------
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.download = `온리뷰_체험단_정산_리포트_${yyyymmdd}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error("엑셀 다운로드 오류:", err);
+    alert("엑셀 다운로드 중 오류가 발생했습니다: " + err.message);
+  }
 };
 
 // ======================== 화면 렌더링 ========================
@@ -1690,7 +1964,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리):", myCustomCode);
     if (!newCode) return;
     const trimmed = newCode.trim();
-    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("4자리 또는 6자리여야 합니다.");
+    if (trimmed.length !== 4 && trimmed.length !== 6) return alert("공유 코드는 4자리 또는 6자리여야 합니다.");
     try {
       const snap = await getDoc(doc(db, "userCodes", trimmed));
       if (snap.exists() && snap.data().uid !== currentUser.uid) return alert("이미 사용 중인 코드입니다.");
