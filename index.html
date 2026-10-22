@@ -137,7 +137,7 @@
           <div onclick="window.openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-emerald-600 font-normal">제출 완료</div><div id="cntSubmitDone" class="text-base md:text-lg font-bold text-emerald-600 mt-0.5">0건</div></div>
         </div>
 
-        <!-- 캘린더 & 방문 일정 (모바일 높이 h-52 통일) -->
+        <!-- 캘린더 & 방문 일정 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="lg:col-span-2 bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-start">
             <div id="calendarGrid" class="grid grid-cols-7 gap-1 md:gap-1.5 w-full"></div>
@@ -148,7 +148,7 @@
           </div>
         </div>
 
-        <!-- 하단 2열: 마감 임박 & 예약 대기 (모바일 높이 h-52 통일) -->
+        <!-- 하단 2열: 마감 임박 & 예약 대기 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
           <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-52 md:h-56">
             <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">제출 마감 임박</h3>
@@ -202,7 +202,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 -->
+      <!-- 3. 체험단 목록 탭 (모바일: 2줄 콤팩트 카드 / 태블릿 & PC: 가로 스크롤 표) -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 shrink-0">
           <div class="flex items-center gap-1.5"><h2 class="text-xl md:text-2xl font-black text-theme">체험단 목록</h2></div>
@@ -216,6 +216,7 @@
             <button id="batchEditBtn" onclick="window.toggleBatchEdit()" class="tab-fixed-btn py-1.5 px-3 rounded-lg font-bold text-[11px] md:text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover">수정</button>
           </div>
         </div>
+        
         <div id="filterBoxContainer" class="hidden items-center justify-end gap-2 shrink-0 flex-wrap pr-1 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
           <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-[11px] w-full md:w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm font-normal">
           <select id="filterYear" class="border p-2 rounded-xl text-[11px] bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal flex-1 md:flex-none"></select>
@@ -227,7 +228,11 @@
           </select>
         </div>
         
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+        <!-- [모바일 전용] 2줄 콤팩트 카드 리스트 (md 미만 노출) -->
+        <div id="campaignCardList" class="block md:hidden space-y-2"></div>
+
+        <!-- [태블릿 & PC 전용] 표 (Table) 뷰 (md 이상 노출) -->
+        <div id="tableContainer" class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table class="w-full text-left border-collapse table-auto min-w-[760px]">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-[11px]">
               <tr>
@@ -479,6 +484,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
