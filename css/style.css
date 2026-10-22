@@ -1,0 +1,78 @@
+:root {
+  --primary: #3B6FB6;
+  --primary-hover: #2C5796;
+  --primary-text: #3B6FB6;
+  --primary-light: #E5EBF4;
+  --main-bg: #F4F6F9;
+  --sidebar-bg: #E5EBF4;
+  --sidebar-text: #333333;
+  --sidebar-text-muted: #6B7280;
+
+  --color-status-apply: #6B7280;
+  --color-status-select: #111827;
+  --color-status-visit: #F4A261;
+  --color-status-unsubmitted: #E63946;
+  --color-status-submit: #059669;
+  --color-status-delivery: #2563EB;
+  --color-status-fee: #9333EA;
+}
+
+body, input, select, textarea, button {
+  font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+}
+
+body { background-color: var(--main-bg) !important; transition: background-color 0.3s ease; }
+.bg-theme { background-color: var(--primary) !important; }
+.bg-theme-hover:hover { background-color: var(--primary-hover) !important; }
+.text-theme { color: var(--primary-text) !important; }
+.bg-theme-light { background-color: var(--primary-light) !important; }
+.border-theme { border-color: var(--primary) !important; }
+.ring-theme:focus { --tw-ring-color: var(--primary) !important; }
+
+.bg-sidebar { background-color: var(--sidebar-bg) !important; }
+.text-sidebar { color: var(--sidebar-text) !important; }
+.text-sidebar-muted { color: var(--sidebar-text-muted) !important; }
+
+.widget-scroll { overflow-y: auto !important; }
+.widget-scroll::-webkit-scrollbar { width: 4px; }
+.widget-scroll::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 4px; }
+.widget-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+.widget-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+.status-text-apply { color: var(--color-status-apply) !important; font-weight: 500; }
+.status-text-select { color: var(--color-status-select) !important; font-weight: 500; }
+.status-text-visit { color: var(--color-status-visit) !important; font-weight: 500; }
+.status-text-unsubmitted { color: var(--color-status-unsubmitted) !important; font-weight: 500; }
+.status-text-submit { color: var(--color-status-submit) !important; font-weight: 500; }
+.status-text-delivery { color: var(--color-status-delivery) !important; font-weight: 500; }
+.status-text-fee { color: var(--color-status-fee) !important; font-weight: 500; }
+
+select.select-center {
+  text-align: center;
+  text-align-last: center;
+  padding-right: 0.25rem !important;
+  padding-left: 0.05rem !important;
+}
+
+.tab-fixed-btn {
+  width: 112px !important;
+  min-width: 112px !important;
+  max-width: 112px !important;
+  text-align: center;
+}
+
+.col-fixed-status     { width: 96px !important; min-width: 96px !important; }
+.col-fixed-platform   { width: 96px !important; min-width: 96px !important; }
+.col-fixed-visit      { width: 120px !important; min-width: 120px !important; }
+.col-fixed-deadline   { width: 120px !important; min-width: 120px !important; }
+.col-fixed-sponsored  { width: 120px !important; min-width: 120px !important; }
+.col-fixed-paid       { width: 120px !important; min-width: 120px !important; }
+.col-fixed-revenue    { width: 120px !important; min-width: 120px !important; }
+.col-fixed-note       { width: 72px !important; min-width: 72px !important; }
+
+/* 캘린더 1:1 정사각형 비율 강제 고정 */
+.cal-cell-fixed {
+  height: 100% !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+}
