@@ -1032,7 +1032,7 @@ window.downloadExcel = async function() {
         mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
       });
 
-      // 월별 섹션 타이틀 바
+      // 월별 섹션 헤더
       detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
       const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
       mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
@@ -1043,7 +1043,7 @@ window.downloadExcel = async function() {
       detailSheet.getRow(dRowIdx).height = 24;
       dRowIdx++;
 
-      // 테이블 헤더
+      // 테이블 컬럼 헤더
       const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
       mCols.forEach((colName, cIdx) => {
         const colLetter = String.fromCharCode(66 + cIdx);
@@ -1071,8 +1071,8 @@ window.downloadExcel = async function() {
         mItems.forEach(item => {
           const sp = Number(item.sponsoredAmount || 0);
           const pd = Number(item.paidAmount || 0);
-          const rev = Number(item.revenue || 0);
-          const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+          const inputRev = Number(item.revenue || 0);
+          const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
 
           const r = detailSheet.getRow(dRowIdx);
           r.height = 19;
@@ -1134,7 +1134,7 @@ window.downloadExcel = async function() {
         dRowIdx++;
       }
 
-      dRowIdx++; // 월 간 간격 띄움
+      dRowIdx++;
     }
 
     detailSheet.columns = [
@@ -1186,7 +1186,7 @@ window.downloadExcel = async function() {
         const sp = Number(item.sponsoredAmount || 0);
         const pd = Number(item.paidAmount || 0);
         const inputRev = Number(item.revenue || 0);
-        const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + inputRev);
+        const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
 
         row.getCell(1).value = item.storeName || '';
         row.getCell(2).value = displayStatusName(effSt);
