@@ -720,6 +720,7 @@ window.setListSubTab = function(type) {
   }
   window.filterAndRender();
 };
+
 window.toggleBatchEdit = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   isBatchEditing = !isBatchEditing; newBatchRows = []; window.filterAndRender();
@@ -782,11 +783,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
     window.refreshAllViews();
   } catch (err) { alert("상태 변경 실패: " + err.message); }
 };
+
 window.deleteCampaign = async function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
+
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -835,7 +838,7 @@ window.downloadExcel = async function() {
       right: { style: 'thin', color: { argb: COLOR_BORDER } }
     };
 
-    // ------------------- 1. 대시보드 시트 -------------------
+    // 1. 대시보드 시트
     const dashSheet = workbook.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
 
     dashSheet.mergeCells('B2:H2');
@@ -861,8 +864,8 @@ window.downloadExcel = async function() {
       const isDone = (effSt === '제출' || effSt === '완료');
       const sp = Number(item.sponsoredAmount || 0);
       const pd = Number(item.paidAmount || 0);
-      const rev = Number(item.revenue || 0);
-      const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+      const inputRev = Number(item.revenue || 0);
+      const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
 
       if (isDone) {
         completedCount++;
@@ -998,7 +1001,7 @@ window.downloadExcel = async function() {
       { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }
     ];
 
-    // ------------------- 2. 정산 세부 내역 (1월 ~ 12월) 시트 -------------------
+    // 2. 정산 세부 내역 (1월 ~ 12월) 시트
     const detailSheet = workbook.addWorksheet('정산 세부 내역', { views: [{ showGridLines: true }] });
 
     detailSheet.mergeCells('B2:H2');
@@ -1032,7 +1035,6 @@ window.downloadExcel = async function() {
         mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
       });
 
-      // 월별 섹션 헤더
       detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
       const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
       mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
@@ -1043,7 +1045,6 @@ window.downloadExcel = async function() {
       detailSheet.getRow(dRowIdx).height = 24;
       dRowIdx++;
 
-      // 테이블 컬럼 헤더
       const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
       mCols.forEach((colName, cIdx) => {
         const colLetter = String.fromCharCode(66 + cIdx);
@@ -1107,7 +1108,6 @@ window.downloadExcel = async function() {
           dRowIdx++;
         });
 
-        // 월별 소계
         const subTotalRow = detailSheet.getRow(dRowIdx);
         subTotalRow.height = 21;
         detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
@@ -1138,17 +1138,10 @@ window.downloadExcel = async function() {
     }
 
     detailSheet.columns = [
-      { width: 3 },  // A
-      { width: 26 }, // B: 매장명
-      { width: 14 }, // C: 사이트
-      { width: 13 }, // D: 방문일
-      { width: 13 }, // E: 마감일
-      { width: 15 }, // F: 제공금액
-      { width: 15 }, // G: 결제금액
-      { width: 16 }  // H: 실수익
+      { width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 }
     ];
 
-    // ------------------- 목록 시트 생성 공통 헬퍼 -------------------
+    // 목록 시트 생성 공통 헬퍼
     const buildCampaignSheet = (sheetName, items) => {
       const sheet = workbook.addWorksheet(sheetName, { views: [{ showGridLines: true }] });
 
@@ -1237,14 +1230,14 @@ window.downloadExcel = async function() {
       sheet.columns = headers.map(h => ({ width: h.width }));
     };
 
-    // ------------------- 3. 진행중 체험단 시트 -------------------
+    // 3. 진행중 체험단 시트
     const ongoingItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st !== '제출' && st !== '완료';
     });
     buildCampaignSheet('진행중 체험단', ongoingItems);
 
-    // ------------------- 4. 완료 체험단 시트 -------------------
+    // 4. 완료 체험단 시트
     const completedItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st === '제출' || st === '완료';
