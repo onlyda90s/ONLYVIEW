@@ -667,7 +667,7 @@ function renderPlatformChips() {
 }
 
 window.setDeadlineDays = async function(days) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   deadlineAlertDays = Number(days);
   localStorage.setItem('onlyview_deadlineAlertDays', deadlineAlertDays.toString());
   window.renderDashboardView(); 
@@ -688,7 +688,7 @@ function updateDeadlineButtons() {
 }
 
 window.openDashRegisterModal = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   document.getElementById('modalCampaignForm')?.reset();
   window.setModalStatusBtn('신청');
   const modalApplyDate = document.getElementById('modalApplyDate');
@@ -720,7 +720,7 @@ window.setListSubTab = function(type) {
 };
 
 window.toggleBatchEdit = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   isBatchEditing = !isBatchEditing; newBatchRows = []; window.filterAndRender();
 };
 window.addNewBatchRow = function() { newBatchRows.push({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
@@ -773,7 +773,7 @@ window.saveAllBatchEdits = async function() {
 };
 
 window.quickUpdateStatus = async function(id, newStatus) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   try {
     await updateDoc(doc(db, "campaigns", id), { status: newStatus });
     const item = rawCampaignList.find(c => c.id === id);
@@ -783,13 +783,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
 };
 
 window.deleteCampaign = async function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
 window.openEditModalFromId = function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
@@ -985,6 +985,8 @@ window.downloadExcel = async function() {
 // ======================== 화면 렌더링 ========================
 window.filterAndRender = function() {
   const tableBody = document.getElementById('campaignTableBody');
+  const cardList = document.getElementById('campaignCardList');
+  const tableContainer = document.getElementById('tableContainer');
   const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
   const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
   const filterYear = document.getElementById('filterYear')?.value || 'ALL';
@@ -1002,6 +1004,17 @@ window.filterAndRender = function() {
       batchBtn.className = "tab-fixed-btn py-1.5 px-3 rounded-lg font-bold text-[11px] md:text-xs bg-theme text-white shadow-sm transition-colors hover:bg-theme-hover mr-1";
       batchBtn.innerText = "수정";
       saveBatchBtn.classList.add('hidden');
+    }
+  }
+
+  // 일괄 수정 모드일 때는 모바일에서도 표를 띄워 인풋 필드를 제공
+  if (tableContainer) {
+    if (isBatchEditing) {
+      tableContainer.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto";
+      cardList?.classList.add('hidden');
+    } else {
+      tableContainer.className = "hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto";
+      cardList?.classList.remove('hidden');
     }
   }
 
@@ -1037,6 +1050,7 @@ window.filterAndRender = function() {
   }
 
   if (tableBody) tableBody.innerHTML = '';
+  if (cardList) cardList.innerHTML = '';
 
   filteredList.forEach((item) => {
     const effSt = getEffectiveStatus(item);
@@ -1050,6 +1064,7 @@ window.filterAndRender = function() {
     let revDisplayHtml = '<span class="font-normal ' + (isCompleted ? 'text-gray-900' : 'text-gray-400') + '">' + formatRevenueDisplay(calcRevenue) + (isCompleted ? '' : ' (예상)') + '</span>';
     const overdueBadgeHtml = overdue ? '<span class="text-rose-500 font-bold text-[10px] md:text-[11px] ml-1.5 shrink-0">[상태확인]</span>' : '';
 
+    // [1] 태블릿 & PC 표 (Table) 렌더링
     if (isBatchEditing) {
       const cleanVisitDate = formatCleanDate(item.visitDate);
       const cleanDeadlineDate = formatCleanDate(item.deadlineDate);
@@ -1083,6 +1098,38 @@ window.filterAndRender = function() {
         + '<td class="py-2.5 px-2 text-[11px] font-normal text-center">' + noteBadge + '</td>';
       tableBody?.appendChild(row);
     }
+
+    // [2] 모바일 전용 2줄 콤팩트 카드 렌더링
+    if (cardList && !isBatchEditing) {
+      const card = document.createElement('div');
+      card.className = "bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 cursor-pointer hover:border-theme active:bg-gray-50 transition-colors";
+      card.onclick = () => window.openDetailItemModal(item.id);
+
+      const spDisplay = sponsored > 0 ? sponsored.toLocaleString() + '원' : '0원';
+      const visitTxt = item.visitDate ? formatShortDate(item.visitDate) : '미정';
+      const deadlineTxt = item.deadlineDate ? formatShortDate(item.deadlineDate) : '미정';
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 truncate min-w-0">
+            <span class="font-bold text-[13px] text-gray-900 truncate">${item.storeName || ''}</span>
+            ${overdueBadgeHtml}
+          </div>
+          <span class="font-bold text-[13px] text-theme shrink-0">${spDisplay}</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-gray-500 pt-0.5">
+          <div class="flex items-center gap-2 truncate">
+            <span style="color: ${window.getStatusColor(effSt)}; font-weight: 700;" class="shrink-0">${displayStatusName(effSt)}</span>
+            <span class="text-gray-300">|</span>
+            <span class="text-gray-600 font-normal shrink-0">방문: ${visitTxt}</span>
+            <span class="text-gray-300">|</span>
+            <span class="text-gray-600 font-normal shrink-0">마감: <b class="text-gray-800 font-normal">${deadlineTxt}</b></span>
+          </div>
+          <span class="text-gray-300 text-xs shrink-0">›</span>
+        </div>
+      `;
+      cardList.appendChild(card);
+    }
   });
 
   if (isBatchEditing) {
@@ -1106,8 +1153,9 @@ window.filterAndRender = function() {
     tableBody?.appendChild(addBtnRow);
   }
 
-  if (filteredList.length === 0 && !isBatchEditing && tableBody) {
-    tableBody.innerHTML = '<tr><td colspan="9"><div class="p-6 text-center text-gray-400 text-[11px] font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
+  if (filteredList.length === 0 && !isBatchEditing) {
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-6 text-center text-gray-400 text-[11px] font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
+    if (cardList) cardList.innerHTML = '<div class="bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div>';
   }
 };
 
@@ -1834,29 +1882,4 @@ document.addEventListener("DOMContentLoaded", () => {
         targetUserId = realUid;
         isReadOnly = true;
         await loadTargetUserSettings(realUid);
-        alert("동반자 모드로 전환되었습니다.");
-      }
-      updateFormVisibility(); 
-      await loadCampaigns(); 
-      window.switchTab('dashboard');
-    } catch(err) { alert("조회 실패: " + err.message); }
-  });
-
-  document.querySelectorAll('.reset-data-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!currentUser) return;
-      targetUserId = currentUser.uid; isReadOnly = false;
-      const pInput = document.getElementById('partnerCodeInput');
-      if(pInput) pInput.value = '';
-      await loadTargetUserSettings(currentUser.uid);
-      updateFormVisibility(); 
-      await loadCampaigns();
-      window.switchTab('dashboard');
-    });
-  });
-
-  applySidebarUI(); 
-  renderPlatformChips(); 
-  renderSettingsUI();
-  populateYearFilter();
-});
+        alert("동
