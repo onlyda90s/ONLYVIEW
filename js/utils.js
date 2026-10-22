@@ -1,15 +1,27 @@
+import { store } from './store.js';
+
 export function formatCleanDate(dateVal) {
   if (!dateVal) return "";
-  let str = String(dateVal).trim();
+  let str = String(dateVal).trim().replace(/[/.]/g, '-');
   if (!str) return "";
   const parts = str.split("-");
   if (parts.length === 3) {
     let year = parts[0].replace(/[^0-9]/g, '');
-    if (year.length > 4) year = year.slice(-4);
-    const month = String(parts[1]).replace(/[^0-9]/g, '').padStart(2, '0');
-    const day = String(parts[2]).replace(/[^0-9]/g, '').padStart(2, '0');
-    if (!year || !month || !day) return "";
-    return year + "-" + month + "-" + day;
+    let month = parts[1].replace(/[^0-9]/g, '').padStart(2, '0');
+    let day = parts[2].replace(/[^0-9]/g, '').padStart(2, '0');
+
+    // 2자리 연도 보정 (예: 26 -> 2026)
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+    // 4자리를 초과하는 비정상 연도 (예: 202222 -> 앞의 4자리 2022/2026 추출)
+    else if (year.length > 4) {
+      year = year.slice(0, 4);
+    }
+
+    if (year.length === 4 && month && day) {
+      return year + "-" + month + "-" + day;
+    }
   }
   return str;
 }
@@ -55,6 +67,22 @@ export function isItemOverdue(item) {
 
 export function getEffectiveStatus(item) { return item.status || '신청'; }
 export function displayStatusName(status) { return status || '신청'; }
+
+// 사용자가 설정한 커스텀 상태 색상을 실시간으로 가져오는 함수
+export function getStatusColor(status) {
+  const colors = store.customStatusColors || {};
+  switch(status) {
+    case '신청': return colors.apply || '#6B7280';
+    case '선정': return colors.select || '#111827';
+    case '방문': return colors.visit || '#F4A261';
+    case '미제출': return colors.unsubmitted || '#E63946';
+    case '제출':
+    case '완료': return colors.submit || '#059669';
+    case '배송': return colors.delivery || '#2563EB';
+    case '원고료': return colors.fee || '#9333EA';
+    default: return colors.apply || '#6B7280';
+  }
+}
 
 export function getStatusTextClass(status) {
   switch(status) {
