@@ -835,7 +835,7 @@ window.downloadExcel = async function() {
       right: { style: 'thin', color: { argb: COLOR_BORDER } }
     };
 
-    // 1. 대시보드 시트
+    // ------------------- 1. 대시보드 시트 -------------------
     const dashSheet = workbook.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
 
     dashSheet.mergeCells('B2:H2');
@@ -998,7 +998,157 @@ window.downloadExcel = async function() {
       { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }
     ];
 
-    // 목록 시트 빌더
+    // ------------------- 2. 정산 세부 내역 (1월 ~ 12월) 시트 -------------------
+    const detailSheet = workbook.addWorksheet('정산 세부 내역', { views: [{ showGridLines: true }] });
+
+    detailSheet.mergeCells('B2:H2');
+    const dTitle = detailSheet.getCell('B2');
+    dTitle.value = '월별 정산 세부 내역 (1월 ~ 12월)';
+    dTitle.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
+    dTitle.alignment = { vertical: 'middle', horizontal: 'left' };
+    detailSheet.getRow(2).height = 24;
+
+    detailSheet.getCell('B3').value = `* 완료된(제출) 체험단의 월별 세부 정산 내역입니다.`;
+    detailSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } };
+    detailSheet.getRow(3).height = 18;
+
+    let dRowIdx = 5;
+
+    for (let m = 1; m <= 12; m++) {
+      const mItems = rawCampaignList.filter(item => {
+        const effSt = getEffectiveStatus(item);
+        if (effSt !== '제출' && effSt !== '완료') return false;
+        const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+        if (!refDate || refDate.length < 7) return false;
+        return parseInt(refDate.slice(5, 7)) === m;
+      }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
+
+      const mCount = mItems.length;
+      let mTotalRev = 0;
+      mItems.forEach(item => {
+        const sp = Number(item.sponsoredAmount || 0);
+        const pd = Number(item.paidAmount || 0);
+        const rev = Number(item.revenue || 0);
+        mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+      });
+
+      // 월별 섹션 타이틀 바
+      detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+      const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
+      mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
+      mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } };
+      mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
+      mHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
+      detailSheet.getRow(dRowIdx).height = 24;
+      dRowIdx++;
+
+      // 테이블 헤더
+      const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
+      mCols.forEach((colName, cIdx) => {
+        const colLetter = String.fromCharCode(66 + cIdx);
+        const c = detailSheet.getCell(`${colLetter}${dRowIdx}`);
+        c.value = colName;
+        c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = borderStyle;
+      });
+      detailSheet.getRow(dRowIdx).height = 20;
+      dRowIdx++;
+
+      if (mCount === 0) {
+        detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+        const emptyCell = detailSheet.getCell(`B${dRowIdx}`);
+        emptyCell.value = '해당 월에 완료된 정산 내역이 없습니다.';
+        emptyCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } };
+        emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        emptyCell.border = borderStyle;
+        detailSheet.getRow(dRowIdx).height = 20;
+        dRowIdx++;
+      } else {
+        const startItemRow = dRowIdx;
+        mItems.forEach(item => {
+          const sp = Number(item.sponsoredAmount || 0);
+          const pd = Number(item.paidAmount || 0);
+          const rev = Number(item.revenue || 0);
+          const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+
+          const r = detailSheet.getRow(dRowIdx);
+          r.height = 19;
+          r.getCell(2).value = item.storeName || '';
+          r.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
+
+          r.getCell(3).value = item.platformName || '개별';
+          r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+
+          r.getCell(4).value = formatCleanDate(item.visitDate) || '-';
+          r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+
+          r.getCell(5).value = formatCleanDate(item.deadlineDate) || '-';
+          r.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
+
+          r.getCell(6).value = sp;
+          r.getCell(6).numFmt = '#,##0"원"';
+          r.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+
+          r.getCell(7).value = pd;
+          r.getCell(7).numFmt = '#,##0"원"';
+          r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+
+          r.getCell(8).value = calcRev;
+          r.getCell(8).numFmt = '#,##0"원"';
+          r.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+
+          for (let c = 2; c <= 8; c++) {
+            r.getCell(c).font = { name: '맑은 고딕', size: 9.5 };
+            r.getCell(c).border = borderStyle;
+          }
+          dRowIdx++;
+        });
+
+        // 월별 소계
+        const subTotalRow = detailSheet.getRow(dRowIdx);
+        subTotalRow.height = 21;
+        detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
+        subTotalRow.getCell(2).value = `${m}월 소계`;
+        subTotalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        subTotalRow.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 1})` };
+        subTotalRow.getCell(6).numFmt = '#,##0"원"';
+        subTotalRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+
+        subTotalRow.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 1})` };
+        subTotalRow.getCell(7).numFmt = '#,##0"원"';
+        subTotalRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+
+        subTotalRow.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 1})` };
+        subTotalRow.getCell(8).numFmt = '#,##0"원"';
+        subTotalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+
+        for (let c = 2; c <= 8; c++) {
+          subTotalRow.getCell(c).font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF1F2937' } };
+          subTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+          subTotalRow.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'thin' } };
+        }
+        dRowIdx++;
+      }
+
+      dRowIdx++; // 월 간 간격 띄움
+    }
+
+    detailSheet.columns = [
+      { width: 3 },  // A
+      { width: 26 }, // B: 매장명
+      { width: 14 }, // C: 사이트
+      { width: 13 }, // D: 방문일
+      { width: 13 }, // E: 마감일
+      { width: 15 }, // F: 제공금액
+      { width: 15 }, // G: 결제금액
+      { width: 16 }  // H: 실수익
+    ];
+
+    // ------------------- 목록 시트 생성 공통 헬퍼 -------------------
     const buildCampaignSheet = (sheetName, items) => {
       const sheet = workbook.addWorksheet(sheetName, { views: [{ showGridLines: true }] });
 
@@ -1036,7 +1186,7 @@ window.downloadExcel = async function() {
         const sp = Number(item.sponsoredAmount || 0);
         const pd = Number(item.paidAmount || 0);
         const inputRev = Number(item.revenue || 0);
-        const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
+        const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + inputRev);
 
         row.getCell(1).value = item.storeName || '';
         row.getCell(2).value = displayStatusName(effSt);
@@ -1087,14 +1237,14 @@ window.downloadExcel = async function() {
       sheet.columns = headers.map(h => ({ width: h.width }));
     };
 
-    // 2. 진행중 체험단 시트
+    // ------------------- 3. 진행중 체험단 시트 -------------------
     const ongoingItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st !== '제출' && st !== '완료';
     });
     buildCampaignSheet('진행중 체험단', ongoingItems);
 
-    // 3. 완료 체험단 시트
+    // ------------------- 4. 완료 체험단 시트 -------------------
     const completedItems = rawCampaignList.filter(item => {
       const st = getEffectiveStatus(item);
       return st === '제출' || st === '완료';
