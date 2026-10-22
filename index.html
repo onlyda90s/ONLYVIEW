@@ -13,7 +13,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 아이폰 노치 등 하단 안전영역 확보 */
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
@@ -44,7 +43,7 @@
   <!-- 메인 앱 화면 -->
   <div id="appSection" class="hidden h-screen w-full flex-col lg:flex-row overflow-hidden relative">
     
-    <!-- 데스크톱 사이드바 (lg 이상에서만 보임) -->
+    <!-- 데스크톱 사이드바 (SVG 아이콘 탑재) -->
     <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-screen transition-all duration-200 relative z-10">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -58,11 +57,26 @@
           <span id="userName" class="text-xs font-normal text-theme truncate"></span>
         </div>
         <nav class="space-y-1 text-sm font-bold">
-          <button id="nav-dashboard" onclick="window.switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white"><span class="sidebar-text-label">대시보드</span></button>
-          <button id="nav-form" onclick="window.switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 등록</span></button>
-          <button id="nav-list" onclick="window.switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 목록</span></button>
-          <button id="nav-settlement" onclick="window.switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">체험단 정산</span></button>
-          <button id="nav-settings" onclick="window.switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left"><span class="sidebar-text-label">설정 및 공유</span></button>
+          <button id="nav-dashboard" onclick="window.switchTab('dashboard')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-left bg-theme text-white">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            <span class="sidebar-text-label">대시보드</span>
+          </button>
+          <button id="nav-form" onclick="window.switchTab('form')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span class="sidebar-text-label">체험단 등록</span>
+          </button>
+          <button id="nav-list" onclick="window.switchTab('list')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+            <span class="sidebar-text-label">체험단 목록</span>
+          </button>
+          <button id="nav-settlement" onclick="window.switchTab('settlement')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="sidebar-text-label">체험단 정산</span>
+          </button>
+          <button id="nav-settings" onclick="window.switchTab('settings')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sidebar hover:bg-black/5 transition-colors text-left">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span class="sidebar-text-label">설정 및 공유</span>
+          </button>
         </nav>
       </div>
       <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-6">
@@ -72,7 +86,7 @@
       </div>
     </aside>
 
-    <!-- 모바일/태블릿용 바텀 네비게이션 탭바 (lg 미만에서만 보임) -->
+    <!-- 모바일/태블릿 하단 바텀 탭바 -->
     <nav id="bottomNav" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex lg:hidden justify-around items-center h-[60px] pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <button id="bottom-nav-dashboard" onclick="window.switchTab('dashboard')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-theme transition-colors pt-1">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
@@ -96,12 +110,12 @@
       </button>
     </nav>
 
-    <!-- 메인 뷰포트 영역 (바텀바 고려한 패딩 pb-20 추가) -->
-    <main class="flex-1 px-4 md:px-6 lg:px-8 py-4 pb-20 lg:pb-8 space-y-4 h-screen overflow-y-auto flex flex-col justify-start w-full">
+    <!-- 메인 뷰포트 영역 -->
+    <main class="flex-1 px-4 md:px-6 lg:px-8 py-4 pb-24 lg:pb-8 space-y-4 h-screen overflow-y-auto flex flex-col justify-start w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
-      <!-- 1. 대시보드 탭 -->
-      <div id="sectionDashboard" class="space-y-3.5 flex-1 flex flex-col justify-between overflow-hidden">
+      <!-- 1. 대시보드 탭 (스크롤 정상화: overflow-y-auto 적용) -->
+      <div id="sectionDashboard" class="space-y-4 w-full">
         <div class="flex items-center justify-between shrink-0">
           <h2 id="dashMonthTitle" class="text-xl md:text-3xl font-black text-theme tracking-tight"></h2>
           <div class="flex items-center gap-1.5 md:gap-2">
@@ -113,24 +127,31 @@
             <button id="dashRegisterBtn" onclick="window.openDashRegisterModal()" class="bg-theme bg-theme-hover text-white text-[11px] md:text-xs px-2.5 md:px-3 py-1.5 rounded-lg md:rounded-xl font-bold shadow-sm transition-colors hidden lg:block">+ 체험 등록</button>
           </div>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
-          <div onclick="window.openCounterListModal('select', '선정 현황')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-gray-900 font-normal">선정 현황</div><div id="cntSelect" class="text-base md:text-lg font-bold text-gray-900 mt-0.5">0건</div></div>
+
+        <!-- 모바일/태블릿: 4개(예약대기/방문예정/미제출/제출완료), PC: 5개(선정현황 포함) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 shrink-0">
+          <div id="boxCntSelect" onclick="window.openCounterListModal('select', '선정 현황')" class="hidden lg:block bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[11px] text-gray-900 font-normal">선정 현황</div><div id="cntSelect" class="text-base md:text-lg font-bold text-gray-900 mt-0.5">0건</div></div>
           <div onclick="window.openCounterListModal('visitWait', '예약 대기')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-gray-500 font-normal">예약 대기</div><div id="cntVisitWait" class="text-base md:text-lg font-bold text-gray-500 mt-0.5">0건</div></div>
           <div onclick="window.openCounterListModal('visitPlan', '방문 예정')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-orange-500 font-normal">방문 예정</div><div id="cntVisitPlan" class="text-base md:text-lg font-bold text-orange-500 mt-0.5">0건</div></div>
           <div onclick="window.openCounterListModal('submitWait', '미제출')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-gray-500 font-normal">미제출</div><div id="cntSubmitWait" class="text-base md:text-lg font-bold text-gray-500 mt-0.5">0건</div></div>
-          <div onclick="window.openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center col-span-2 md:col-span-1 cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-emerald-600 font-normal">제출 완료</div><div id="cntSubmitDone" class="text-base md:text-lg font-bold text-emerald-600 mt-0.5">0건</div></div>
+          <div onclick="window.openCounterListModal('submitDone', '제출 완료')" class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer hover:border-theme transition-colors"><div class="text-[10px] md:text-[11px] text-emerald-600 font-normal">제출 완료</div><div id="cntSubmitDone" class="text-base md:text-lg font-bold text-emerald-600 mt-0.5">0건</div></div>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden min-h-[300px]">
-          <div class="lg:col-span-2 bg-white p-2.5 md:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden">
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
+
+        <!-- 캘린더 및 방문 일정 (비율 확대 및 시인성 확보) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2 bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-start">
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 md:gap-1.5 w-full"></div>
           </div>
-          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-[160px]">
-            <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-1.5 shrink-0">방문 일정</h3><div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div>
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[220px]">
+            <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">방문 일정</h3>
+            <div id="scheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-[360px] overflow-y-auto"></div>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-auto md:h-60 shrink-0">
-          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-[140px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-1.5 shrink-0">제출 마감 임박</h3><div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div></div>
-          <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-[140px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-1.5 shrink-0">예약 대기</h3><div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1"></div></div>
+
+        <!-- 마감 임박 및 예약 대기 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[160px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">제출 마감 임박</h3><div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-56 overflow-y-auto"></div></div>
+          <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[160px]"><h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">예약 대기</h3><div id="unscheduledVisitList" class="space-y-1.5 widget-scroll pr-1 flex-1 max-h-56 overflow-y-auto"></div></div>
         </div>
       </div>
 
@@ -175,7 +196,7 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (가로 스크롤 축소 표 통일) -->
+      <!-- 3. 체험단 목록 탭 -->
       <div id="sectionList" class="hidden space-y-4 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 shrink-0">
           <div class="flex items-center gap-1.5"><h2 class="text-xl md:text-2xl font-black text-theme">체험단 목록</h2></div>
@@ -200,7 +221,6 @@
           </select>
         </div>
         
-        <!-- 화면 크기와 무관하게 가로 스크롤 가능한 단일 표 레이아웃 유지 -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table class="w-full text-left border-collapse table-auto min-w-[760px]">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-[11px]">
@@ -262,7 +282,6 @@
       <div id="sectionSettings" class="hidden space-y-6 overflow-y-auto max-h-screen py-2">
         <div class="flex items-center justify-between h-10 shrink-0 mb-2"><h2 class="text-xl md:text-2xl font-black text-theme">설정 및 공유</h2></div>
         
-        <!-- 모바일/태블릿용: 상단 기능 버튼 배치 영역 (lg 미만에서만 보임) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:hidden gap-3 mb-6">
           <button id="settingsDownloadExcelBtn" onclick="window.downloadExcel()" class="excel-down-btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-[13px] shadow-sm transition-colors">📊 엑셀 리포트 내보내기</button>
           <button id="settingsLogoutBtn" onclick="window.logout()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-[13px] shadow-sm transition-colors">로그아웃</button>
@@ -282,7 +301,7 @@
               <button onclick="window.changeTheme('mustard')" class="p-1.5 md:p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#9C6A00]"></span><span class="font-normal">머스타드</span></button>
               <button onclick="window.changeTheme('indigo')" class="p-1.5 md:p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#3446A8]"></span><span class="font-normal">인디고</span></button>
               <button onclick="window.changeTheme('emerald')" class="p-1.5 md:p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#0E7C66]"></span><span class="font-normal">에메랄드</span></button>
-              <button onclick="window.changeTheme('ink')" class="p-1.5 md:p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5"><span class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#232830]"></span><span class="font-normal">잉크블랙</span></button>
+              <button onclick="window.changeTheme('ink')" class="p-1.5 md:p-2 rounded-xl border border-gray-200 flex flex-col items-center gap-1.5 hover:border-theme transition"><span class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#232830]"></span><span class="font-normal">잉크블랙</span></button>
             </div>
           </div>
           <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
@@ -454,6 +473,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=3"></script>
+  <script type="module" src="js/app.js?v=4"></script>
 </body>
 </html>
