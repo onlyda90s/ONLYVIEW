@@ -39,7 +39,7 @@ let isSettlementShared = localStorage.getItem('onlyview_shareSettlement') === 't
 let rawCampaignList = [], isBatchEditing = false, listSubTab = 'ongoing', settlementSubTab = 'report', isFilterExpanded = false, newBatchRows = [];
 let yearlyChartInstance = null, monthlyChartInstance = null, monthlyAnalysisChartInstance = null;
 let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
-let monthlyDetailsCollapseState = {};
+let monthlyDetailsCollapseState = {}; // 모든 월 기본 접힘 상태 유지
 let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none';
 let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true';
 let myCustomCode = localStorage.getItem('onlyview_customCode') || "";
@@ -61,13 +61,9 @@ try {
 } catch(e) {}
 
 const customStatusColors = {
-  apply: savedColors.apply || '#6B7280',
-  select: savedColors.select || '#111827',
-  visit: savedColors.visit || '#F4A261',
-  unsubmitted: savedColors.unsubmitted || '#E63946',
-  submit: savedColors.submit || '#059669',
-  delivery: savedColors.delivery || '#2563EB',
-  fee: savedColors.fee || '#9333EA'
+  apply: savedColors.apply || '#6B7280', select: savedColors.select || '#111827',
+  visit: savedColors.visit || '#F4A261', unsubmitted: savedColors.unsubmitted || '#E63946',
+  submit: savedColors.submit || '#059669', delivery: savedColors.delivery || '#2563EB', fee: savedColors.fee || '#9333EA'
 };
 
 let currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default';
@@ -145,20 +141,15 @@ function isItemOverdue(item) {
 function getEffectiveStatus(item) { return item.status || '신청'; }
 function displayStatusName(status) { return status || '신청'; }
 
-// 상태별 색상 맵핑 (제출, 완료 모두 submit 키로 완벽 연결)
+// 상태별 글자 색상 (제출, 완료 모두 submit 색상으로 완전 매핑)
 window.getStatusColor = function(st) {
-  const statusKeyMap = {
-    '신청': 'apply',
-    '선정': 'select',
-    '방문': 'visit',
-    '미제출': 'unsubmitted',
-    '제출': 'submit',
-    '완료': 'submit',
-    '배송': 'delivery',
-    '원고료': 'fee'
-  };
-  const key = statusKeyMap[st] || 'apply';
-  return customStatusColors[key] || '#6B7280';
+  if (st === '제출' || st === '완료') return customStatusColors.submit || '#059669';
+  if (st === '원고료') return customStatusColors.fee || '#9333EA';
+  if (st === '배송') return customStatusColors.delivery || '#2563EB';
+  if (st === '미제출') return customStatusColors.unsubmitted || '#E63946';
+  if (st === '방문') return customStatusColors.visit || '#F4A261';
+  if (st === '선정') return customStatusColors.select || '#111827';
+  return customStatusColors.apply || '#6B7280';
 };
 
 function formatCurrencyInput(v) {
@@ -452,7 +443,6 @@ window.setSettlementSubTab = function(type) {
 
 window.toggleMonthlyDetailsCard = function(m) {
   monthlyDetailsCollapseState[m] = !monthlyDetailsCollapseState[m];
-  localStorage.setItem("onlyview_monthlyDetailCollapsed_" + m, monthlyDetailsCollapseState[m]);
   window.renderSettlementView(); 
 };
 
@@ -509,7 +499,8 @@ window.switchTab = function(tabName, pushState = true) {
   }
   else if (tabName === 'settlement') {
     document.getElementById('sectionSettlement')?.classList.remove('hidden');
-    window.renderSettlementView();
+    // 1번 요청: 초기 진입 시 언제나 요약 리포트(메인 뷰) 우선 표시
+    window.setSettlementSubTab('report');
   }
   else if (tabName === 'settings') {
     document.getElementById('sectionSettings')?.classList.remove('hidden');
@@ -728,7 +719,7 @@ window.saveAllBatchEdits = async function() {
 };
 
 window.quickUpdateStatus = async function(id, newStatus) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
   try {
     await updateDoc(doc(db, "campaigns", id), { status: newStatus });
     const item = rawCampaignList.find(c => c.id === id);
@@ -738,13 +729,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
 };
 
 window.deleteCampaign = async function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
 window.openEditModalFromId = function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
@@ -1017,70 +1008,71 @@ window.renderDashboardView = function() {
 };
 
 window.renderSettlementView = function() {
-  try {
-    const yearSelect = document.getElementById('settlementYearSelect');
-    const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
-    const now = new Date();
-    const actualRealYear = now.getFullYear();
-    const actualRealMonth = now.getMonth() + 1;
-    const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
-    const isCurrentYear = (targetYear === actualRealYear);
+  const yearSelect = document.getElementById('settlementYearSelect');
+  const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
+  const now = new Date();
+  const actualRealYear = now.getFullYear();
+  const actualRealMonth = now.getMonth() + 1;
+  const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
+  const isCurrentYear = (targetYear === actualRealYear);
 
-    const lbl = document.getElementById('yearlyAccumulatedLabel');
-    if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : targetYear + "년 누적";
+  const lbl = document.getElementById('yearlyAccumulatedLabel');
+  if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : targetYear + "년 누적";
 
-    const chartColors = getActiveChartColors();
-    let doneCount = 0, doneAmount = 0, planCount = 0, planAmount = 0, prevDoneAmount = 0, hasPrevYearData = false;
-    const monthlyRevenues = new Array(12).fill(0), monthlyCounts = new Array(12).fill(0), platformMap = {};
-    const monthlyDetailsData = {}; for(let m = 1; m <= 12; m++) monthlyDetailsData[m] = [];
+  const chartColors = getActiveChartColors();
+  let doneCount = 0, doneAmount = 0, planCount = 0, planAmount = 0, prevDoneAmount = 0, hasPrevYearData = false;
+  const monthlyRevenues = new Array(12).fill(0), monthlyCounts = new Array(12).fill(0), platformMap = {};
+  const monthlyDetailsData = {}; for(let m = 1; m <= 12; m++) monthlyDetailsData[m] = [];
 
-    rawCampaignList.forEach(item => {
-      const sp = Number(item.sponsoredAmount || 0), pd = Number(item.paidAmount || 0), rev = Number(item.revenue || 0);
-      const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
-      const refD = formatCleanDate(item.visitDate || '');
-      if (!refD || refD.length < 7) return;
-      const iYear = parseInt(refD.slice(0, 4)), iMonth = parseInt(refD.slice(5, 7));
-      const isCompleted = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
-      const pName = item.platformName || '개별';
+  rawCampaignList.forEach(item => {
+    const sp = Number(item.sponsoredAmount || 0), pd = Number(item.paidAmount || 0), rev = Number(item.revenue || 0);
+    const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+    const refD = formatCleanDate(item.visitDate || '');
+    if (!refD || refD.length < 7) return;
+    const iYear = parseInt(refD.slice(0, 4)), iMonth = parseInt(refD.slice(5, 7));
+    const isCompleted = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
+    const pName = item.platformName || '개별';
 
-      if (selectedYearVal === 'ALL' || iYear === targetYear) {
-        if (!platformMap[pName]) platformMap[pName] = { doneCount: 0, doneAmount: 0 };
-        if (isCompleted) {
-          doneCount++; doneAmount += calcRev;
-          platformMap[pName].doneCount++; platformMap[pName].doneAmount += calcRev;
-          if (iMonth >= 1 && iMonth <= 12) {
-            monthlyRevenues[iMonth - 1] += calcRev; monthlyCounts[iMonth - 1]++;
-            monthlyDetailsData[iMonth].push({ storeName: item.storeName || '미지정', sponsoredAmount: sp, paidAmount: pd, revenueAmount: calcRev, sortRefDate: refD });
-          }
-        } else { planCount++; planAmount += calcRev; }
-      }
-      if (iYear === targetYear - 1) { hasPrevYearData = true; if (isCompleted) prevDoneAmount += calcRev; }
-    });
-
-    const totalAmount = doneAmount + planAmount;
-    const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-    setT('yearlyTotalRevenueText', totalAmount.toLocaleString() + "원");
-    setT('yearlyDoneCount', doneCount + "건"); setT('yearlyDoneAmount', doneAmount.toLocaleString() + "원");
-    setT('yearlyPlanCount', planCount + "건"); setT('yearlyPlanAmount', planAmount.toLocaleString() + "원");
-
-    const diffAmount = doneAmount - prevDoneAmount;
-    const cmpContainer = document.getElementById('yearlyCompareContainer');
-    if (cmpContainer) {
-      if (!hasPrevYearData) {
-        cmpContainer.innerHTML = '<div class="flex items-center gap-1.5"><span class="text-[10px] sm:text-[11px] text-gray-400 shrink-0">전년 대비</span><span class="text-[10px] sm:text-[11px] text-gray-400">데이터 없음</span></div>';
-      } else {
-        const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
-        cmpContainer.innerHTML = `
-          <div class="flex flex-col gap-0.5">
-            <span class="text-[10px] text-gray-400 font-normal">전년 대비 증가</span>
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-bold text-gray-900 text-xs sm:text-sm">${diffAmount >= 0 ? '+' : ''}${diffAmount.toLocaleString()}원</span>
-              <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${diffAmount >= 0 ? '+' : ''}${rate}%</span>
-            </div>
-          </div>`;
-      }
+    if (selectedYearVal === 'ALL' || iYear === targetYear) {
+      if (!platformMap[pName]) platformMap[pName] = { doneCount: 0, doneAmount: 0 };
+      if (isCompleted) {
+        doneCount++; doneAmount += calcRev;
+        platformMap[pName].doneCount++; platformMap[pName].doneAmount += calcRev;
+        if (iMonth >= 1 && iMonth <= 12) {
+          monthlyRevenues[iMonth - 1] += calcRev; monthlyCounts[iMonth - 1]++;
+          monthlyDetailsData[iMonth].push({ storeName: item.storeName || '미지정', sponsoredAmount: sp, paidAmount: pd, revenueAmount: calcRev, sortRefDate: refD });
+        }
+      } else { planCount++; planAmount += calcRev; }
     }
+    if (iYear === targetYear - 1) { hasPrevYearData = true; if (isCompleted) prevDoneAmount += calcRev; }
+  });
 
+  const totalAmount = doneAmount + planAmount;
+  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  setT('yearlyTotalRevenueText', totalAmount.toLocaleString() + "원");
+  setT('yearlyDoneCount', doneCount + "건"); setT('yearlyDoneAmount', doneAmount.toLocaleString() + "원");
+  setT('yearlyPlanCount', planCount + "건"); setT('yearlyPlanAmount', planAmount.toLocaleString() + "원");
+
+  const diffAmount = doneAmount - prevDoneAmount;
+  const cmpContainer = document.getElementById('yearlyCompareContainer');
+  if (cmpContainer) {
+    if (!hasPrevYearData) {
+      cmpContainer.innerHTML = '<div class="flex items-center gap-1.5"><span class="text-[10px] sm:text-[11px] text-gray-400 shrink-0">전년 대비</span><span class="text-[10px] sm:text-[11px] text-gray-400">데이터 없음</span></div>';
+    } else {
+      const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
+      cmpContainer.innerHTML = `
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[10px] text-gray-400 font-normal">전년 대비 증가</span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="font-bold text-gray-900 text-xs sm:text-sm">${diffAmount >= 0 ? '+' : ''}${diffAmount.toLocaleString()}원</span>
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${diffAmount >= 0 ? '+' : ''}${rate}%</span>
+          </div>
+        </div>`;
+    }
+  }
+
+  // 1. 연간 도넛 차트
+  try {
     const ctxY = document.getElementById('yearlyDonutChart')?.getContext('2d');
     if (ctxY) {
       if (yearlyChartInstance) yearlyChartInstance.destroy();
@@ -1090,7 +1082,10 @@ window.renderSettlementView = function() {
         options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '72%', plugins: { legend: { display: false } } }
       });
     }
+  } catch(e) { console.error('연간 도넛 렌더링 오류:', e); }
 
+  // 2. 월간 막대 차트
+  try {
     let maxRevVal = 0, maxMonthIdx = 0;
     monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
     if (document.getElementById('monthlyBestMonthText')) document.getElementById('monthlyBestMonthText').innerText = maxRevVal === 0 ? '-' : `${maxMonthIdx + 1}월 · ${maxRevVal.toLocaleString()}원`;
@@ -1102,11 +1097,14 @@ window.renderSettlementView = function() {
       monthlyChartInstance = new Chart(ctxM, {
         type: 'bar',
         data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyRevenues.map(v => Number((v / 10000).toFixed(1))), backgroundColor: chartColors.main, borderRadius: 4, barPercentage: 0.65 }] },
-        plugins: [ChartDataLabels],
+        plugins: (window.ChartDataLabels ? [window.ChartDataLabels] : []),
         options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 2, right: 2 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
+  } catch(e) { console.error('월간 막대 렌더링 오류:', e); }
 
+  // 3. 월간 분석 꺾은선 차트
+  try {
     let maxCountVal = 0, maxCountMonthIdx = 0;
     monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
     if (document.getElementById('monthlyAnalysisBestText')) document.getElementById('monthlyAnalysisBestText').innerText = maxCountVal === 0 ? '-' : `${maxCountMonthIdx + 1}월 · ${maxCountVal}건`;
@@ -1118,11 +1116,14 @@ window.renderSettlementView = function() {
       monthlyAnalysisChartInstance = new Chart(ctxMA, {
         type: 'line',
         data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyCounts, borderColor: chartColors.main, borderWidth: 2.2, pointBackgroundColor: chartColors.main, pointRadius: 3.5, tension: 0.25, fill: false }] },
-        plugins: [ChartDataLabels],
+        plugins: (window.ChartDataLabels ? [window.ChartDataLabels] : []),
         options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 4, right: 4 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
+  } catch(e) { console.error('월간 분석 꺾은선 오류:', e); }
 
+  // 4. 플랫폼 분석 (게이지바, 건수, 금액 열 위치 일렬 통일)
+  try {
     const pLeft = document.getElementById('platformColLeft'), pRight = document.getElementById('platformColRight');
     if (pLeft && pRight) {
       pLeft.innerHTML = ''; pRight.innerHTML = '';
@@ -1133,21 +1134,31 @@ window.renderSettlementView = function() {
         itemD.className = "flex items-center justify-between text-xs py-1 px-0.5";
         const maxCnt = sortedP[0].doneCount || 1;
         const bPercent = Math.max(12, Math.round((p.doneCount / maxCnt) * 100));
-        itemD.innerHTML = `<span class="font-medium text-gray-800 truncate w-14 sm:w-16 shrink-0 text-xs">${p.n}</span>`
-          + `<div class="flex-1 mx-2 bg-gray-100 h-1.5 sm:h-2 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all" style="width:${bPercent}%; background-color:${chartColors.main};"></div></div>`
-          + `<div class="flex items-center gap-1.5 shrink-0 text-right"><span class="text-gray-400 text-[10px]">${p.doneCount}건</span><span class="text-gray-900 font-bold text-xs">${p.doneAmount.toLocaleString()}원</span></div>`;
+        itemD.innerHTML = `
+          <span class="font-medium text-gray-800 truncate w-16 sm:w-20 shrink-0 text-xs">${p.n}</span>
+          <div class="flex-1 mx-2 sm:mx-3 bg-gray-100 h-2 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all" style="width:${bPercent}%; background-color:${chartColors.main};"></div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0 text-right">
+            <span class="w-8 sm:w-10 text-right text-gray-400 text-[11px] font-normal">${p.doneCount}건</span>
+            <span class="w-20 sm:w-24 text-right text-gray-900 font-bold text-xs">${p.doneAmount.toLocaleString()}원</span>
+          </div>`;
         (idx < half ? pLeft : pRight).appendChild(itemD);
       });
+      if (sortedP.length === 0) pLeft.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal col-span-2">데이터가 없습니다.</div>';
     }
+  } catch(e) { console.error('플랫폼 분석 렌더링 오류:', e); }
 
-    // 세부 내역 (월별 카드 및 소계 박스 정상 렌더링)
+  // 5. 세부 내역 (2번: 전월 접힘 시작, 3번: 매장명/제공금액/결제금액 표시 + 소계 유지)
+  try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
       mGrid.innerHTML = '';
       for (let m = 1; m <= 12; m++) {
         const list = monthlyDetailsData[m];
         list.sort((a, b) => a.sortRefDate.localeCompare(b.sortRefDate));
-        const isCollapsed = monthlyDetailsCollapseState[m] === true;
+        // 2번: 실적 여부 상관없이 모든 월 카드 기본 접힘(true)
+        const isCollapsed = monthlyDetailsCollapseState[m] !== false;
         const totalC = list.length, totalR = list.reduce((s, i) => s + i.revenueAmount, 0);
 
         const cardD = document.createElement('div');
@@ -1165,18 +1176,19 @@ window.renderSettlementView = function() {
           if (list.length === 0) {
             htm += '<div class="text-center text-gray-300 font-normal py-6 text-xs">이 달의 완료된 체험이 없습니다.</div>';
           } else {
-            htm += '<div class="flex items-center justify-between text-[10px] text-gray-400 font-normal pb-1 border-b border-gray-100"><span class="w-1/2 text-left">매장명</span><span class="w-1/4 text-right">제공금액</span><span class="w-1/4 text-right">실수익</span></div>';
+            // 3번: 행 컬럼 [매장명 | 제공금액 | 결제금액]
+            htm += '<div class="flex items-center justify-between text-[10px] text-gray-400 font-normal pb-1 border-b border-gray-100"><span class="w-1/2 text-left">매장명</span><span class="w-1/4 text-right">제공금액</span><span class="w-1/4 text-right">결제금액</span></div>';
             htm += '<div class="space-y-1.5 max-h-[200px] overflow-y-auto widget-scroll pr-1">';
             list.forEach(i => {
               htm += `<div class="flex justify-between items-center text-xs py-1 border-b border-dashed border-gray-50">
                 <span class="truncate w-1/2 font-medium text-gray-800" title="${i.storeName}">${i.storeName}</span>
                 <span class="w-1/4 text-right text-gray-500 text-[11px]">${i.sponsoredAmount.toLocaleString()}원</span>
-                <span class="w-1/4 text-right text-gray-900 font-bold text-xs">${i.revenueAmount.toLocaleString()}원</span>
+                <span class="w-1/4 text-right text-gray-900 font-bold text-xs">${Number(i.paidAmount || 0).toLocaleString()}원</span>
               </div>`;
             });
             htm += '</div>';
           }
-          // 소계 박스
+          // 하단 요약 바 유지
           htm += `<div class="mt-2.5 p-2.5 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
             <span class="text-gray-500 font-normal text-[11px]">소계 <b class="text-gray-900 font-bold ml-1">${totalC}건</b></span>
             <span class="text-gray-500 font-normal text-[11px]">실수익 <b class="text-gray-900 font-bold ml-1">${totalR.toLocaleString()}원</b></span>
@@ -1187,7 +1199,7 @@ window.renderSettlementView = function() {
         mGrid.appendChild(cardD);
       }
     }
-  } catch (err) { console.error(err); }
+  } catch(e) { console.error('월간 세부내역 렌더링 오류:', e); }
 };
 
 function renderUpcomingDeadlines() {
@@ -1294,19 +1306,32 @@ window.openDetailItemModal = function(id) {
   document.getElementById('dayModal')?.classList.remove('hidden');
 };
 
+// 1번: 최신 연도가 맨 위로 오도록 내림차순(b - a) 정렬
 function populateYearFilter() {
   const yearSelect = document.getElementById('filterYear');
   const sYearSelect = document.getElementById('settlementYearSelect');
   if (!yearSelect) return;
   const currentY = new Date().getFullYear();
-  const years = [2025, currentY, currentY + 1];
+  const yearsSet = new Set([currentY, currentY - 1, 2025]);
+  rawCampaignList.forEach(item => {
+    [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
+      if (d && typeof d === 'string' && d.length >= 4) {
+        const y = parseInt(d.slice(0, 4));
+        if (!isNaN(y)) yearsSet.add(y);
+      }
+    });
+  });
+  // 최신 연도가 맨 위로 오도록 내림차순 정렬
+  const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+
   yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
   if (sYearSelect) sYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
-  years.forEach(y => {
+  sortedYears.forEach(y => {
     const o = document.createElement('option'); o.value = y.toString(); o.innerText = `${y}년`; yearSelect.appendChild(o);
     if (sYearSelect) {
       const oS = document.createElement('option'); oS.value = y.toString(); oS.innerText = `${y}년 전체`;
-      if (y === currentY) oS.selected = true; sYearSelect.appendChild(oS);
+      if (y === currentY) oS.selected = true; // 현재 연도 기본 선택
+      sYearSelect.appendChild(oS);
     }
   });
 }
@@ -1358,6 +1383,10 @@ async function loadCampaigns() {
       const d = s.data();
       rawCampaignList.push({ id: s.id, ...d, applyDate: formatCleanDate(d.applyDate || ''), visitDate: formatCleanDate(d.visitDate || ''), deadlineDate: formatCleanDate(d.deadlineDate || '') });
     });
+    // 2번: 세부 내역의 1~12월 카드는 실적 유무를 불문하고 기본 접힘(true) 상태로 초기화
+    for (let m = 1; m <= 12; m++) {
+      monthlyDetailsCollapseState[m] = true;
+    }
     populateYearFilter();
     window.refreshAllViews();
   } catch (e) { console.error("데이터 로드 실패:", e); }
@@ -1470,7 +1499,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!snap.exists()) return alert("유효하지 않은 코드입니다.");
       const cData = snap.data();
       targetUserId = cData.uid;
-      isSettlementShared = codeData.shareSettlement === true;
+      isSettlementShared = cData.shareSettlement === true;
       isReadOnly = !(currentUser && targetUserId === currentUser.uid);
       await loadTargetUserSettings(targetUserId);
       updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
