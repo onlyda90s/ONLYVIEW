@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>온리뷰 (onlyview) - 대시보드</title>
-  
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -23,20 +22,20 @@
 
   <!-- 로그인 화면 -->
   <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
-    <div class="text-center space-y-3 mb-12">
+    <div class="text-center space-y-3 mb-10">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
       <p class="text-xs tracking-widest text-gray-400 font-normal uppercase">ONLYVIEW</p>
-      <p class="text-sm text-gray-600 mt-4 leading-relaxed font-normal">체험단 방문, 마감, 정산을<br>한곳에서</p>
+      <p class="text-sm text-gray-600 mt-3 leading-relaxed font-normal">체험단 방문, 마감, 정산을<br>한곳에서</p>
     </div>
     <div class="w-full space-y-3 mb-6">
       <div class="space-y-2">
-        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm font-normal">
+        <input type="text" id="loginInviteCodeInput" placeholder="초대 코드 입력" class="w-full bg-white border border-gray-200 rounded-2xl p-3.5 text-center text-sm outline-none focus:ring-2 ring-theme shadow-sm font-normal">
         <button id="enterInviteBtn" onclick="window.enterWithInviteCode()" type="button" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm text-xs transition-colors">초대 코드로 대시보드 보기</button>
       </div>
       <div class="relative flex py-2 items-center">
         <div class="flex-grow border-t border-gray-200"></div><span class="flex-shrink mx-3 text-gray-400 text-xs font-normal">또는</span><div class="flex-grow border-t border-gray-200"></div>
       </div>
-      <button id="loginBtn" onclick="window.loginWithGoogle()" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-4 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer">
+      <button id="loginBtn" onclick="window.loginWithGoogle()" type="button" class="w-full bg-theme bg-theme-hover text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 bg-white rounded-full p-0.5">Google로 계속하기
       </button>
       <p class="text-[11px] text-center text-gray-400 mt-3 font-normal">초대 코드 입력 시 동반자의 내역을 함께 볼 수 있어요</p>
@@ -113,7 +112,7 @@
       </button>
     </nav>
 
-    <!-- 메인 뷰포트 (단일 스크롤 컨테이너) -->
+    <!-- 메인 단일 스크롤 뷰포트 -->
     <main class="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 pb-24 lg:pb-8 space-y-3.5 sm:space-y-4 h-screen overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
@@ -460,7 +459,7 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
-          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="editCompanions" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="editPaidAmount" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
@@ -481,6 +480,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=9"></script>
+  <script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>
