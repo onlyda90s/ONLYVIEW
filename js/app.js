@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,7 +17,9 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
-  setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
+  provider.setCustomParameters({ prompt: 'select_account' });
+  // 팝업-부모창 간 토큰 유실을 방지하기 위해 로컬 영구 저장소 사용
+  setPersistence(auth, browserLocalPersistence).catch(e => console.error(e));
 } catch (e) {
   console.error("Firebase 초기화 에러:", e);
 }
@@ -305,6 +307,28 @@ async function loadTargetUserSettings(uid) {
   } catch (err) { console.error("설정 동기화 실패:", err); }
 }
 
+// 사용자 로그인 성공 후 대시보드 화면 전환을 100% 보장하는 공통 핸들러
+async function handleUserLoggedIn(user) {
+  if (!user) return;
+  currentUser = user;
+  targetUserId = user.uid;
+  isReadOnly = false;
+  
+  const authSec = document.getElementById('authSection');
+  const appSec = document.getElementById('appSection');
+  authSec?.classList.add('hidden');
+  appSec?.classList.remove('hidden');
+  appSec?.classList.add('flex', 'lg:flex');
+  
+  const userNameElem = document.getElementById('userName');
+  if (userNameElem) userNameElem.innerText = user.displayName || user.email;
+  
+  await fetchUserCustomCode();
+  updateFormVisibility();
+  await loadCampaigns();
+  window.switchTab('dashboard', false);
+}
+
 window.loginWithGoogle = async function() {
   try {
     if (!auth || !provider) {
@@ -314,11 +338,22 @@ window.loginWithGoogle = async function() {
     if (ua.includes('kakao') || ua.includes('instagram') || ua.includes('naver')) {
       return alert("인앱 브라우저에서는 구글 정책상 로그인이 제한됩니다. Safari 또는 Chrome 등 정식 브라우저로 접속해 주세요.");
     }
-    await signInWithPopup(auth, provider);
+    
+    // 팝업 로그인 실행
+    const cred = await signInWithPopup(auth, provider);
+    if (cred && cred.user) {
+      // 팝업 종료 즉시 부모창을 대시보드로 직접 진입
+      await handleUserLoggedIn(cred.user);
+    }
   } catch (err) {
     console.error("로그인 에러:", err);
     if (err.code === 'auth/popup-closed-by-user') return;
-    if (err.code === 'auth/popup-blocked') return alert("브라우저 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
+    if (err.code === 'auth/popup-blocked') {
+      return alert("브라우저 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
+    }
+    if (err.code === 'auth/unauthorized-domain') {
+      return alert("Firebase '승인된 도메인'에 현재 웹사이트 주소가 등록되지 않았습니다.\n\nFirebase 콘솔 > Authentication > Settings > 승인된 도메인에 현재 도메인을 추가해 주세요.");
+    }
     alert(`로그인 오류 (${err.code || '알 수 없음'}): ${err.message}`);
   }
 };
@@ -1255,7 +1290,7 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 5. 세부 내역 (2번: 전월 접힘, 3번: [매장명|제공금액|결제금액] + 하단 소계 바)
+  // 5. 세부 내역
   try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
@@ -1466,6 +1501,7 @@ async function fetchUserCustomCode() {
         Object.assign(customStatusColors, d.statusColors); 
         localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
         applyStatusCSSColors(); 
+        renderStatusColorPickers(); 
       }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1497,15 +1533,19 @@ async function loadCampaigns() {
   } catch (e) { console.error("데이터 로드 실패:", e); }
 }
 
+// 페이지 새로고침 시 기존 로그인 세션을 감지하여 자동 복원
 onAuthStateChanged(auth, async (user) => {
-  const authSec = document.getElementById('authSection'), appSec = document.getElementById('appSection');
   if (user) {
-    currentUser = user; targetUserId = user.uid; isReadOnly = false;
-    authSec?.classList.add('hidden'); appSec?.classList.remove('hidden'); appSec?.classList.add('flex', 'lg:flex');
-    const uEl = document.getElementById('userName'); if (uEl) uEl.innerText = user.displayName || user.email;
-    await fetchUserCustomCode(); updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard', false);
+    if (!currentUser || currentUser.uid !== user.uid) {
+      await handleUserLoggedIn(user);
+    }
   } else if (!targetUserId) {
-    currentUser = null; authSec?.classList.remove('hidden'); appSec?.classList.add('hidden'); appSec?.classList.remove('flex', 'lg:flex');
+    currentUser = null;
+    const authSec = document.getElementById('authSection');
+    const appSec = document.getElementById('appSection');
+    authSec?.classList.remove('hidden');
+    appSec?.classList.add('hidden');
+    appSec?.classList.remove('flex', 'lg:flex');
   }
 });
 
