@@ -14,7 +14,6 @@
   <link rel="stylesheet" href="css/style.css">
   <style>
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    /* 웹킷 스크롤바를 얇고 투명하게 처리하여 답답한 이중 느낌 해소 */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -90,37 +89,37 @@
       </div>
     </aside>
 
-    <!-- 모바일/태블릿 하단 바텀 탭바 -->
-    <nav id="bottomNav" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex lg:hidden justify-around items-center h-[64px] pb-safe z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.06)]">
-      <button id="bottom-nav-dashboard" onclick="window.switchTab('dashboard')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-theme transition-colors pt-1">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-        <span class="text-[10px] font-bold">대시보드</span>
+    <!-- 모바일/태블릿 하단 바텀 탭바 (54px 슬림화) -->
+    <nav id="bottomNav" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex lg:hidden justify-around items-center h-[54px] pb-safe z-40 shadow-[0_-3px_8px_rgba(0,0,0,0.05)]">
+      <button id="bottom-nav-dashboard" onclick="window.switchTab('dashboard')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-theme transition-colors py-1">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        <span class="text-[9.5px] font-bold">대시보드</span>
       </button>
-      <button id="bottom-nav-form" onclick="window.switchTab('form')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-theme transition-colors pt-1">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-        <span class="text-[10px] font-bold">등록</span>
+      <button id="bottom-nav-form" onclick="window.switchTab('form')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 hover:text-theme transition-colors py-1">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        <span class="text-[9.5px] font-bold">등록</span>
       </button>
-      <button id="bottom-nav-list" onclick="window.switchTab('list')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-theme transition-colors pt-1">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-        <span class="text-[10px] font-bold">목록</span>
+      <button id="bottom-nav-list" onclick="window.switchTab('list')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 hover:text-theme transition-colors py-1">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+        <span class="text-[9.5px] font-bold">목록</span>
       </button>
-      <button id="bottom-nav-settlement" onclick="window.switchTab('settlement')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-theme transition-colors pt-1">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span class="text-[10px] font-bold">정산</span>
+      <button id="bottom-nav-settlement" onclick="window.switchTab('settlement')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 hover:text-theme transition-colors py-1">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="text-[9.5px] font-bold">정산</span>
       </button>
-      <button id="bottom-nav-settings" onclick="window.switchTab('settings')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-theme transition-colors pt-1">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-        <span class="text-[10px] font-bold">설정</span>
+      <button id="bottom-nav-settings" onclick="window.switchTab('settings')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 hover:text-theme transition-colors py-1">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <span class="text-[9.5px] font-bold">설정</span>
       </button>
     </nav>
 
-    <!-- 메인 뷰포트 영역 (단일 스크롤 컨테이너) -->
-    <main class="flex-1 px-4 md:px-6 lg:px-8 py-4 pb-32 lg:pb-8 space-y-4 h-screen overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
+    <!-- 메인 뷰포트 영역 (pb-40으로 하단 잘림 완전 차단) -->
+    <main class="flex-1 px-4 md:px-6 lg:px-8 py-4 pb-40 lg:pb-8 space-y-4 h-screen overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
       <!-- 1. 대시보드 탭 -->
       <div id="sectionDashboard" class="space-y-4 w-full max-w-full">
-        <!-- 반응형 헤더 (버튼 flex-1 균등 분할) -->
+        <!-- 반응형 헤더 (상단 2줄 구조) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
           <h2 id="dashMonthTitle" class="text-xl md:text-3xl font-black text-theme tracking-tight"></h2>
           <div class="flex items-center gap-1.5 w-full sm:w-auto">
@@ -153,8 +152,8 @@
           </div>
         </div>
 
-        <!-- 하단 2열 위젯 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+        <!-- 하단 2열 위젯 (pb-6 추가로 바닥 여백 확보) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6">
           <div class="bg-white p-3.5 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-52 md:h-56">
             <h3 class="font-bold text-gray-800 text-[11px] md:text-xs mb-2 shrink-0">제출 마감 임박</h3>
             <div id="upcomingList" class="space-y-1.5 widget-scroll pr-1 flex-1 overflow-y-auto"></div>
@@ -166,7 +165,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험단 등록 탭 (이중 스크롤 박스 제거, 대시보드와 동일화) -->
+      <!-- 2. 체험단 등록 탭 (단일 스크롤 레이아웃) -->
       <div id="sectionForm" class="hidden space-y-4 w-full max-w-full">
         <div class="flex items-center h-10 mb-1 shrink-0"><h2 class="text-xl md:text-2xl font-black text-theme">체험단 등록</h2></div>
         <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
@@ -207,9 +206,8 @@
         </div>
       </div>
 
-      <!-- 3. 체험단 목록 탭 (이중 스크롤 상자 제거, 버튼 50% flex-1 자동 분할) -->
+      <!-- 3. 체험단 목록 탭 (상단 2줄 헤더 + 50% 분할 버튼) -->
       <div id="sectionList" class="hidden space-y-4 w-full max-w-full">
-        <!-- 1행: 제목 / 2행: 컨트롤 바 (모바일 가로 100% 균등 채움) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
           <h2 class="text-xl md:text-2xl font-black text-theme">체험단 목록</h2>
           <div class="flex items-center gap-1.5 w-full sm:w-auto">
@@ -254,11 +252,11 @@
           </table>
         </div>
 
-        <!-- 모바일 전용 2줄 콤팩트 카드 리스트 (대시보드 카드와 일체화) -->
-        <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full"></div>
+        <!-- 모바일 전용 2줄 콤팩트 카드 리스트 -->
+        <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full pb-6"></div>
       </div>
 
-      <!-- 4. 체험단 정산 탭 (이중 스크롤 상자 제거, 버튼 균등 분할) -->
+      <!-- 4. 체험단 정산 탭 (상단 2줄 헤더 + 50% 분할 버튼) -->
       <div id="sectionSettlement" class="hidden space-y-4 w-full max-w-full">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 mb-1">
           <h2 class="text-xl md:text-2xl font-black text-theme">체험단 정산</h2>
@@ -270,7 +268,7 @@
             </div>
           </div>
         </div>
-        <div id="settlementPanelReport" class="space-y-4 w-full">
+        <div id="settlementPanelReport" class="space-y-4 w-full pb-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             <div id="yearlyCardContainer" class="bg-white pt-2.5 px-4 pb-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between overflow-hidden min-h-[300px]">
               <div class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 select-none"><span class="text-xs font-bold text-gray-800">연간 수익</span><span id="yearlyAccumulatedLabel" class="text-[10px] md:text-[11px] text-gray-400 font-normal">누적</span></div>
@@ -292,14 +290,13 @@
             </div>
           </div>
         </div>
-        <div id="settlementPanelDetail" class="hidden space-y-3 w-full"><div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div></div>
+        <div id="settlementPanelDetail" class="hidden space-y-3 w-full pb-6"><div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div></div>
       </div>
 
-      <!-- 5. 설정 및 공유 탭 (이중 스크롤 상자 제거) -->
-      <div id="sectionSettings" class="hidden space-y-4 w-full max-w-full">
+      <!-- 5. 설정 및 공유 탭 (단일 스크롤 레이아웃) -->
+      <div id="sectionSettings" class="hidden space-y-4 w-full max-w-full pb-6">
         <div class="flex items-center justify-between h-10 shrink-0 mb-1"><h2 class="text-xl md:text-2xl font-black text-theme">설정 및 공유</h2></div>
         
-        <!-- 모바일 상단 버튼 50% 분할 -->
         <div class="grid grid-cols-2 lg:hidden gap-2.5 mb-2">
           <button id="settingsDownloadExcelBtn" onclick="window.downloadExcel()" class="excel-down-btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 text-xs shadow-sm transition-colors text-center">📊 엑셀 리포트</button>
           <button id="settingsLogoutBtn" onclick="window.logout()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 text-xs shadow-sm transition-colors text-center">로그아웃</button>
@@ -490,6 +487,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=8"></script>
+  <script type="module" src="js/app.js?v=9"></script>
 </body>
 </html>
