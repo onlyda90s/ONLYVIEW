@@ -993,6 +993,10 @@ window.filterAndRender = function() {
   const batchBtn = document.getElementById('batchEditBtn');
   const saveBatchBtn = document.getElementById('saveBatchBtn');
 
+  if (cardList) {
+    cardList.className = 'block sm:hidden space-y-2.5 pb-12';
+  }
+
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "px-3 md:px-4 py-1.5 rounded-lg font-bold text-[11px] md:text-xs bg-rose-500 text-white shadow-sm transition-colors mr-1";
@@ -1072,7 +1076,6 @@ window.filterAndRender = function() {
       const statusSelectHtml = '<select onchange="window.quickUpdateStatus(\'' + item.id + '\', this.value); this.style.color = window.getStatusColor(this.value);" style="color: ' + window.getStatusColor(effSt) + '; font-weight: 600;" class="select-center border-0 bg-transparent text-[11px] outline-none cursor-pointer text-center">'
         + '<option value="신청" ' + (effSt === '신청' ? 'selected' : '') + ' class="text-gray-800 font-normal">신청</option><option value="선정" ' + (effSt === '선정' ? 'selected' : '') + ' class="text-gray-800 font-normal">선정</option><option value="방문" ' + (effSt === '방문' ? 'selected' : '') + ' class="text-gray-800 font-normal">방문</option><option value="미제출" ' + (effSt === '미제출' ? 'selected' : '') + ' class="text-gray-800 font-normal">미제출</option><option value="제출" ' + (effSt === '제출' ? 'selected' : '') + ' class="text-gray-800 font-normal">제출</option><option value="배송" ' + (effSt === '배송' ? 'selected' : '') + ' class="text-gray-800 font-normal">배송</option><option value="원고료" ' + (effSt === '원고료' ? 'selected' : '') + ' class="text-gray-800 font-normal">원고료</option></select>';
 
-      // 데스크톱 / 태블릿 표 행
       const row = document.createElement('tr');
       row.className = 'border-b border-gray-100 hover:bg-theme-light text-[11px] text-gray-900 font-normal';
       row.innerHTML = '<td class="py-2.5 px-2.5 font-normal text-gray-900 cursor-pointer hover:underline hover:text-theme text-[11px] md:text-xs text-left truncate" onclick="window.openDetailItemModal(\'' + item.id + '\')"><div class="flex items-center"><span class="truncate">' + item.storeName + '</span>' + overdueBadgeHtml + '</div></td>'
@@ -1087,9 +1090,8 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 2줄 콤팩트 카드 리스트 (2안)
     const card = document.createElement('div');
-    card.className = 'bg-white p-3 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 cursor-pointer hover:border-theme transition-colors';
+    card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 cursor-pointer hover:border-theme transition-colors';
     card.onclick = () => window.openDetailItemModal(item.id);
     card.innerHTML = '<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">' + item.storeName + '</h3>' + overdueBadgeHtml + '</div><span class="text-xs font-bold text-gray-900 shrink-0">' + sponsored.toLocaleString() + '원</span></div>'
       + '<div class="flex justify-between items-center text-[10px] text-gray-500 font-normal"><div class="flex items-center gap-1.5"><span style="color: ' + window.getStatusColor(effSt) + ';" class="font-bold">' + displayStatusName(effSt) + '</span><span>방문: ' + formatShortDate(item.visitDate) + '</span><span>마감: ' + formatShortDate(item.deadlineDate) + '</span></div><span class="text-gray-300">›</span></div>';
