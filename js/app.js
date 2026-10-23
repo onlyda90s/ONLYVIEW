@@ -141,7 +141,6 @@ function isItemOverdue(item) {
 function getEffectiveStatus(item) { return item.status || '신청'; }
 function displayStatusName(status) { return status || '신청'; }
 
-// 상태별 글자 색상 (제출, 완료 모두 submit 색상으로 완전 매핑)
 window.getStatusColor = function(st) {
   if (st === '제출' || st === '완료') return customStatusColors.submit || '#059669';
   if (st === '원고료') return customStatusColors.fee || '#9333EA';
@@ -499,7 +498,6 @@ window.switchTab = function(tabName, pushState = true) {
   }
   else if (tabName === 'settlement') {
     document.getElementById('sectionSettlement')?.classList.remove('hidden');
-    // 초기 진입 시 요약 리포트(메인 뷰) 우선 표시
     window.setSettlementSubTab('report');
   }
   else if (tabName === 'settings') {
@@ -808,7 +806,6 @@ window.downloadExcel = async function() {
   } catch (err) { alert("엑셀 다운로드 중 오류: " + err.message); }
 };
 
-// 2번 요청 반영: PC 테이블 컬럼 너비 비례 배분 렌더링
 window.filterAndRender = function() {
   const tableBody = document.getElementById('campaignTableBody');
   const cardList = document.getElementById('campaignCardList');
@@ -900,7 +897,6 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 2줄 콤팩트 카드 리스트 (현재 상태 유지)
     const card = document.createElement('div');
     card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 cursor-pointer hover:border-theme transition-colors w-full';
     card.onclick = () => window.openDetailItemModal(item.id);
@@ -1151,7 +1147,7 @@ window.renderSettlementView = function() {
     }
   } catch(e) { console.error('플랫폼 분석 렌더링 오류:', e); }
 
-  // 5. 세부 내역 (2번: 전월 접힘 시작, 3번: 매장명/제공금액/결제금액 표시 + 소계 유지)
+  // 5. 세부 내역
   try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
