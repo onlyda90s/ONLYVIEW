@@ -707,7 +707,7 @@ window.saveAllBatchEdits = async function() {
 };
 
 window.quickUpdateStatus = async function(id, newStatus) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
   try {
     await updateDoc(doc(db, "campaigns", id), { status: newStatus });
     const item = rawCampaignList.find(c => c.id === id);
@@ -717,13 +717,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
 };
 
 window.deleteCampaign = async function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
 window.openEditModalFromId = function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
@@ -749,7 +749,7 @@ window.downloadExcel = async function() {
   try {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'ONLYVIEW';
-    const COLOR_PRIMARY = 'FF3B6FB6', COLOR_LIGHT = 'FFE5EBF4', COLOR_WHITE = 'FFFFFFFF', COLOR_BORDER = 'FFD1D5DB';
+    const COLOR_PRIMARY = 'FF3B6FB6', COLOR_LIGHT = 'FFE5EBF4', COLOR_BORDER = 'FFD1D5DB';
     const borderStyle = { top: { style: 'thin', color: { argb: COLOR_BORDER } }, left: { style: 'thin', color: { argb: COLOR_BORDER } }, bottom: { style: 'thin', color: { argb: COLOR_BORDER } }, right: { style: 'thin', color: { argb: COLOR_BORDER } } };
     
     const dashSheet = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
@@ -1003,7 +1003,6 @@ window.renderSettlementView = function() {
     const actualRealYear = now.getFullYear();
     const actualRealMonth = now.getMonth() + 1;
     const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
-    const isCurrentYear = (targetYear === actualRealYear);
 
     const lbl = document.getElementById('yearlyAccumulatedLabel');
     if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : targetYear + "년 누적";
@@ -1046,10 +1045,17 @@ window.renderSettlementView = function() {
     const cmpContainer = document.getElementById('yearlyCompareContainer');
     if (cmpContainer) {
       if (!hasPrevYearData) {
-        cmpContainer.innerHTML = '<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="text-[11px] text-gray-400 font-normal">비교 데이터 없음</span></div>';
+        cmpContainer.innerHTML = '<div class="flex items-center gap-1.5"><span class="text-[10px] sm:text-[11px] text-gray-400 shrink-0">전년 대비</span><span class="text-[10px] sm:text-[11px] text-gray-400">데이터 없음</span></div>';
       } else {
         const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
-        cmpContainer.innerHTML = `<div class="flex items-center gap-2"><span class="text-[11px] text-gray-400 font-normal shrink-0">전년 대비 증가</span><span class="font-normal text-gray-900 text-sm md:text-base">${diffAmount >= 0 ? '+' : ''}${diffAmount.toLocaleString()}원</span><span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-normal ${diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${diffAmount >= 0 ? '+' : ''}${rate}%</span></div>`;
+        cmpContainer.innerHTML = `
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[10px] text-gray-400 font-normal">전년 대비 증가</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-gray-900 text-xs sm:text-sm">${diffAmount >= 0 ? '+' : ''}${diffAmount.toLocaleString()}원</span>
+              <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${diffAmount >= 0 ? '+' : ''}${rate}%</span>
+            </div>
+          </div>`;
       }
     }
 
@@ -1059,29 +1065,39 @@ window.renderSettlementView = function() {
       yearlyChartInstance = new Chart(ctxY, {
         type: 'doughnut',
         data: { labels: ['정산 완료', '정산 예정'], datasets: [{ data: totalAmount === 0 ? [1, 0] : [doneAmount, planAmount], backgroundColor: totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : [chartColors.main, chartColors.pending], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '68%', plugins: { legend: { display: false } } }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '72%', plugins: { legend: { display: false } } }
       });
     }
+
+    let maxRevVal = 0, maxMonthIdx = 0;
+    monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
+    if (document.getElementById('monthlyBestMonthText')) document.getElementById('monthlyBestMonthText').innerText = maxRevVal === 0 ? '-' : `${maxMonthIdx + 1}월 · ${maxRevVal.toLocaleString()}원`;
+    if (document.getElementById('monthlyCurrentMonthText')) document.getElementById('monthlyCurrentMonthText').innerText = (isCurrentYear && totalAmount > 0) ? `${actualRealMonth}월 · ${(monthlyRevenues[actualRealMonth - 1] || 0).toLocaleString()}원` : '-';
 
     const ctxM = document.getElementById('monthlyBarChart')?.getContext('2d');
     if (ctxM) {
       if (monthlyChartInstance) monthlyChartInstance.destroy();
       monthlyChartInstance = new Chart(ctxM, {
         type: 'bar',
-        data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyRevenues.map(v => Number((v / 10000).toFixed(1))), backgroundColor: chartColors.main, borderRadius: 6, barPercentage: 0.6 }] },
+        data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyRevenues.map(v => Number((v / 10000).toFixed(1))), backgroundColor: chartColors.main, borderRadius: 4, barPercentage: 0.65 }] },
         plugins: [ChartDataLabels],
-        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 20 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#6B7280' } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', font: { size: 10 }, formatter: v => v > 0 ? v : '' } } }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 2, right: 2 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
+
+    let maxCountVal = 0, maxCountMonthIdx = 0;
+    monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
+    if (document.getElementById('monthlyAnalysisBestText')) document.getElementById('monthlyAnalysisBestText').innerText = maxCountVal === 0 ? '-' : `${maxCountMonthIdx + 1}월 · ${maxCountVal}건`;
+    if (document.getElementById('monthlyAnalysisCurrentText')) document.getElementById('monthlyAnalysisCurrentText').innerText = isCurrentYear ? `${actualRealMonth}월 · ${monthlyCounts[actualRealMonth - 1] || 0}건` : '-';
 
     const ctxMA = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
     if (ctxMA) {
       if (monthlyAnalysisChartInstance) monthlyAnalysisChartInstance.destroy();
       monthlyAnalysisChartInstance = new Chart(ctxMA, {
         type: 'line',
-        data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyCounts, borderColor: chartColors.main, borderWidth: 2.5, pointBackgroundColor: chartColors.main, pointRadius: 4, tension: 0.25, fill: false }] },
+        data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyCounts, borderColor: chartColors.main, borderWidth: 2.2, pointBackgroundColor: chartColors.main, pointRadius: 3.5, tension: 0.25, fill: false }] },
         plugins: [ChartDataLabels],
-        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 20 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#6B7280' } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', font: { size: 10 }, formatter: v => v > 0 ? v : '' } } }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 4, right: 4 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
 
@@ -1093,7 +1109,11 @@ window.renderSettlementView = function() {
       sortedP.forEach((p, idx) => {
         const itemD = document.createElement('div');
         itemD.className = "flex items-center justify-between text-xs py-1 px-0.5";
-        itemD.innerHTML = `<span class="text-gray-800 truncate w-16 text-[11px]">${p.n}</span><span class="text-gray-400 text-[10px]">${p.doneCount}건</span><span class="text-gray-900 text-[11px]">${p.doneAmount.toLocaleString()}원</span>`;
+        const maxCnt = sortedP[0].doneCount || 1;
+        const bPercent = Math.max(12, Math.round((p.doneCount / maxCnt) * 100));
+        itemD.innerHTML = `<span class="font-medium text-gray-800 truncate w-14 sm:w-16 shrink-0 text-xs">${p.n}</span>`
+          + `<div class="flex-1 mx-2 bg-gray-100 h-1.5 sm:h-2 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all" style="width:${bPercent}%; background-color:${chartColors.main};"></div></div>`
+          + `<div class="flex items-center gap-1.5 shrink-0 text-right"><span class="text-gray-400 text-[10px]">${p.doneCount}건</span><span class="text-gray-900 font-bold text-xs">${p.doneAmount.toLocaleString()}원</span></div>`;
         (idx < half ? pLeft : pRight).appendChild(itemD);
       });
     }
@@ -1364,7 +1384,7 @@ document.addEventListener("DOMContentLoaded", () => {
         storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '',
         status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
         visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-        companions: document.getElementById('companions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+        companions: document.getElementById('editCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
         contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
       });
