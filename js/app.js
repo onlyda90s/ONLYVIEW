@@ -61,9 +61,13 @@ try {
 } catch(e) {}
 
 const customStatusColors = {
-  apply: savedColors.apply || '#6B7280', select: savedColors.select || '#111827',
-  visit: savedColors.visit || '#F4A261', unsubmitted: savedColors.unsubmitted || '#E63946',
-  submit: savedColors.submit || '#059669', delivery: savedColors.delivery || '#2563EB', fee: savedColors.fee || '#9333EA'
+  apply: savedColors.apply || '#6B7280',
+  select: savedColors.select || '#111827',
+  visit: savedColors.visit || '#F4A261',
+  unsubmitted: savedColors.unsubmitted || '#E63946',
+  submit: savedColors.submit || '#059669',
+  delivery: savedColors.delivery || '#2563EB',
+  fee: savedColors.fee || '#9333EA'
 };
 
 let currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default';
@@ -141,8 +145,20 @@ function isItemOverdue(item) {
 function getEffectiveStatus(item) { return item.status || '신청'; }
 function displayStatusName(status) { return status || '신청'; }
 
+// 상태별 색상 맵핑 (제출, 완료 모두 submit 키로 완벽 연결)
 window.getStatusColor = function(st) {
-  return customStatusColors[st === '완료' ? 'submit' : st === '원고료' ? 'fee' : st === '배송' ? 'delivery' : st === '미제출' ? 'unsubmitted' : st === '방문' ? 'visit' : st === '선정' ? 'select' : 'apply'] || '#6B7280';
+  const statusKeyMap = {
+    '신청': 'apply',
+    '선정': 'select',
+    '방문': 'visit',
+    '미제출': 'unsubmitted',
+    '제출': 'submit',
+    '완료': 'submit',
+    '배송': 'delivery',
+    '원고료': 'fee'
+  };
+  const key = statusKeyMap[st] || 'apply';
+  return customStatusColors[key] || '#6B7280';
 };
 
 function formatCurrencyInput(v) {
@@ -271,7 +287,12 @@ async function loadTargetUserSettings(uid) {
     const userSnap = await getDoc(doc(db, "users", uid));
     if (userSnap.exists()) {
       const d = userSnap.data();
-      if (d.statusColors) { Object.assign(customStatusColors, d.statusColors); applyStatusCSSColors(); renderStatusColorPickers(); }
+      if (d.statusColors) { 
+        Object.assign(customStatusColors, d.statusColors); 
+        localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
+        applyStatusCSSColors(); 
+        renderStatusColorPickers(); 
+      }
       if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
       if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
       if (d.deadlineAlertDays) { deadlineAlertDays = d.deadlineAlertDays; updateDeadlineButtons(); }
@@ -707,7 +728,7 @@ window.saveAllBatchEdits = async function() {
 };
 
 window.quickUpdateStatus = async function(id, newStatus) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 변경할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   try {
     await updateDoc(doc(db, "campaigns", id), { status: newStatus });
     const item = rawCampaignList.find(c => c.id === id);
@@ -717,13 +738,13 @@ window.quickUpdateStatus = async function(id, newStatus) {
 };
 
 window.deleteCampaign = async function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
 window.openEditModalFromId = function(id) {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
@@ -1003,6 +1024,7 @@ window.renderSettlementView = function() {
     const actualRealYear = now.getFullYear();
     const actualRealMonth = now.getMonth() + 1;
     const targetYear = selectedYearVal === 'ALL' ? actualRealYear : parseInt(selectedYearVal);
+    const isCurrentYear = (targetYear === actualRealYear);
 
     const lbl = document.getElementById('yearlyAccumulatedLabel');
     if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : targetYear + "년 누적";
@@ -1118,22 +1140,51 @@ window.renderSettlementView = function() {
       });
     }
 
+    // 세부 내역 (월별 카드 및 소계 박스 정상 렌더링)
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
       mGrid.innerHTML = '';
       for (let m = 1; m <= 12; m++) {
         const list = monthlyDetailsData[m];
+        list.sort((a, b) => a.sortRefDate.localeCompare(b.sortRefDate));
         const isCollapsed = monthlyDetailsCollapseState[m] === true;
         const totalC = list.length, totalR = list.reduce((s, i) => s + i.revenueAmount, 0);
+
         const cardD = document.createElement('div');
-        cardD.className = "bg-white pt-2.5 px-4 pb-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between";
-        let htm = `<div onclick="window.toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[36px] pb-1.5 border-b border-gray-100 cursor-pointer select-none"><span class="text-xs font-bold text-gray-800">${m}월</span><div class="flex items-center gap-2"><span class="text-xs text-gray-900 font-normal">${totalC}건 · ${totalR.toLocaleString()}원</span><span class="text-xs text-gray-400 font-bold">${isCollapsed ? '▼' : '▲'}</span></div></div>`;
+        cardD.className = "bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between";
+        let htm = `<div onclick="window.toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
+          <span class="text-xs sm:text-sm font-bold text-gray-800">${m}월</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-900 font-normal">${totalC}건 · ${totalR.toLocaleString()}원</span>
+            <span class="text-xs text-gray-400 font-bold">${isCollapsed ? '▼' : '▲'}</span>
+          </div>
+        </div>`;
+
         if (!isCollapsed) {
-          htm += '<div class="mt-2.5 space-y-1.5 max-h-[200px] overflow-y-auto pr-1">';
-          list.forEach(i => { htm += `<div class="flex justify-between text-[11px] py-1 border-b border-dashed border-gray-50"><span class="truncate w-1/2">${i.storeName}</span><span class="w-1/4 text-right text-gray-500">${i.sponsoredAmount.toLocaleString()}원</span><span class="w-1/4 text-right text-gray-900 font-bold">${i.revenueAmount.toLocaleString()}원</span></div>`; });
+          htm += '<div class="mt-2.5 flex-1 flex flex-col justify-between space-y-2">';
+          if (list.length === 0) {
+            htm += '<div class="text-center text-gray-300 font-normal py-6 text-xs">이 달의 완료된 체험이 없습니다.</div>';
+          } else {
+            htm += '<div class="flex items-center justify-between text-[10px] text-gray-400 font-normal pb-1 border-b border-gray-100"><span class="w-1/2 text-left">매장명</span><span class="w-1/4 text-right">제공금액</span><span class="w-1/4 text-right">실수익</span></div>';
+            htm += '<div class="space-y-1.5 max-h-[200px] overflow-y-auto widget-scroll pr-1">';
+            list.forEach(i => {
+              htm += `<div class="flex justify-between items-center text-xs py-1 border-b border-dashed border-gray-50">
+                <span class="truncate w-1/2 font-medium text-gray-800" title="${i.storeName}">${i.storeName}</span>
+                <span class="w-1/4 text-right text-gray-500 text-[11px]">${i.sponsoredAmount.toLocaleString()}원</span>
+                <span class="w-1/4 text-right text-gray-900 font-bold text-xs">${i.revenueAmount.toLocaleString()}원</span>
+              </div>`;
+            });
+            htm += '</div>';
+          }
+          // 소계 박스
+          htm += `<div class="mt-2.5 p-2.5 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
+            <span class="text-gray-500 font-normal text-[11px]">소계 <b class="text-gray-900 font-bold ml-1">${totalC}건</b></span>
+            <span class="text-gray-500 font-normal text-[11px]">실수익 <b class="text-gray-900 font-bold ml-1">${totalR.toLocaleString()}원</b></span>
+          </div>`;
           htm += '</div>';
         }
-        cardD.innerHTML = htm; mGrid.appendChild(cardD);
+        cardD.innerHTML = htm;
+        mGrid.appendChild(cardD);
       }
     }
   } catch (err) { console.error(err); }
@@ -1280,7 +1331,11 @@ async function fetchUserCustomCode() {
       if (d.shareSettlement !== undefined) { isSettlementShared = d.shareSettlement === true; localStorage.setItem('onlyview_shareSettlement', isSettlementShared.toString()); }
       if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
       if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); }
-      if (d.statusColors) { Object.assign(customStatusColors, d.statusColors); applyStatusCSSColors(); }
+      if (d.statusColors) { 
+        Object.assign(customStatusColors, d.statusColors); 
+        localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
+        applyStatusCSSColors(); 
+      }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
       await setDoc(doc(db, "users", currentUser.uid), { customCode: myCustomCode, uid: currentUser.uid, shareSettlement: false, theme: 'slate', chartMode: 'default' }, { merge: true });
@@ -1384,12 +1439,11 @@ document.addEventListener("DOMContentLoaded", () => {
         storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '',
         status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
         visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-        companions: document.getElementById('editCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+        companions: document.getElementById('companions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
         contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
       });
-      alert('수정되었습니다!'); document.getElementById('editModal')?.classList.add('hidden'); editingId = null; await loadCampaigns();
-    } catch (err) { alert(err.message); }
+      alert('수정되었습니다!'); document.getElementById('editModal')?.classList.add('hidden'); editingId = null; await loadCampaigns(); } catch (err) { alert(err.message); }
   });
 
   document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
@@ -1416,7 +1470,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!snap.exists()) return alert("유효하지 않은 코드입니다.");
       const cData = snap.data();
       targetUserId = cData.uid;
-      isSettlementShared = cData.shareSettlement === true;
+      isSettlementShared = codeData.shareSettlement === true;
       isReadOnly = !(currentUser && targetUserId === currentUser.uid);
       await loadTargetUserSettings(targetUserId);
       updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
