@@ -112,7 +112,7 @@
       </button>
     </nav>
 
-    <!-- 메인 뷰포트 -->
+    <!-- 메인 뷰포트 (단일 스크롤 컨테이너) -->
     <main class="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 pb-24 lg:pb-8 space-y-3.5 sm:space-y-4 h-screen overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
@@ -263,53 +263,64 @@
             </div>
           </div>
         </div>
+        
+        <!-- 4개 카드 세로 높이(min-h-[350px] sm:h-[350px]) 통일된 요약 리포트 -->
         <div id="settlementPanelReport" class="space-y-4 w-full">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-            <!-- 1. 연간 수익 카드 -->
-            <div id="yearlyCardContainer" class="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+            <!-- 1. 연간 수익 카드 (높이 350px 통일) -->
+            <div id="yearlyCardContainer" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[350px] sm:h-[350px]">
               <div class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs sm:text-sm font-bold text-gray-800">연간 수익</span>
                 <span id="yearlyAccumulatedLabel" class="text-[10px] sm:text-[11px] text-gray-400 font-normal">누적</span>
               </div>
-              <div id="yearlyCardBody" class="grid grid-cols-5 gap-1.5 sm:gap-2 items-center mt-2.5 flex-1 relative">
-                <div class="col-span-2 relative flex items-center justify-center h-36 sm:h-44 w-full">
+              <div id="yearlyCardBody" class="grid grid-cols-5 gap-2 items-center flex-1 relative my-2">
+                <div class="col-span-2 relative flex items-center justify-center h-44 w-full">
                   <canvas id="yearlyDonutChart"></canvas>
                   <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-1">
-                    <span id="yearlyTotalRevenueText" class="text-xs sm:text-base md:text-lg font-black text-gray-900 tracking-tight break-all">0원</span>
+                    <span id="yearlyTotalRevenueText" class="text-xs sm:text-base font-black text-gray-900 tracking-tight break-all">0원</span>
                   </div>
                 </div>
-                <div class="col-span-3 space-y-2.5 sm:space-y-3 text-xs text-left pl-2 sm:pl-4">
-                  <div class="space-y-1.5 py-0.5">
-                    <div class="flex items-center justify-between text-[11px] sm:text-xs">
-                      <span class="flex items-center gap-1.5"><span class="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-sm bg-blue-600 inline-block"></span><span class="text-gray-700 font-medium">정산 완료</span></span>
-                      <span class="flex items-center gap-1 font-bold text-gray-900"><span id="yearlyDoneCount" class="text-gray-400 font-normal text-[10px]">0건</span><span class="text-gray-300">|</span><span id="yearlyDoneAmount">0원</span></span>
+                <div class="col-span-3 space-y-3 text-xs text-left pl-3 sm:pl-4">
+                  <!-- 범례 건수|금액 열 위치 통일 -->
+                  <div class="space-y-2 py-0.5">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span><span class="text-gray-700 font-medium">정산 완료</span></span>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <span id="yearlyDoneCount" class="w-9 text-right text-gray-400 font-normal text-[11px]">0건</span>
+                        <span class="text-gray-300">|</span>
+                        <span id="yearlyDoneAmount" class="w-24 text-right font-bold text-gray-900 text-xs">0원</span>
+                      </div>
                     </div>
-                    <div class="flex items-center justify-between text-[11px] sm:text-xs">
-                      <span class="flex items-center gap-1.5"><span class="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-sm bg-slate-300 inline-block"></span><span class="text-gray-700 font-medium">정산 예정</span></span>
-                      <span class="flex items-center gap-1 font-bold text-gray-900"><span id="yearlyPlanCount" class="text-gray-400 font-normal text-[10px]">0건</span><span class="text-gray-300">|</span><span id="yearlyPlanAmount">0원</span></span>
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block"></span><span class="text-gray-700 font-medium">정산 예정</span></span>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <span id="yearlyPlanCount" class="w-9 text-right text-gray-400 font-normal text-[11px]">0건</span>
+                        <span class="text-gray-300">|</span>
+                        <span id="yearlyPlanAmount" class="w-24 text-right font-bold text-gray-900 text-xs">0원</span>
+                      </div>
                     </div>
                   </div>
-                  <div id="yearlyCompareContainer" class="pt-1.5 border-t border-gray-100"></div>
+                  <div id="yearlyCompareContainer" class="pt-2 border-t border-gray-100"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 2. 월간 수익 카드 -->
-            <div id="monthlyCardContainer" class="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+            <!-- 2. 월간 수익 카드 (높이 350px 통일) -->
+            <div id="monthlyCardContainer" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[350px] sm:h-[350px]">
               <div class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs sm:text-sm font-bold text-gray-800">월간 수익</span>
                 <span id="monthlySubText" class="text-[10px] text-gray-400 font-normal">단위 : 만원</span>
               </div>
-              <div id="monthlyCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between">
-                <div class="relative h-36 sm:h-44 w-full">
+              <div id="monthlyCardBody" class="space-y-3 flex-1 flex flex-col justify-between my-2">
+                <div class="relative h-44 w-full">
                   <canvas id="monthlyBarChart"></canvas>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
+                  <div class="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
                     <span class="text-[10px] text-gray-400 font-normal">최고 수익 달</span>
                     <span id="monthlyBestMonthText" class="font-bold text-gray-900 text-xs truncate">-</span>
                   </div>
-                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
+                  <div class="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
                     <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
                     <span id="monthlyCurrentMonthText" class="font-bold text-gray-900 text-xs truncate">-</span>
                   </div>
@@ -319,36 +330,36 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-            <!-- 3. 플랫폼 분석 카드 -->
-            <div id="platformAnalysisCardContainer" class="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-start">
+            <!-- 3. 플랫폼 분석 카드 (높이 350px 통일) -->
+            <div id="platformAnalysisCardContainer" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[350px] sm:h-[350px]">
               <div class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs sm:text-sm font-bold text-gray-800">플랫폼 분석</span>
                 <span id="platformAnalysisCountInfo" class="text-[10px] text-gray-400 font-normal">올해 건수·실수익</span>
               </div>
-              <div id="platformAnalysisCardBody" class="mt-2.5 flex-1">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 max-h-56 overflow-y-auto widget-scroll pr-1">
-                  <div id="platformColLeft" class="space-y-2"></div>
-                  <div id="platformColRight" class="space-y-2"></div>
+              <div id="platformAnalysisCardBody" class="my-2 flex-1 flex flex-col justify-between overflow-hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 max-h-[240px] overflow-y-auto widget-scroll pr-1">
+                  <div id="platformColLeft" class="space-y-2.5"></div>
+                  <div id="platformColRight" class="space-y-2.5"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 4. 월간 분석 카드 -->
-            <div id="monthlyAnalysisCardContainer" class="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+            <!-- 4. 월간 분석 카드 (높이 350px 통일) -->
+            <div id="monthlyAnalysisCardContainer" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[350px] sm:h-[350px]">
               <div class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 select-none">
                 <span class="text-xs sm:text-sm font-bold text-gray-800">월간 분석</span>
                 <span id="monthlyAnalysisSubText" class="text-[10px] text-gray-400 font-normal">단위 : 건</span>
               </div>
-              <div id="monthlyAnalysisCardBody" class="space-y-3 mt-2 flex-1 flex flex-col justify-between">
-                <div class="relative h-36 sm:h-44 w-full">
+              <div id="monthlyAnalysisCardBody" class="space-y-3 flex-1 flex flex-col justify-between my-2">
+                <div class="relative h-44 w-full">
                   <canvas id="monthlyAnalysisLineChart"></canvas>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
-                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
+                  <div class="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
                     <span class="text-[10px] text-gray-400 font-normal">최고 건의 달</span>
                     <span id="monthlyAnalysisBestText" class="font-bold text-gray-900 text-xs truncate">-</span>
                   </div>
-                  <div class="bg-gray-50/80 p-2 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
+                  <div class="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/60 flex flex-col sm:flex-row sm:items-center justify-between px-2.5 gap-0.5">
                     <span class="text-[10px] text-gray-400 font-normal">이번 달</span>
                     <span id="monthlyAnalysisCurrentText" class="font-bold text-gray-900 text-xs truncate">-</span>
                   </div>
@@ -357,6 +368,7 @@
             </div>
           </div>
         </div>
+
         <!-- 세부 내역 패널 -->
         <div id="settlementPanelDetail" class="hidden space-y-3 w-full"><div id="monthlyDetailsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start"></div></div>
       </div>
@@ -492,7 +504,7 @@
           <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="modalVisitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
-        <div id="modalRowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
@@ -553,6 +565,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261023_fix1"></script>
+  <script type="module" src="js/app.js?v=20261023_perfect2"></script>
 </body>
 </html>
