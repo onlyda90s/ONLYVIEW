@@ -47,7 +47,6 @@ let currentCalDate = new Date();
 let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatus = "선정", editingId = null, activeColorPickerKey = null;
 let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7;
 
-// 사이트 편집 모드 상태 변수
 let isPlatformEditing = false;
 let isModalPlatformEditing = false;
 
@@ -595,7 +594,6 @@ window.selectPlatformChip = function(name) {
   renderPlatformChips();
 };
 
-// 사이트 수정/관리 모드 토글
 window.togglePlatformEdit = function(isModal = false) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (isModal) isModalPlatformEditing = !isModalPlatformEditing;
@@ -603,25 +601,16 @@ window.togglePlatformEdit = function(isModal = false) {
   renderPlatformChips();
 };
 
-// 사이트 삭제 함수 ('개별' 삭제 불가, 기존 등록 데이터는 보존)
 window.deleteCustomPlatform = async function(name) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
   if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
-  
   platformList = platformList.filter(p => p !== name);
   localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
-  
-  const pInput = document.getElementById('platformName');
-  if (pInput && pInput.value === name) pInput.value = '개별';
-  const mInput = document.getElementById('modalPlatformName');
-  if (mInput && mInput.value === name) mInput.value = '개별';
-  
+  const pInput = document.getElementById('platformName'); if (pInput && pInput.value === name) pInput.value = '개별';
+  const mInput = document.getElementById('modalPlatformName'); if (mInput && mInput.value === name) mInput.value = '개별';
   renderPlatformChips();
-  
-  if (currentUser && !isReadOnly) {
-    try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
-  }
+  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
 };
 
 window.addCustomPlatform = async function() {
@@ -630,18 +619,11 @@ window.addCustomPlatform = async function() {
   if (!newSite || !newSite.trim()) return;
   const t = newSite.trim();
   if (!platformList.includes(t)) {
-    platformList.push(t);
-    localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
-    window.selectPlatformChip(t);
-    if (currentUser && !isReadOnly) {
-      try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
-    }
-  } else {
-    window.selectPlatformChip(t);
-  }
+    platformList.push(t); localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); window.selectPlatformChip(t);
+    if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
+  } else { window.selectPlatformChip(t); }
 };
 
-// 칩 렌더링 함수: [수정] 버튼 클릭 시 삭제 배지(x) 및 [+ 추가] 버튼 출현
 function renderPlatformChips() {
   const container = document.getElementById('platformChipsContainer');
   const modalContainer = document.getElementById('modalPlatformChipsContainer');
@@ -658,46 +640,31 @@ function renderPlatformChips() {
       chipWrap.className = "relative inline-flex items-center";
 
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.innerText = name;
+      btn.type = 'button'; btn.innerText = name;
       btn.className = (isSelected)
         ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors"
         : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-      btn.onclick = () => {
-        const el = document.getElementById(inputId);
-        if (el) el.value = name;
-        renderPlatformChips();
-      };
+      btn.onclick = () => { const el = document.getElementById(inputId); if (el) el.value = name; renderPlatformChips(); };
       chipWrap.appendChild(btn);
 
-      // 수정 모드일 때 개별을 제외한 칩에 삭제(x) 버튼 표시
       if (isEditing && name !== '개별') {
         const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.innerHTML = '×';
+        delBtn.type = 'button'; delBtn.innerHTML = '×';
         delBtn.title = '사이트 삭제';
         delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          window.deleteCustomPlatform(name);
-        };
+        delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
         chipWrap.appendChild(delBtn);
       }
-
       target.appendChild(chipWrap);
     });
 
-    // 수정 모드일 때만 [+ 추가] 버튼 표시
     if (isEditing) {
       const addBtn = document.createElement('button');
-      addBtn.type = 'button';
-      addBtn.innerText = '+ 추가';
+      addBtn.type = 'button'; addBtn.innerText = '+ 추가';
       addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
       addBtn.onclick = window.addCustomPlatform;
       target.appendChild(addBtn);
     }
-
-    // [수정] / [완료] 전환 버튼
     const editToggleBtn = document.createElement('button');
     editToggleBtn.type = 'button';
     editToggleBtn.innerText = isEditing ? '완료' : '수정';
@@ -846,50 +813,88 @@ window.openEditModalFromId = function(id) {
   document.getElementById('editModal')?.classList.remove('hidden');
 };
 
+// 4개 시트가 온전히 다운로드되도록 분량 최적화 (루프 함수)
 window.downloadExcel = async function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   if (typeof ExcelJS === 'undefined') return alert("엑셀 모듈 로딩 중입니다.");
   try {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'ONLYVIEW';
-    const COLOR_PRIMARY = 'FF3B6FB6', COLOR_LIGHT = 'FFE5EBF4', COLOR_BORDER = 'FFD1D5DB';
+    const COLOR_PRIMARY = 'FF3B6FB6', COLOR_LIGHT = 'FFE5EBF4', COLOR_BORDER = 'FFD1D5DB', COLOR_DARK = 'FF1F2937';
     const borderStyle = { top: { style: 'thin', color: { argb: COLOR_BORDER } }, left: { style: 'thin', color: { argb: COLOR_BORDER } }, bottom: { style: 'thin', color: { argb: COLOR_BORDER } }, right: { style: 'thin', color: { argb: COLOR_BORDER } } };
+    const dateStr = new Date().toLocaleDateString('ko-KR');
     
-    const dashSheet = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
-    dashSheet.mergeCells('B2:H2');
-    const tCell = dashSheet.getCell('B2'); tCell.value = '온리뷰 (ONLYVIEW) 체험단 정산 & 일정 종합 리포트';
-    tCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
-    dashSheet.getCell('B3').value = `기준일시: ${new Date().toLocaleDateString('ko-KR')}`;
+    let tCnt = rawCampaignList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
+    const mSum = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
+    const pMap = {};
     
-    let totalCount = rawCampaignList.length, completedCount = 0, totalSponsored = 0, totalPaid = 0, totalRevenue = 0;
-    const monthlySummary = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
     rawCampaignList.forEach(item => {
       const isDone = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
       const sp = Number(item.sponsoredAmount || 0), pd = Number(item.paidAmount || 0), rev = Number(item.revenue || 0);
       const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
       if (isDone) {
-        completedCount++; totalSponsored += sp; totalPaid += pd; totalRevenue += calcRev;
+        cCnt++; tSpon += sp; tPaid += pd; tRev += calcRev;
         const refD = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
         if (refD && refD.length >= 7) {
           const m = parseInt(refD.slice(5, 7));
-          if (m >= 1 && m <= 12) { monthlySummary[m - 1].done++; monthlySummary[m - 1].revenue += calcRev; }
+          if (m >= 1 && m <= 12) { mSum[m - 1].done++; mSum[m - 1].revenue += calcRev; }
         }
+        const pN = item.platformName || '개별'; pMap[pN] = (pMap[pN] || 0) + calcRev;
       }
     });
 
-    const kpi = [
-      { col: 'B', title: '총 진행 건수', val: `${totalCount}건` },
-      { col: 'C', title: '제출 완료 건수', val: `${completedCount}건` },
-      { col: 'D', title: '총 제공금액', val: `${totalSponsored.toLocaleString()}원` },
-      { col: 'E', title: '순 실수익 (누적)', val: `${totalRevenue.toLocaleString()}원` }
-    ];
-    kpi.forEach(c => {
-      const h = dashSheet.getCell(`${c.col}5`), v = dashSheet.getCell(`${c.col}6`);
-      h.value = c.title; h.font = { name: '맑은 고딕', size: 9, bold: true }; h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-      v.value = c.val; v.font = { name: '맑은 고딕', size: 12, bold: true }; v.border = borderStyle; h.border = borderStyle;
+    // 1. 대시보드
+    const sh1 = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
+    sh1.mergeCells('B2:H2');
+    const tCell = sh1.getCell('B2'); tCell.value = '온리뷰 (ONLYVIEW) 종합 리포트'; tCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
+    sh1.getCell('B3').value = `기준일시: ${dateStr}`;
+    
+    const kpi = [ { c: 'B', t: '총 진행 건수', v: `${tCnt}건` }, { c: 'C', t: '제출 완료 건수', v: `${cCnt}건` }, { c: 'D', t: '총 제공금액', v: `${tSpon.toLocaleString()}원` }, { c: 'E', t: '순 실수익 (누적)', v: `${tRev.toLocaleString()}원` } ];
+    kpi.forEach(k => {
+      const h = sh1.getCell(`${k.c}5`), v = sh1.getCell(`${k.c}6`);
+      h.value = k.t; h.font = { name: '맑은 고딕', size: 9, bold: true }; h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; h.border = borderStyle;
+      v.value = k.v; v.font = { name: '맑은 고딕', size: 12, bold: true }; v.border = borderStyle;
     });
 
-    dashSheet.columns = [{ width: 4 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 20 }];
+    sh1.getCell('B8').value = '1. 월별 완료 실적'; sh1.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true };
+    ['월', '완료 건수', '실수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(66+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+    mSum.forEach((m, i) => {
+      const r = 10 + i;
+      sh1.getCell(`B${r}`).value = `${m.month}월`; sh1.getCell(`C${r}`).value = m.done; sh1.getCell(`C${r}`).numFmt = '#,##0"건"'; sh1.getCell(`D${r}`).value = m.revenue; sh1.getCell(`D${r}`).numFmt = '#,##0"원"';
+      ['B','C','D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
+    });
+
+    sh1.getCell('F8').value = '2. 플랫폼 수익 랭킹'; sh1.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true };
+    ['플랫폼명', '총 수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(70+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+    Object.entries(pMap).sort((a, b) => b[1] - a[1]).forEach(([n, v], i) => {
+      const r = 10 + i; sh1.getCell(`F${r}`).value = n; sh1.getCell(`G${r}`).value = v; sh1.getCell(`G${r}`).numFmt = '#,##0"원"';
+      ['F','G'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
+    });
+    sh1.columns = [{ width: 4 }, { width: 15 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 18 }];
+
+    // 공통 시트 빌더 함수
+    const buildSheet = (sName, items, isDetail = false) => {
+      const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
+      const hds = [ { h: '매장명', k: 'storeName', w: 24 }, { h: '상태', k: 'status', w: 10 }, { h: '사이트', k: 'platformName', w: 12 }, { h: '방문일', k: 'visitDate', w: 12 }, { h: '마감일', k: 'deadlineDate', w: 12 }, { h: '제공금액', k: 'sponsoredAmount', w: 14 }, { h: '결제금액', k: 'paidAmount', w: 14 }, { h: '실수익', k: 'revenue', w: 14 }, { h: '비고', k: 'memo', w: 20 } ];
+      const hr = sh.getRow(1); hr.height = 24;
+      hds.forEach((h, i) => { const c = hr.getCell(i+1); c.value = h.h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+      let rIdx = 2;
+      items.forEach(it => {
+        const r = sh.getRow(rIdx++);
+        const eff = getEffectiveStatus(it); const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); const cRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+        r.getCell(1).value = it.storeName; r.getCell(2).value = displayStatusName(eff); r.getCell(3).value = it.platformName || '개별'; r.getCell(4).value = formatCleanDate(it.visitDate); r.getCell(5).value = formatCleanDate(it.deadlineDate); r.getCell(6).value = sp; r.getCell(7).value = pd; r.getCell(8).value = cRev; r.getCell(9).value = it.memo || '';
+        hds.forEach((h, i) => { const c = r.getCell(i+1); c.border = borderStyle; if(i>=5 && i<=7) c.numFmt = '#,##0"원"'; });
+      });
+      sh.columns = hds.map(h => ({ width: h.w }));
+    };
+
+    // 2. 정산 세부 내역 (완료된 것만)
+    buildSheet('정산 세부 내역', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료').sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || '')), true);
+    // 3. 진행중 체험단
+    buildSheet('진행중 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) !== '제출' && getEffectiveStatus(c) !== '완료'));
+    // 4. 완료 체험단
+    buildSheet('완료 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료'));
+
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
@@ -1162,7 +1167,6 @@ window.renderSettlementView = function() {
     }
   }
 
-  // 1. 연간 도넛 차트
   try {
     const ctxY = document.getElementById('yearlyDonutChart')?.getContext('2d');
     if (ctxY) {
@@ -1173,9 +1177,8 @@ window.renderSettlementView = function() {
         options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '72%', plugins: { legend: { display: false } } }
       });
     }
-  } catch(e) { console.error('연간 도넛 렌더링 오류:', e); }
+  } catch(e) {}
 
-  // 2. 월간 막대 차트
   try {
     let maxRevVal = 0, maxMonthIdx = 0;
     monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
@@ -1192,9 +1195,8 @@ window.renderSettlementView = function() {
         options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 2, right: 2 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
-  } catch(e) { console.error('월간 막대 렌더링 오류:', e); }
+  } catch(e) {}
 
-  // 3. 월간 분석 꺾은선 차트
   try {
     let maxCountVal = 0, maxCountMonthIdx = 0;
     monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
@@ -1211,9 +1213,8 @@ window.renderSettlementView = function() {
         options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 4, right: 4 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
-  } catch(e) { console.error('월간 분석 꺾은선 오류:', e); }
+  } catch(e) {}
 
-  // 4. 플랫폼 분석
   try {
     const pLeft = document.getElementById('platformColLeft'), pRight = document.getElementById('platformColRight');
     if (pLeft && pRight) {
@@ -1238,9 +1239,8 @@ window.renderSettlementView = function() {
       });
       if (sortedP.length === 0) pLeft.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal col-span-2">데이터가 없습니다.</div>';
     }
-  } catch(e) { console.error('플랫폼 분석 렌더링 오류:', e); }
+  } catch(e) {}
 
-  // 5. 세부 내역
   try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
@@ -1287,7 +1287,7 @@ window.renderSettlementView = function() {
         mGrid.appendChild(cardD);
       }
     }
-  } catch(e) { console.error('월간 세부내역 렌더링 오류:', e); }
+  } catch(e) {}
 };
 
 function renderUpcomingDeadlines() {
@@ -1393,217 +1393,3 @@ window.openDetailItemModal = function(id) {
   }
   document.getElementById('dayModal')?.classList.remove('hidden');
 };
-
-function populateYearFilter() {
-  const yearSelect = document.getElementById('filterYear');
-  const sYearSelect = document.getElementById('settlementYearSelect');
-  if (!yearSelect) return;
-  const currentY = new Date().getFullYear();
-  const yearsSet = new Set([currentY, currentY - 1, 2025]);
-  rawCampaignList.forEach(item => {
-    [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
-      if (d && typeof d === 'string' && d.length >= 4) {
-        const y = parseInt(d.slice(0, 4));
-        if (!isNaN(y)) yearsSet.add(y);
-      }
-    });
-  });
-  const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
-
-  yearSelect.innerHTML = '<option value="ALL">연도 전체</option>';
-  if (sYearSelect) sYearSelect.innerHTML = '<option value="ALL">연도 전체 (누적)</option>';
-  sortedYears.forEach(y => {
-    const o = document.createElement('option'); o.value = y.toString(); o.innerText = `${y}년`; yearSelect.appendChild(o);
-    if (sYearSelect) {
-      const oS = document.createElement('option'); oS.value = y.toString(); oS.innerText = `${y}년 전체`;
-      if (y === currentY) oS.selected = true;
-      sYearSelect.appendChild(oS);
-    }
-  });
-}
-
-function updateFormVisibility() {
-  const rBadge = document.getElementById('readOnlyBadge');
-  const dRegBtn = document.getElementById('dashRegisterBtn');
-  document.querySelectorAll('.reset-data-btn').forEach(b => b.classList.toggle('hidden', !isReadOnly));
-  document.querySelectorAll('#nav-form, #bottom-nav-form, #nav-settings, #bottom-nav-settings, .excel-down-btn').forEach(el => el.classList.toggle('hidden', isReadOnly));
-  rBadge?.classList.toggle('hidden', !isReadOnly);
-  dRegBtn?.classList.toggle('hidden', isReadOnly);
-}
-
-async function fetchUserCustomCode() {
-  if (!currentUser) return;
-  try {
-    const uSnap = await getDoc(doc(db, "users", currentUser.uid));
-    if (uSnap.exists()) {
-      const d = uSnap.data();
-      if (d.customCode) { myCustomCode = d.customCode; localStorage.setItem('onlyview_customCode', myCustomCode); }
-      if (d.deadlineAlertDays) { deadlineAlertDays = d.deadlineAlertDays; localStorage.setItem('onlyview_deadlineAlertDays', deadlineAlertDays.toString()); }
-      if (d.shareSettlement !== undefined) { isSettlementShared = d.shareSettlement === true; localStorage.setItem('onlyview_shareSettlement', isSettlementShared.toString()); }
-      if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
-        platformList = d.platforms;
-        localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
-        renderPlatformChips();
-      }
-      if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
-      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
-      if (d.statusColors) { 
-        Object.assign(customStatusColors, d.statusColors); 
-        localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
-        applyStatusCSSColors(); 
-      }
-    } else {
-      myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
-      await setDoc(doc(db, "users", currentUser.uid), { customCode: myCustomCode, uid: currentUser.uid, shareSettlement: false, theme: 'slate', chartMode: 'default', platforms: platformList }, { merge: true });
-      await setDoc(doc(db, "userCodes", myCustomCode), { uid: currentUser.uid, shareSettlement: false });
-    }
-    renderSettingsUI();
-  } catch (e) { console.error(e); }
-}
-
-window.refreshAllViews = function() {
-  window.filterAndRender(); window.renderDashboardView(); window.renderSettlementView();
-};
-
-async function loadCampaigns() {
-  if (!db || !targetUserId) return;
-  try {
-    const qSnap = await getDocs(query(collection(db, "campaigns"), where("userId", "==", targetUserId)));
-    rawCampaignList = [];
-    qSnap.forEach(s => {
-      const d = s.data();
-      rawCampaignList.push({ id: s.id, ...d, applyDate: formatCleanDate(d.applyDate || ''), visitDate: formatCleanDate(d.visitDate || ''), deadlineDate: formatCleanDate(d.deadlineDate || '') });
-    });
-    for (let m = 1; m <= 12; m++) {
-      monthlyDetailsCollapseState[m] = true;
-    }
-    populateYearFilter();
-    window.refreshAllViews();
-  } catch (e) { console.error("데이터 로드 실패:", e); }
-}
-
-onAuthStateChanged(auth, async (user) => {
-  const authSec = document.getElementById('authSection'), appSec = document.getElementById('appSection');
-  if (user) {
-    currentUser = user; targetUserId = user.uid; isReadOnly = false;
-    authSec?.classList.add('hidden'); appSec?.classList.remove('hidden'); appSec?.classList.add('flex', 'lg:flex');
-    const uEl = document.getElementById('userName'); if (uEl) uEl.innerText = user.displayName || user.email;
-    await fetchUserCustomCode(); updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard', false);
-  } else if (!targetUserId) {
-    currentUser = null; authSec?.classList.remove('hidden'); appSec?.classList.add('hidden'); appSec?.classList.remove('flex', 'lg:flex');
-  }
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', e => { if (e.key === 'Enter') window.enterWithInviteCode(); });
-  document.getElementById('searchInput')?.addEventListener('input', window.filterAndRender);
-  document.getElementById('filterStatus')?.addEventListener('change', window.filterAndRender);
-  document.getElementById('filterYear')?.addEventListener('change', window.filterAndRender);
-  document.getElementById('filterMonth')?.addEventListener('change', window.filterAndRender);
-  document.getElementById('settlementYearSelect')?.addEventListener('change', window.renderSettlementView);
-
-  document.getElementById('prevMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() - 1); window.renderDashboardView(); });
-  document.getElementById('todayMonthBtn')?.addEventListener('click', () => { currentCalDate = new Date(); window.renderDashboardView(); });
-  document.getElementById('nextMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() + 1); window.renderDashboardView(); });
-
-  document.getElementById('closeModalBtn')?.addEventListener('click', () => document.getElementById('dayModal')?.classList.add('hidden'));
-  document.getElementById('closeEditModalBtn')?.addEventListener('click', () => document.getElementById('editModal')?.classList.add('hidden'));
-  document.getElementById('closeColorModalBtn')?.addEventListener('click', () => document.getElementById('colorPickerModal')?.classList.add('hidden'));
-  document.getElementById('closeDashRegisterModalBtn')?.addEventListener('click', window.closeDashRegisterModal);
-
-  ['sponsoredAmount', 'paidAmount', 'revenue', 'editSponsoredAmount', 'editPaidAmount', 'editRevenue', 'modalSponsoredAmount', 'modalPaidAmount', 'modalRevenue'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', e => e.target.value = formatCurrencyInput(e.target.value));
-  });
-  ['contact', 'editContact', 'modalContact'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', e => e.target.value = formatPhoneNumber(e.target.value));
-  });
-
-  document.getElementById('campaignForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    if (isReadOnly || !currentUser) return alert("읽기 전용 모드입니다.");
-    try {
-      await addDoc(collection(db, "campaigns"), {
-        userId: currentUser.uid, storeName: document.getElementById('storeName')?.value || '', platformName: document.getElementById('platformName')?.value || '개별',
-        status: selectedStatus, applyDate: formatCleanDate(document.getElementById('applyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
-        companions: document.getElementById('companions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('sponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
-        contact: document.getElementById('contact')?.value || '', memo: document.getElementById('memo')?.value || '', createdAt: serverTimestamp()
-      });
-      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별'); loadCampaigns();
-    } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('modalCampaignForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    if (isReadOnly || !currentUser) return alert("읽기 전용 모드입니다.");
-    try {
-      await addDoc(collection(db, "campaigns"), {
-        userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
-        status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
-        companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
-        contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
-      });
-      alert('등록되었습니다!'); window.closeDashRegisterModal(); loadCampaigns();
-    } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('editForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    if (isReadOnly || !currentUser || !editingId) return;
-    try {
-      await updateDoc(doc(db, "campaigns", editingId), {
-        storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '',
-        status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-        companions: document.getElementById('editCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
-        contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
-      });
-      alert('수정되었습니다!'); document.getElementById('editModal')?.classList.add('hidden'); editingId = null; await loadCampaigns(); } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
-    if (isReadOnly) return alert("읽기 전용 모드입니다.");
-    const newCode = prompt("새로운 공유 코드를 입력하세요 (4자리 또는 6자리):", myCustomCode);
-    if (!newCode) return;
-    const t = newCode.trim();
-    if (t.length !== 4 && t.length !== 6) return alert("공유 코드는 4자리 또는 6자리여야 합니다.");
-    try {
-      const snap = await getDoc(doc(db, "userCodes", t));
-      if (snap.exists() && snap.data().uid !== currentUser.uid) return alert("이미 사용 중인 코드입니다.");
-      if (myCustomCode && myCustomCode !== t) { try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(e){} }
-      await setDoc(doc(db, "userCodes", t), { uid: currentUser.uid, shareSettlement: isSettlementShared }, { merge: true });
-      await setDoc(doc(db, "users", currentUser.uid), { customCode: t }, { merge: true });
-      myCustomCode = t; localStorage.setItem('onlyview_customCode', myCustomCode); renderSettingsUI(); alert("변경되었습니다!");
-    } catch(err) { alert(err.message); }
-  });
-
-  document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
-    const pCode = document.getElementById('partnerCodeInput')?.value.trim();
-    if (!pCode) return alert("코드를 입력해주세요.");
-    try {
-      const snap = await getDoc(doc(db, "userCodes", pCode));
-      if (!snap.exists()) return alert("유효하지 않은 코드입니다.");
-      const cData = snap.data();
-      targetUserId = cData.uid;
-      isSettlementShared = codeData.shareSettlement === true;
-      isReadOnly = !(currentUser && targetUserId === currentUser.uid);
-      await loadTargetUserSettings(targetUserId);
-      updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
-    } catch(err) { alert("조회 실패: " + err.message); }
-  });
-
-  document.querySelectorAll('.reset-data-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!currentUser) return;
-      targetUserId = currentUser.uid; isReadOnly = false;
-      const pIn = document.getElementById('partnerCodeInput'); if(pIn) pIn.value = '';
-      await loadTargetUserSettings(currentUser.uid); updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
-    });
-  });
-
-  applySidebarUI(); renderPlatformChips(); renderSettingsUI(); populateYearFilter();
-});
