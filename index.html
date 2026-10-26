@@ -12,9 +12,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 미오픈 모달이 화면 터치/클릭을 가로막지 않도록 보장 */
-    .hidden { display: none !important; }
-
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
@@ -246,7 +243,7 @@
               <button id="subTabOngoing" onclick="window.setListSubTab('ongoing')" class="flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center">진행중</button>
               <button id="subTabSubmitted" onclick="window.setListSubTab('submitted')" class="flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center">완료됨</button>
             </div>
-            <!-- 모바일 전용 + 추가 버튼 (기존 수정 버튼 자리에 배치, 너비 10% 증가) -->
+            <!-- 모바일 전용 + 추가 버튼 -->
             <button id="mobileAddBtn" onclick="window.openNewCampaignFromModal()" class="block sm:hidden px-[18px] py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 transition-colors">+ 추가</button>
             <!-- PC 전용 일괄 수정/저장 버튼 -->
             <button id="saveBatchBtn" onclick="window.saveAllBatchEdits()" class="hidden sm:hidden px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 transition-colors">저장</button>
@@ -265,6 +262,7 @@
           </select>
         </div>
         
+        <!-- PC/태블릿 테이블 래퍼 -->
         <div class="hidden sm:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto w-full">
           <table class="w-full text-left border-collapse table-fixed min-w-[760px]">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-[11px]">
@@ -284,6 +282,7 @@
           </table>
         </div>
 
+        <!-- 모바일 카드 리스트 -->
         <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full"></div>
       </div>
 
@@ -520,7 +519,6 @@
     </div>
   </div>
 
-  <!-- 등록 모달: 상태 4개, 항목 자동 숨김 적용 (원복 완료) -->
   <div id="dashRegisterModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" type="button" onclick="window.closeDashRegisterModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -565,7 +563,7 @@
     </div>
   </div>
 
-  <!-- 수정 모달: 상태 7개, 사이트 칩 적용, 삭제 버튼 포함 (유지) -->
+  <!-- 수정 모달 -->
   <div id="editModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -617,7 +615,6 @@
     </div>
   </div>
 
-  <!-- 엑셀 내보내기 연도 선택 모달 -->
   <div id="excelExportModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-xs w-full p-5 md:p-6 space-y-4 shadow-xl text-center">
       <div class="flex justify-between items-center border-b pb-3">
@@ -635,6 +632,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261026_final_v4"></script>
+  <script type="module" src="js/app.js?v=20261026_fixed_final"></script>
 </body>
 </html>
