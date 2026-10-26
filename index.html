@@ -209,11 +209,11 @@
             <div><label id="storeNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="storeName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><label id="sponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
-              <div id="rowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal"></div>
-              <div id="rowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div>
+              <div id="rowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="applyDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal"></div>
+              <div id="rowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="deadlineDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div>
             </div>
             <div id="rowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal flex-1"><input type="time" id="visitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div></div>
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="visitDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal flex-1"><input type="time" id="visitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div></div>
               <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
             </div>
             <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -514,45 +514,42 @@
     </div>
   </div>
 
+  <!-- 체험단 등록 모달 (7개 상태 지원 및 모든 필드 개방) -->
   <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <form id="modalCampaignForm" class="space-y-4 text-sm">
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태</label>
-          <div class="grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
-            <button type="button" id="btnModalStatus_신청" onclick="window.setModalStatusBtn('신청')" class="py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm">신청</button>
-            <button type="button" id="btnModalStatus_선정" onclick="window.setModalStatusBtn('선정')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">선정</button>
-            <button type="button" id="btnModalStatus_배송" onclick="window.setModalStatusBtn('배송')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">배송</button>
-            <button type="button" id="btnModalStatus_원고료" onclick="window.setModalStatusBtn('원고료')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">원고료</button>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnModalStatus_신청" onclick="window.setModalStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">신청</button>
+            <button type="button" id="btnModalStatus_선정" onclick="window.setModalStatusBtn('선정')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">선정</button>
+            <button type="button" id="btnModalStatus_방문" onclick="window.setModalStatusBtn('방문')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">방문</button>
+            <button type="button" id="btnModalStatus_미제출" onclick="window.setModalStatusBtn('미제출')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">미제출</button>
+            <button type="button" id="btnModalStatus_제출" onclick="window.setModalStatusBtn('제출')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">제출</button>
+            <button type="button" id="btnModalStatus_배송" onclick="window.setModalStatusBtn('배송')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">배송</button>
+            <button type="button" id="btnModalStatus_원고료" onclick="window.setModalStatusBtn('원고료')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">원고료</button>
           </div>
         </div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="modalStoreName" required class="w-full border p-2.5 rounded-xl text-sm font-normal"></div>
         <div class="space-y-1.5">
           <label class="block text-xs font-normal text-gray-900">체험단 사이트</label>
           <div id="modalPlatformChipsContainer" class="flex flex-wrap gap-2 items-center"></div>
           <input type="hidden" id="modalPlatformName" value="개별">
         </div>
-        <div><label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="modalStoreName" required class="w-full border p-2.5 rounded-xl text-sm font-normal"></div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
-          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="modalApplyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 font-normal text-gray-600"></div>
-          <div id="modalRowDeadlineDate" class="hidden"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+          <div><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
         </div>
-        <div id="rowVisit" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="modalVisitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="modalVisitDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="modalVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="modalCompanions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
-        <div id="rowFinancial" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
-        <div id="rowContact" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
-          <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal">
-        </div>
-        <div id="rowMemo" class="hidden">
-          <label class="block text-xs font-normal text-gray-900 mb-1">메모</label>
-          <textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea>
-        </div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
+        <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="modalMemo" rows="2" placeholder="참고사항 입력..." class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea></div>
         <div class="flex gap-2 pt-2 border-t border-gray-100"><button type="submit" class="w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors">등록하기</button></div>
       </form>
     </div>
@@ -581,10 +578,10 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
-          <div><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
+          <div><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="editDeadlineDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="editVisitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
+          <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="editVisitDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal flex-1"><input type="time" id="editVisitTime" class="w-24 border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
