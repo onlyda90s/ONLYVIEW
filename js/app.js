@@ -811,8 +811,9 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
+  // 삭제 버튼 숨김 (신규 등록이므로 불필요)
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
-  if (delBtn) delBtn.classList.add('hidden');
+  if (delBtn) delBtn.style.display = 'none';
 
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
@@ -895,6 +896,7 @@ window.saveAllBatchEdits = async function() {
     alert('모든 체험 정보가 저장되었습니다!');
     isBatchEditing = false; 
     newBatchRows = []; 
+    window.filterAndRender();
     await loadCampaigns();
   } catch (err) { alert('일괄 저장 실패: ' + err.message); }
 };
@@ -930,7 +932,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// 수정 모달 열기
+// [수정 모달] 상세 정보 창에서 이미 삭제/수정을 선택했으므로, 삭제 버튼을 완전히 감추고 [수정 저장하기]만 100% 단독 배치
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -940,12 +942,14 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
+  // 삭제 버튼은 상세 팝업에 있으므로 수정 모달에서는 완전 숨김
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
-  if (delBtn) delBtn.classList.remove('hidden');
+  if (delBtn) delBtn.style.display = 'none';
 
+  // 수정 저장하기 버튼 100% 단독 배치
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
-    submitBtn.className = "w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
+    submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
     submitBtn.innerText = "수정 저장하기";
   }
 
@@ -1278,15 +1282,15 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // [오류 완전 수정] PC 전용 수정/저장 버튼: isBatchEditing 여부에 따라 sm:block 및 display 완전 제어
+  // PC/태블릿 전용 수정/저장 버튼 제어 (미디어쿼리 충돌 방지를 위해 인라인 display 강제 동기화)
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
-      batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
+      batchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
       batchBtn.innerText = "취소";
-      saveBatchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 text-white shadow-sm shrink-0 hover:bg-emerald-700 cursor-pointer";
-      saveBatchBtn.style.display = '';
+      saveBatchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 text-white shadow-sm shrink-0 hover:bg-emerald-700 cursor-pointer";
+      saveBatchBtn.style.display = window.innerWidth >= 640 ? 'inline-flex' : 'none';
     } else {
-      batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-theme text-white shadow-sm shrink-0 hover:bg-theme-hover cursor-pointer";
+      batchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-theme text-white shadow-sm shrink-0 hover:bg-theme-hover cursor-pointer";
       batchBtn.innerText = "수정";
       saveBatchBtn.className = "hidden";
       saveBatchBtn.style.display = 'none';
@@ -1323,7 +1327,7 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // PC 일괄 수정 모드일 때 최상단 추가 행 노출
+  // PC/태블릿 일괄 수정 모드일 때 최상단 추가 행 노출
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
@@ -1777,7 +1781,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// 상세 정보 팝업: 삭제/수정 버튼 1:1 비율 균일 배치 (PC, 태블릿, 모바일 동일 적용)
+// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치 (PC, 태블릿, 모바일 동일 적용)[cite: 2]
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -1954,7 +1958,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
@@ -1977,7 +1981,7 @@ document.addEventListener("DOMContentLoaded", () => {
           paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
           contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
         });
-        alert('수정되었습니다!');
+        alert('수정 저장되었습니다!');
       } else {
         await addDoc(collection(db, "campaigns"), {
           userId: currentUser.uid,
