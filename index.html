@@ -12,6 +12,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
+    /* 모달 및 숨김 요소가 화면 터치를 가로막지 않도록 보장 */
+    .hidden { display: none !important; }
+
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
@@ -46,10 +49,10 @@
     }
   </style>
 </head>
-<body class="text-[#333333] min-h-[100dvh] h-[100dvh] overflow-x-hidden font-normal bg-main">
+<body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal bg-main">
 
   <!-- 로그인 화면 -->
-  <div id="authSection" class="min-h-[100dvh] w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto overflow-y-auto">
+  <div id="authSection" class="min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
     <div class="text-center space-y-3 mb-10">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
       <p class="text-xs tracking-widest text-gray-400 font-normal uppercase">ONLYVIEW</p>
@@ -194,14 +197,14 @@
         <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 sm:space-y-5">
           <form id="campaignForm" class="space-y-4 text-sm">
             <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태</label>
-              <div class="grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
-                <button type="button" id="btnStatus_신청" onclick="window.setStatusBtn('신청')" class="py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm">신청</button>
-                <button type="button" id="btnStatus_선정" onclick="window.setStatusBtn('선정')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">선정</button>
-                <button type="button" id="btnStatus_방문" onclick="window.setStatusBtn('방문')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">방문</button>
-                <button type="button" id="btnStatus_미제출" onclick="window.setStatusBtn('미제출')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">미제출</button>
-                <button type="button" id="btnStatus_제출" onclick="window.setStatusBtn('제출')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">제출</button>
-                <button type="button" id="btnStatus_배송" onclick="window.setStatusBtn('배송')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">배송</button>
-                <button type="button" id="btnStatus_원고료" onclick="window.setStatusBtn('원고료')" class="py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">원고료</button>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" id="btnStatus_신청" onclick="window.setStatusBtn('신청')" class="py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm">신청</button>
+                <button type="button" id="btnStatus_선정" onclick="window.setStatusBtn('선정')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">선정</button>
+                <button type="button" id="btnStatus_방문" onclick="window.setStatusBtn('방문')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">방문</button>
+                <button type="button" id="btnStatus_미제출" onclick="window.setStatusBtn('미제출')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">미제출</button>
+                <button type="button" id="btnStatus_제출" onclick="window.setStatusBtn('제출')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">제출</button>
+                <button type="button" id="btnStatus_배송" onclick="window.setStatusBtn('배송')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">배송</button>
+                <button type="button" id="btnStatus_원고료" onclick="window.setStatusBtn('원고료')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">원고료</button>
               </div>
             </div>
             <div class="space-y-1.5">
@@ -211,12 +214,12 @@
             </div>
             <div><label id="storeNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="storeName" required class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label id="sponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
-              <div id="rowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일</label><input type="date" id="applyDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal"></div>
-              <div id="rowDeadlineDate"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="deadlineDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div>
+              <div><label id="sponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="sponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+              <div id="rowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="applyDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 text-gray-600 outline-none font-normal"></div>
+              <div id="rowDeadlineDate"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="deadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div>
             </div>
             <div id="rowVisit" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="visitDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal flex-1"><input type="time" id="visitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div></div>
+              <div><label class="block text-xs font-normal text-gray-900 mb-1">방문예정일 (시간 포함)</label><div class="flex gap-1.5"><input type="date" id="visitDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal flex-1"><input type="time" id="visitTime" class="w-24 md:w-28 border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal"></div></div>
               <div><label class="block text-xs font-normal text-gray-900 mb-1">동반인원 (멤버 이름)</label><input type="text" id="companions" placeholder="예: 남편, 친구2명" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
             </div>
             <div id="rowFinancial" class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -509,28 +512,27 @@
     </main>
   </div>
 
-  <!-- 공통 모달 -->
-  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <!-- 공통 모달 (화면 차단 방지용 hidden + absolute/fixed 격리) -->
+  <div id="dayModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-5 md:p-6 space-y-4 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-3"><h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3><button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <div class="flex justify-between items-center border-b pb-3"><h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3><button type="button" onclick="window.closeModal('dayModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <div id="modalItemList" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
     </div>
   </div>
 
-  <!-- 대시보드/목록 공통 등록 모달 (7가지 상태 지원 및 상시 입력 필드) -->
-  <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div id="dashRegisterModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button type="button" onclick="window.closeDashRegisterModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <form id="modalCampaignForm" class="space-y-4 text-sm">
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태</label>
-          <div class="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5">
-            <button type="button" id="btnModalStatus_신청" onclick="window.setModalStatusBtn('신청')" class="py-1.5 px-2.5 rounded-lg font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm">신청</button>
-            <button type="button" id="btnModalStatus_선정" onclick="window.setModalStatusBtn('선정')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">선정</button>
-            <button type="button" id="btnModalStatus_방문" onclick="window.setModalStatusBtn('방문')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">방문</button>
-            <button type="button" id="btnModalStatus_미제출" onclick="window.setModalStatusBtn('미제출')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">미제출</button>
-            <button type="button" id="btnModalStatus_제출" onclick="window.setModalStatusBtn('제출')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">제출</button>
-            <button type="button" id="btnModalStatus_배송" onclick="window.setModalStatusBtn('배송')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">배송</button>
-            <button type="button" id="btnModalStatus_원고료" onclick="window.setModalStatusBtn('원고료')" class="py-1.5 px-2.5 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center">원고료</button>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" id="btnModalStatus_신청" onclick="window.setModalStatusBtn('신청')" class="py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm">신청</button>
+            <button type="button" id="btnModalStatus_선정" onclick="window.setModalStatusBtn('선정')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">선정</button>
+            <button type="button" id="btnModalStatus_방문" onclick="window.setModalStatusBtn('방문')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">방문</button>
+            <button type="button" id="btnModalStatus_미제출" onclick="window.setModalStatusBtn('미제출')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">미제출</button>
+            <button type="button" id="btnModalStatus_제출" onclick="window.setModalStatusBtn('제출')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">제출</button>
+            <button type="button" id="btnModalStatus_배송" onclick="window.setModalStatusBtn('배송')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">배송</button>
+            <button type="button" id="btnModalStatus_원고료" onclick="window.setModalStatusBtn('원고료')" class="py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300">원고료</button>
           </div>
         </div>
         <div class="space-y-1.5">
@@ -540,8 +542,8 @@
         </div>
         <div><label id="modalStoreNameLabel" class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="modalStoreName" required class="w-full border p-2.5 rounded-xl text-sm font-normal"></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
-          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일</label><input type="date" id="modalApplyDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 font-normal text-gray-600"></div>
+          <div><label id="modalSponsoredAmountLabel" class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="modalSponsoredAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
+          <div id="modalRowApplyDate"><label class="block text-xs font-normal text-gray-900 mb-1">신청일 (자동 세팅)</label><input type="date" id="modalApplyDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-gray-50 font-normal text-gray-600"></div>
           <div id="modalRowDeadlineDate"><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="modalDeadlineDate" min="2000-01-01" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
         </div>
         <div id="modalRowVisit" class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -565,10 +567,9 @@
     </div>
   </div>
 
-  <!-- 체험 정보 수정 모달 -->
-  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div id="editModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <form id="editForm" class="space-y-4 text-sm">
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
           <div class="flex flex-wrap gap-1.5">
@@ -609,16 +610,16 @@
     </div>
   </div>
 
-  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div id="colorPickerModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-xs w-full p-5 md:p-6 space-y-4 shadow-xl text-center">
-      <div class="flex justify-between items-center border-b pb-3"><h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3><button id="closeColorModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
+      <div class="flex justify-between items-center border-b pb-3"><h3 id="colorModalTitle" class="font-bold text-sm text-gray-900">상태 글자 색상 선택</h3><button type="button" onclick="window.closeModal('colorPickerModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <p class="text-[11px] text-gray-500 font-normal">원하시는 색상을 클릭하면 바로 반영됩니다.</p>
       <div id="colorPaletteGrid" class="grid grid-cols-4 gap-3 py-2 justify-items-center"></div>
     </div>
   </div>
 
   <!-- 엑셀 내보내기 연도 선택 모달 -->
-  <div id="excelExportModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div id="excelExportModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-xs w-full p-5 md:p-6 space-y-4 shadow-xl text-center">
       <div class="flex justify-between items-center border-b pb-3">
         <h3 class="font-bold text-base text-gray-900">엑셀 내보내기</h3>
@@ -635,6 +636,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261026_mobile_fix"></script>
+  <script type="module" src="js/app.js?v=20261026_final_fix"></script>
 </body>
 </html>
