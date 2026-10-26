@@ -1877,3 +1877,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (myCustomCode && myCustomCode !== t) { try { await deleteDoc(doc(db, "userCodes", myCustomCode)); } catch(e){} }
       await setDoc(doc(db, "userCodes", t), { uid: currentUser.uid, shareSettlement: isSettlementShared }, { merge: true });
       await setDoc(doc(db, "users", currentUser.uid), { customCode: t }, { merge: true });
+      myCustomCode = t; localStorage.setItem('onlyview_customCode', myCustomCode); renderSettingsUI(); alert("변경되었습니다!");
+    } catch(err) { alert(err.message); }
+  });
+
+  document.getElementById('applyPartnerCodeBtn')?.addEventListener('click', async () => {
+    const pCode = document.getElementById('partnerCodeInput')?.value.trim();
+    if (!pCode) return alert("코드를 입력해주세요.");
+    try {
+      const snap = await getDoc(doc(db, "userCodes", pCode));
+      if (!snap.exists()) return alert("유효하지 않은 코드입니다.");
+      const cData = snap.data();
+      targetUserId = cData.uid;
+      isSettlementShared = cData.shareSettlement === true;
+      isReadOnly = !(currentUser && targetUserId === currentUser.uid);
+      await loadTargetUserSettings(targetUserId);
+      updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
+    } catch(err) { alert("조회 실패: " + err.message); }
+  });
+
+  document.querySelectorAll('.reset-data-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      targetUserId = currentUser.uid; isReadOnly = false;
+      const pIn = document.getElementById('partnerCodeInput'); if(pIn) pIn.value = '';
+      await loadTargetUserSettings(currentUser.uid); updateFormVisibility(); await loadCampaigns(); window.switchTab('dashboard');
+    });
+  });
+
+  applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
+});
