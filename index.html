@@ -574,7 +574,11 @@
           </div>
         </div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">매장명 (업체명) *</label><input type="text" id="editStoreName" required class="w-full border p-2.5 rounded-xl text-sm font-normal"></div>
-        <div><label class="block text-xs font-normal text-gray-900 mb-1">체험단 사이트</label><input type="text" id="editPlatformName" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-normal text-gray-900">체험단 사이트</label>
+          <div id="editPlatformChipsContainer" class="flex flex-wrap gap-2 items-center"></div>
+          <input type="hidden" id="editPlatformName" value="개별">
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="block text-xs font-normal text-gray-900 mb-1">제공금액 / 원고료 (원)</label><input type="text" id="editSponsoredAmount" class="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:ring-2 ring-theme text-sm font-normal"></div>
           <div><label class="block text-xs font-normal text-rose-600 mb-1">포스팅 마감일</label><input type="date" id="editDeadlineDate" max="2099-12-31" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white font-normal"></div>
