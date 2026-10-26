@@ -97,6 +97,7 @@ const themeColors = {
   ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
 };
 
+// 6자리 연도(YYYYYY) 완벽 방어 및 4자리 정규화
 function formatCleanDate(d) {
   if (!d) return "";
   let s = String(d).trim().replace(/[/.]/g, '-');
@@ -105,8 +106,14 @@ function formatCleanDate(d) {
     let y = p[0].replace(/[^0-9]/g, '');
     let m = p[1].replace(/[^0-9]/g, '').padStart(2, '0');
     let day = p[2].replace(/[^0-9]/g, '').padStart(2, '0');
-    if (y.length === 2) y = "20" + y;
-    else if (y.length > 4) y = y.slice(0, 4);
+    
+    if (y.length > 4) {
+      if (y.startsWith("20") || y.startsWith("19")) y = y.slice(0, 4);
+      else y = y.slice(-4);
+    } else if (y.length === 2) {
+      y = "20" + y;
+    }
+    
     if (y.length === 4 && m && day) return `${y}-${m}-${day}`;
   }
   return s;
@@ -117,7 +124,7 @@ function formatShortDate(d) {
   const s = formatCleanDate(d);
   const p = s.split("-");
   if (p.length === 3) {
-    const yy = p[0].length === 4 ? p[0].substring(2, 4) : p[0];
+    const yy = p[0].length > 2 ? p[0].slice(-2) : p[0];
     return `${yy}-${String(Number(p[1])).padStart(2, '0')}-${String(Number(p[2])).padStart(2, '0')}`;
   }
   return s || "-";
@@ -831,7 +838,7 @@ window.openEditModalFromId = function(id) {
 };
 
 // ========================================================
-// 엑셀 내보내기 연도 선택 모달 및 다운로드
+// 엑셀 내보내기 연도 선택 모달 및 다운로드 (전체 누적 옵션 제거)
 // ========================================================
 window.openExcelExportModal = function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
@@ -839,18 +846,19 @@ window.openExcelExportModal = function() {
   const select = document.getElementById('excelExportYearSelect');
   if (select) {
     const currentY = new Date().getFullYear();
-    const yearsSet = new Set([currentY, currentY - 1, 2025]);
+    const yearsSet = new Set([currentY]);
     rawCampaignList.forEach(item => {
       [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
         if (d && typeof d === 'string' && d.length >= 4) {
-          const y = parseInt(d.slice(0, 4));
-          if (!isNaN(y)) yearsSet.add(y);
+          const y = parseInt(formatCleanDate(d).slice(0, 4));
+          if (!isNaN(y) && y >= 2000 && y <= 2099) yearsSet.add(y);
         }
       });
     });
     const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-    select.innerHTML = '<option value="ALL">전체 연도 (누적 리포트)</option>';
+    // '전체 연도' 옵션을 완전히 배제하고 단일 연도 리포트만 추가
+    select.innerHTML = '';
     sortedYears.forEach(y => {
       const opt = document.createElement('option');
       opt.value = y.toString();
@@ -875,18 +883,17 @@ window.executeExcelExport = async function() {
   if (typeof ExcelJS === 'undefined') return alert("엑셀 모듈 로딩 중입니다.");
 
   const yearSelect = document.getElementById('excelExportYearSelect');
-  const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
-  const targetYearStr = selectedYearVal === 'ALL' ? '전체 누적' : `${selectedYearVal}년`;
+  const selectedYearVal = yearSelect ? yearSelect.value : '';
+  if (!selectedYearVal || selectedYearVal === 'ALL') return alert("내보낼 연도를 선택해주세요.");
 
-  let exportList = rawCampaignList;
-  if (selectedYearVal !== 'ALL') {
-    const targetY = parseInt(selectedYearVal);
-    exportList = rawCampaignList.filter(item => {
-      const refD = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-      if (!refD || refD.length < 4) return false;
-      return parseInt(refD.slice(0, 4)) === targetY;
-    });
-  }
+  const targetY = parseInt(selectedYearVal);
+  const targetYearStr = `${targetY}년`;
+
+  const exportList = rawCampaignList.filter(item => {
+    const refD = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+    if (!refD || refD.length < 4) return false;
+    return parseInt(refD.slice(0, 4)) === targetY;
+  });
 
   if (exportList.length === 0) return alert(`선택하신 ${targetYearStr} 내보낼 데이터가 없습니다.`);
 
@@ -1130,8 +1137,7 @@ window.executeExcelExport = async function() {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    const fileSuffix = selectedYearVal === 'ALL' ? '전체누적' : `${selectedYearVal}년`;
-    a.download = `온리뷰_정산_리포트_${fileSuffix}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+    a.download = `온리뷰_정산_리포트_${targetYearStr}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
     window.closeExcelExportModal();
   } catch (err) { alert("엑셀 다운로드 중 오류: " + err.message); }
@@ -1205,8 +1211,8 @@ window.filterAndRender = function() {
       row.innerHTML = `<td class="py-1 px-2.5 truncate"><input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1 rounded-lg outline-none text-xs bg-white font-normal">${overdueBadge}</td>`
         + `<td class="py-1 px-1 text-center"><select id="batch_status_${item.id}" style="color:${window.getStatusColor(item.status)}; font-weight:600;" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center"><option value="신청" ${item.status==='신청'?'selected':''}>신청</option><option value="선정" ${item.status==='선정'?'selected':''}>선정</option><option value="방문" ${item.status==='방문'?'selected':''}>방문</option><option value="미제출" ${item.status==='미제출'?'selected':''}>미제출</option><option value="제출" ${item.status==='제출'?'selected':''}>제출</option><option value="배송" ${item.status==='배송'?'selected':''}>배송</option><option value="원고료" ${item.status==='원고료'?'selected':''}>원고료</option></select></td>`
         + `<td class="py-1 px-2 text-center truncate"><input type="text" id="batch_platform_${item.id}" value="${item.platformName || ''}" class="w-full border p-1 rounded-lg text-xs bg-white text-center"></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="batch_visitDate_${item.id}" value="${formatCleanDate(item.visitDate)}" class="border p-1 rounded-lg text-xs bg-white w-full"><input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}"></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="batch_deadlineDate_${item.id}" value="${formatCleanDate(item.deadlineDate)}" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="batch_visitDate_${item.id}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(item.visitDate)}" class="border p-1 rounded-lg text-xs bg-white w-full"><input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}"></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="batch_deadlineDate_${item.id}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(item.deadlineDate)}" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(sp)}" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(pd)}" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right truncate font-bold text-gray-900">${formatRevenueDisplay(calcRev)}</td>`
@@ -1250,8 +1256,8 @@ window.filterAndRender = function() {
       nRow.innerHTML = `<td class="py-1 px-2 truncate"><input type="text" id="new_batch_store_${idx}" placeholder="+ 매장명 입력" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
         + `<td class="py-1 px-1 text-center"><select id="new_batch_status_${idx}" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center"><option value="신청">신청</option><option value="선정" selected>선정</option><option value="방문">방문</option><option value="미제출">미제출</option><option value="제출">제출</option><option value="배송">배송</option><option value="원고료">원고료</option></select></td>`
         + `<td class="py-1 px-2 text-center truncate"><input type="text" id="new_batch_platform_${idx}" value="개별" class="w-full border p-1 rounded-lg text-xs bg-white text-center"></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" min="2000-01-01" max="2099-12-31" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" min="2000-01-01" max="2099-12-31" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right text-gray-400 truncate">자동계산</td>`
@@ -1648,8 +1654,8 @@ function populateYearFilter() {
   rawCampaignList.forEach(item => {
     [item.applyDate, item.visitDate, item.deadlineDate].forEach(d => {
       if (d && typeof d === 'string' && d.length >= 4) {
-        const y = parseInt(d.slice(0, 4));
-        if (!isNaN(y)) yearsSet.add(y);
+        const y = parseInt(formatCleanDate(d).slice(0, 4));
+        if (!isNaN(y) && y >= 2000 && y <= 2099) yearsSet.add(y);
       }
     });
   });
