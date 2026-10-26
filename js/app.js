@@ -211,7 +211,7 @@ function applyThemeCSS(k) {
 applyStatusCSSColors();
 applyThemeCSS(localStorage.getItem('onlyview_theme') || 'slate');
 
-// 안전한 모달 제어 함수 (인라인 style="display"를 직접 제어하여 클릭 방해 완전 차단)
+// 안전한 모달 제어 함수
 window.openModal = function(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = 'flex';
@@ -558,24 +558,67 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 7개 상태 버튼 제어
+// [원복 완료] 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setStatusBtn = function(status) {
   selectedStatus = status;
-  ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
+  ['신청', '선정', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById(`btnStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
+    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
   });
+  const sL = document.getElementById('storeNameLabel'), aL = document.getElementById('sponsoredAmountLabel');
+  const rApp = document.getElementById('rowApplyDate'), rDead = document.getElementById('rowDeadlineDate');
+  const rVis = document.getElementById('rowVisit'), rFin = document.getElementById('rowFinancial');
+  const rCon = document.getElementById('rowContact'), rMemo = document.getElementById('rowMemo');
+  if (status === '신청') {
+    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
+  } else {
+    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
+    if (status === '선정') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
+      if (!document.getElementById('visitTime')?.value) { const n = new Date(); document.getElementById('visitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+    } else if (status === '배송') {
+      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
+    } else if (status === '원고료') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
+    }
+  }
 };
 
-// 등록 모달 7개 상태 버튼 제어 (필드 강제 숨김 없이 자유 입력 지원)
+// [원복 완료] 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
-  ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
+  ['신청', '선정', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById(`btnModalStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
+    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
   });
+  const sL = document.getElementById('modalStoreNameLabel'), aL = document.getElementById('modalSponsoredAmountLabel');
+  const rApp = document.getElementById('modalRowApplyDate'), rDead = document.getElementById('modalRowDeadlineDate');
+  const rVis = document.getElementById('modalRowVisit'), rFin = document.getElementById('modalRowFinancial');
+  const rCon = document.getElementById('modalRowContact'), rMemo = document.getElementById('modalRowMemo');
+  if (status === '신청') {
+    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
+  } else {
+    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
+    if (status === '선정') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
+      if (!document.getElementById('modalVisitTime')?.value) { const n = new Date(); document.getElementById('modalVisitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+    } else if (status === '배송') {
+      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
+    } else if (status === '원고료') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
+    }
+  }
 };
 
+// [유지] 수정 모달 7개 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -670,7 +713,7 @@ function renderPlatformChips() {
   render(modalContainer, true);
 }
 
-// 수정 모달 전용 사이트 칩 렌더러
+// [유지] 수정 모달 전용 사이트 칩 렌더러
 function renderEditPlatformChips() {
   const container = document.getElementById('editPlatformChipsContainer');
   if (!container) return;
@@ -717,6 +760,7 @@ function updateDeadlineButtons() {
   });
 }
 
+// [원복 완료] 등록 모달 열기 시 '신청' 기본 세팅 및 자동 숨김 반영
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
@@ -824,6 +868,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
+// [유지] 수정 모달: 7개 상태 + 사이트 칩 선택 연동
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -847,9 +892,7 @@ window.openEditModalFromId = function(id) {
   window.openModal('editModal');
 };
 
-// ========================================================
-// 엑셀 내보내기 모달 및 다운로드 (전체 누적 옵션 완전 배제)
-// ========================================================
+// [유지] 엑셀 내보내기 모달 및 다운로드 (전체 누적 옵션 완전 배제)
 window.openExcelExportModal = function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   
@@ -1206,7 +1249,7 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // [개선 2] 모바일 수정 모드일 때: 최상단에 '+ 새 체험 추가' 버튼 고정 배치
+  // 모바일 수정 모드일 때: 최상단에 '+ 새 체험 추가' 버튼 고정 배치
   if (isBatchEditing) {
     const mobileAddBox = document.createElement('div');
     mobileAddBox.className = 'pb-1';
@@ -1214,7 +1257,7 @@ window.filterAndRender = function() {
     cardList?.appendChild(mobileAddBox);
   }
 
-  // [개선 2] PC/태블릿 수정 모드일 때: 테이블 최상단에 '+ 새 체험 추가' 버튼 및 새 입력 행 배치
+  // PC/태블릿 수정 모드일 때: 테이블 최상단에 '+ 새 체험 추가' 버튼 및 새 입력 행 배치
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
@@ -1289,7 +1332,7 @@ window.filterAndRender = function() {
       card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><button type="button" onclick="event.stopPropagation(); window.deleteCampaign('${item.id}')" class="shrink-0 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-colors cursor-pointer">삭제</button></div>`
         + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div></div>`;
     } else {
-      // [개선 1] 모바일 카드에서 수정 모드 없이 바로 상태를 변경할 수 있는 미니 드롭다운 배치
+      // 모바일 카드에서 수정 모드 없이 바로 상태를 변경할 수 있는 미니 드롭다운 배치
       const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs">
         <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
         <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
@@ -1843,8 +1886,7 @@ document.addEventListener("DOMContentLoaded", () => {
         storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
         status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
         visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-        companions: document.getElementById('editCompanions')?.value || document.getElementById('companions')?.value || '',
-        sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+        companions: document.getElementById('editCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
         contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
       });
