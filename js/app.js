@@ -231,15 +231,11 @@ try {
 
 window.openModal = function(id) {
   const el = document.getElementById(id);
-  if (el) {
-    el.style.display = 'flex';
-  }
+  if (el) el.style.display = 'flex';
 };
 window.closeModal = function(id) {
   const el = document.getElementById(id);
-  if (el) {
-    el.style.display = 'none';
-  }
+  if (el) el.style.display = 'none';
 };
 
 function getSortIndicatorHtml(col) {
@@ -852,7 +848,9 @@ window.setListSubTab = function(type) {
 
 window.toggleBatchEdit = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
-  isBatchEditing = !isBatchEditing; newBatchRows = []; window.filterAndRender();
+  isBatchEditing = !isBatchEditing; 
+  newBatchRows = []; 
+  window.filterAndRender();
 };
 window.addNewBatchRow = function() { newBatchRows.unshift({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
 window.removeNewBatchRow = function(i) { newBatchRows.splice(i, 1); window.filterAndRender(); };
@@ -893,8 +891,11 @@ window.saveAllBatchEdits = async function() {
     }
   });
   try {
-    await Promise.all(promises); alert('모든 체험 정보가 저장되었습니다!');
-    isBatchEditing = false; newBatchRows = []; await loadCampaigns();
+    await Promise.all(promises); 
+    alert('모든 체험 정보가 저장되었습니다!');
+    isBatchEditing = false; 
+    newBatchRows = []; 
+    await loadCampaigns();
   } catch (err) { alert('일괄 저장 실패: ' + err.message); }
 };
 
@@ -1277,17 +1278,18 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // PC 전용 수정/저장 버튼 제어 (모바일은 숨김)
+  // [오류 완전 수정] PC 전용 수정/저장 버튼: isBatchEditing 여부에 따라 sm:block 및 display 완전 제어
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
       batchBtn.innerText = "취소";
       saveBatchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 text-white shadow-sm shrink-0 hover:bg-emerald-700 cursor-pointer";
-      saveBatchBtn.classList.remove('hidden');
+      saveBatchBtn.style.display = '';
     } else {
       batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-theme text-white shadow-sm shrink-0 hover:bg-theme-hover cursor-pointer";
       batchBtn.innerText = "수정";
-      saveBatchBtn.classList.add('hidden');
+      saveBatchBtn.className = "hidden";
+      saveBatchBtn.style.display = 'none';
     }
   }
 
