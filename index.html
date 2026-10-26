@@ -11,23 +11,23 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
-  <style>
+<style>
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
     ::-webkit-scrollbar-track { background: transparent; }
 
-    /* 1. 일반 슬림폰 (~ 429px) */
+    /* 1. 슬림폰 (아이폰 일반, 일반 갤럭시 등 가로 429px 이하) */
     @media (max-width: 429px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
-        padding-bottom: 80px !important;
+        padding-bottom: 80px !important; /* 👈 슬림폰 80px */
       }
     }
 
-    /* 2. 폴드 와이드 커버 화면 (430px ~ 767px) */
+    /* 2. 폴드 와이드 커버 화면 (가로 430px ~ 767px) */
     @media (min-width: 430px) and (max-width: 767px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
-        padding-bottom: 160px !important;
+        padding-bottom: 160px !important; /* 👈 폴드 와이드 160px */
       }
     }
   </style>
@@ -60,7 +60,7 @@
   <div id="appSection" class="hidden h-screen w-full flex-col lg:flex-row overflow-hidden relative">
     
     <!-- 데스크톱 사이드바 -->
-    <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-screen transition-all duration-200 relative z-10">
+    <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-[100dvh] transition-all duration-200 relative z-10 overflow-y-auto">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
           <div class="sidebar-text-label">
@@ -95,7 +95,7 @@
           </button>
         </nav>
       </div>
-      <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-2">
+      <div class="pt-3 border-t border-black/5 space-y-1.5 shrink-0 mb-1.5 pb-2">
         <button id="sidebarResetBtn" class="hidden reset-data-btn w-full bg-theme text-white text-xs font-bold py-2 rounded-xl shadow-sm"><span class="sidebar-text-label">내 목록으로 돌아가기</span></button>
         <button id="sidebarExcelBtn" onclick="window.downloadExcel()" class="excel-down-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl shadow-sm flex items-center justify-center gap-1.5"><span class="sidebar-text-label">엑셀 내보내기</span></button>
         <button id="sidebarLogoutBtn" onclick="window.logout()" class="w-full text-xs text-sidebar-muted hover:opacity-80 py-1 font-normal text-center"><span class="sidebar-text-label">로그아웃</span></button>
