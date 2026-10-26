@@ -605,6 +605,24 @@
     </div>
   </div>
 
+  <!-- 엑셀 내보내기 연도 선택 모달 -->
+  <div id="excelExportModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-5 md:p-6 space-y-4 shadow-xl text-center">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-base text-gray-900">엑셀 내보내기</h3>
+        <button type="button" onclick="window.closeExcelExportModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
+      </div>
+      <div class="space-y-2 text-left">
+        <label class="block text-xs font-normal text-gray-700">내보낼 연도 선택</label>
+        <select id="excelExportYearSelect" class="w-full border border-gray-200 p-2.5 rounded-xl text-xs bg-white outline-none focus:ring-2 ring-theme font-normal text-gray-800 shadow-sm"></select>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="window.closeExcelExportModal()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold text-xs transition-colors">취소</button>
+        <button type="button" onclick="window.executeExcelExport()" class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs shadow-sm transition-colors">다운로드</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="js/app.js?v=20261026_excel_final"></script>
 </body>
 </html>
