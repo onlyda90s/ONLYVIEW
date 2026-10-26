@@ -14,7 +14,7 @@ const firebaseConfig = {
 // ==========================================
 // 엑셀 출력 모드 설정 (1: 1안 단일표, 2: 2안 월별블록+소계)
 // ==========================================
-const EXCEL_MODE = 2; 
+const EXCEL_MODE = 1; 
 
 let app, auth, db, provider;
 try {
