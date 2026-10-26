@@ -843,11 +843,28 @@ window.downloadExcel = async function() {
     const borderStyle = { top: { style: 'thin', color: { argb: COLOR_BORDER } }, left: { style: 'thin', color: { argb: COLOR_BORDER } }, bottom: { style: 'thin', color: { argb: COLOR_BORDER } }, right: { style: 'thin', color: { argb: COLOR_BORDER } } };
     const dateStr = new Date().toLocaleDateString('ko-KR');
     
-    let tCnt = rawCampaignList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
+    // 정산 탭에서 선택한 연도 필터링 로직 추가
+    const yearSelect = document.getElementById('settlementYearSelect');
+    const selectedYearVal = yearSelect ? yearSelect.value : 'ALL';
+    const targetYearStr = selectedYearVal === 'ALL' ? '전체 누적' : `${selectedYearVal}년`;
+    
+    let exportList = rawCampaignList;
+    if (selectedYearVal !== 'ALL') {
+      const targetY = parseInt(selectedYearVal);
+      exportList = rawCampaignList.filter(item => {
+        const refD = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+        if (!refD || refD.length < 4) return false;
+        return parseInt(refD.slice(0, 4)) === targetY;
+      });
+    }
+
+    if (exportList.length === 0) return alert(`선택하신 ${targetYearStr} 내보낼 데이터가 없습니다.`);
+    
+    let tCnt = exportList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
     const mSum = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
     const pMap = {};
     
-    rawCampaignList.forEach(item => {
+    exportList.forEach(item => {
       const isDone = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
       const sp = Number(item.sponsoredAmount || 0), pd = Number(item.paidAmount || 0), rev = Number(item.revenue || 0);
       const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
@@ -865,7 +882,7 @@ window.downloadExcel = async function() {
     // [시트 1: 대시보드]
     const sh1 = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
     sh1.mergeCells('B2:H2');
-    const tCell = sh1.getCell('B2'); tCell.value = '온리뷰 (ONLYVIEW) 종합 리포트'; tCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
+    const tCell = sh1.getCell('B2'); tCell.value = `온리뷰 (ONLYVIEW) 종합 리포트 [${targetYearStr}]`; tCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
     sh1.getCell('B3').value = `기준일시: ${dateStr}`;
     
     const kpi = [ { c: 'B', t: '총 진행 건수', v: `${tCnt}건` }, { c: 'C', t: '제출 완료 건수', v: `${cCnt}건` }, { c: 'D', t: '총 제공금액', v: `${tSpon.toLocaleString()}원` }, { c: 'E', t: '순 실수익 (누적)', v: `${tRev.toLocaleString()}원` } ];
@@ -898,7 +915,7 @@ window.downloadExcel = async function() {
       
       sh.mergeCells(`B2:${maxCol}2`);
       const titleCell = sh.getCell('B2'); 
-      titleCell.value = `${sName} (1월 ~ 12월 월별 내역)`; 
+      titleCell.value = `${sName} (1월 ~ 12월 월별 내역) [${targetYearStr}]`; 
       titleCell.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
       sh.getRow(2).height = 24;
 
@@ -925,7 +942,7 @@ window.downloadExcel = async function() {
       let dRowIdx = 4;
 
       for (let m = 1; m <= 12; m++) {
-        const mItems = rawCampaignList.filter(it => {
+        const mItems = exportList.filter(it => {
           const eff = getEffectiveStatus(it);
           const isDone = (eff === '제출' || eff === '완료');
           if (filterMode === 'completed_detail' || filterMode === 'completed_full') { if (!isDone) return false; } 
@@ -1022,7 +1039,7 @@ window.downloadExcel = async function() {
 
       // 3번 시트(진행중) 전용: 일정 미정/예약 대기 블록 추가
       if (filterMode === 'ongoing_full') {
-        const unItems = rawCampaignList.filter(it => {
+        const unItems = exportList.filter(it => {
           const eff = getEffectiveStatus(it);
           if (eff === '제출' || eff === '완료') return false;
           const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
@@ -1076,7 +1093,8 @@ window.downloadExcel = async function() {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    a.download = `온리뷰_정산_리포트_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+    const fileSuffix = selectedYearVal === 'ALL' ? '전체누적' : `${selectedYearVal}년`;
+    a.download = `온리뷰_정산_리포트_${fileSuffix}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
   } catch (err) { alert("엑셀 다운로드 중 오류: " + err.message); }
 };
