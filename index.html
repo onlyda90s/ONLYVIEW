@@ -24,17 +24,24 @@
       }
     }
 
-    /* 2. 폴드 와이드 커버 화면 (430px ~ 767px) */
+    /* 2. 폴드 와이드 커버 화면 (430px ~ 767px) - 이전 상태 유지 */
     @media (min-width: 430px) and (max-width: 767px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
         padding-bottom: 160px !important;
       }
     }
 
-    /* 3. 폴드 펼침 대화면 및 태블릿 (가로 768px 이상) 👈 추가 */
-    @media (min-width: 768px) {
+    /* 3. 폴드 펼쳤을 때 대화면 (768px ~ 1023px) - 여백 축소 */
+    @media (min-width: 768px) and (max-width: 1023px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
-        padding-bottom: 70px !important; /* 👈 바닥 카드 짤림 방지용 여백 (필요 시 조절 가능) */
+        padding-bottom: 30px !important; /* 👈 70px에서 30px로 대폭 축소 (20px~40px 사이 조절 가능) */
+      }
+    }
+
+    /* 4. PC 데스크톱 (1024px 이상) - 여백 완전 제거 */
+    @media (min-width: 1024px) {
+      #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
+        padding-bottom: 0px !important; /* 👈 PC는 여백 없이 기존 화면으로 원상 복구 */
       }
     }
   </style>
