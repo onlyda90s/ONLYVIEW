@@ -790,22 +790,23 @@ window.quickUpdateStatus = async function(id, newStatus) {
 
 window.deleteCampaign = async function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
-  if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
-  try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
-};
-
-window.deleteCampaignFromModal = async function() {
-  if (isReadOnly || !editingId) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
+  if (!id) return alert("삭제할 대상을 찾을 수 없습니다.");
   if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
   try {
-    await deleteDoc(doc(db, "campaigns", editingId));
+    await deleteDoc(doc(db, "campaigns", id));
     alert("삭제되었습니다.");
     document.getElementById('editModal')?.classList.add('hidden');
+    document.getElementById('dayModal')?.classList.add('hidden');
     editingId = null;
-    loadCampaigns();
+    await loadCampaigns();
   } catch (err) {
     alert("삭제 실패: " + err.message);
   }
+};
+
+window.deleteCampaignFromModal = function() {
+  if (!editingId) return alert("삭제할 대상을 찾을 수 없습니다.");
+  window.deleteCampaign(editingId);
 };
 
 window.openEditModalFromId = function(id) {
@@ -1175,7 +1176,7 @@ window.filterAndRender = function() {
     card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 transition-colors w-full relative';
     
     if (isBatchEditing) {
-      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><button onclick="window.deleteCampaign('${item.id}')" class="shrink-0 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">삭제</button></div>`
+      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><button type="button" onclick="event.stopPropagation(); window.deleteCampaign('${item.id}')" class="shrink-0 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-colors">삭제</button></div>`
         + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div></div>`;
     } else {
       card.classList.add('cursor-pointer', 'hover:border-theme');
@@ -1204,6 +1205,11 @@ window.filterAndRender = function() {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-3 text-center bg-gray-50/80"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
+
+    const mobileAddBox = document.createElement('div');
+    mobileAddBox.className = 'pt-2 pb-1';
+    mobileAddBox.innerHTML = '<button type="button" onclick="window.openDashRegisterModal()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-colors flex items-center justify-center gap-1.5">+ 새 체험 추가</button>';
+    cardList?.appendChild(mobileAddBox);
   }
 
   if (filtered.length === 0 && !isBatchEditing) {
