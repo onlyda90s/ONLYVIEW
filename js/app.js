@@ -112,7 +112,6 @@ const themeColors = {
   ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
 };
 
-// 6자리 연도 방어 및 정규화
 function formatCleanDate(d) {
   if (!d) return "";
   let s = String(d).trim().replace(/[/.]/g, '-');
@@ -230,7 +229,6 @@ try {
   applyThemeCSS('slate');
 }
 
-// 안전한 모달 제어 함수 (display 직접 제어로 모바일 터치 가림 원천 차단)
 window.openModal = function(id) {
   const el = document.getElementById(id);
   if (el) {
@@ -371,7 +369,6 @@ async function handleUserLoggedIn(user) {
   window.switchTab('dashboard', false);
 }
 
-// 구글 로그인 핸들러
 window.loginWithGoogle = async function() {
   try {
     if (!auth || !provider) return alert("Firebase 초기화 중입니다. 잠시 후 다시 시도해 주세요.");
@@ -596,7 +593,7 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시 (원복)
+// 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -626,7 +623,7 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시 (원복)
+// 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -811,7 +808,7 @@ window.openDashRegisterModal = function() {
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-// [개선] 모바일 목록 상단 [+ 새 체험 추가] 전용 (수정 모달 활용)
+// 모바일 상단 [+ 추가] 버튼 전용 (수정 모달 서식 활용)
 window.openNewCampaignFromModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   editingId = null;
@@ -820,11 +817,9 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
-  // 신규 등록이므로 삭제 버튼 숨김
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.classList.add('hidden');
 
-  // 등록 버튼을 가로 전체로 꽉 채움
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -936,7 +931,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// [개선] 기존 항목 수정용 모달 세팅
+// 수정 모달 열기
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -946,7 +941,6 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
-  // 삭제 버튼과 수정 저장 버튼을 함께 배치 (기존 구조)
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.classList.remove('hidden');
 
@@ -1288,7 +1282,7 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // [개선] PC에서는 수정/취소 버튼 노출, 모바일에서는 숨김 (모바일은 개별 카드 탭으로 수정)
+  // PC 전용 수정/저장 버튼 제어 (모바일은 숨김 상태 유지)
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
@@ -1331,14 +1325,6 @@ window.filterAndRender = function() {
 
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
-
-  // [개선] 모바일: 테이블 수정 버튼이 없어진 대신, [+ 새 체험 추가] 버튼 상시 최상단 배치
-  if (!isReadOnly && cardList) {
-    const mobileAddBox = document.createElement('div');
-    mobileAddBox.className = 'pb-1';
-    mobileAddBox.innerHTML = '<button type="button" onclick="window.openNewCampaignFromModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">+ 새 체험 추가</button>';
-    cardList.appendChild(mobileAddBox);
-  }
 
   // PC/태블릿: 일괄 수정 모드일 때 최상단에 '+ 새 체험 추가' 입력 행 배치
   if (isBatchEditing) {
@@ -1411,7 +1397,7 @@ window.filterAndRender = function() {
     const card = document.createElement('div');
     card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 transition-colors w-full relative';
     
-    // 모바일 카드에서 수정 모드 없이 바로 상태를 변경할 수 있는 미니 드롭다운 배치
+    // 모바일 카드 내 미니 상태 드롭다운
     const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs">
       <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
       <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
@@ -1432,13 +1418,7 @@ window.filterAndRender = function() {
 
   if (filtered.length === 0 && !isBatchEditing) {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-8 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
-    // 새 체험 추가 버튼이 이미 삽입되어 있으므로, 그 아래에 텍스트 표시
-    if (cardList) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.className = 'bg-white p-8 rounded-2xl border border-gray-100 text-center text-gray-400 text-xs font-normal shadow-sm mt-2';
-      emptyMsg.innerText = '조건에 해당하는 체험단이 없습니다.';
-      cardList.appendChild(emptyMsg);
-    }
+    if (cardList) cardList.innerHTML = '<div class="bg-white p-8 rounded-2xl border border-gray-100 text-center text-gray-400 text-xs font-normal shadow-sm">조건에 해당하는 체험단이 없습니다.</div>';
   }
 };
 
@@ -1796,7 +1776,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [개선 반영] 상세 정보 팝업에 삭제버튼과 수정버튼을 함께 노출
+// 상세 정보 팝업: 삭제하기와 수정하기 버튼 1:1 비율 균일 배치 (PC, 태블릿, 모바일 공통)
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -1817,8 +1797,8 @@ window.openDetailItemModal = function(id) {
         <div>결제금액: <span class="font-normal text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
       </div>` 
       + (!isReadOnly ? `<div class="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-          <button onclick="window.deleteCampaign('${item.id}')" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">삭제하기</button>
-          <button onclick="window.closeModal('dayModal'); window.openEditModalFromId('${item.id}');" class="w-2/3 bg-theme bg-theme-hover text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">수정하기</button>
+          <button onclick="window.deleteCampaign('${item.id}')" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">삭제하기</button>
+          <button onclick="window.closeModal('dayModal'); window.openEditModalFromId('${item.id}');" class="flex-1 bg-theme bg-theme-hover text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">수정하기</button>
         </div>` : '') + `</div>`;
   }
   window.openModal('dayModal');
@@ -1855,10 +1835,12 @@ function populateYearFilter() {
 function updateFormVisibility() {
   const rBadge = document.getElementById('readOnlyBadge');
   const dRegBtn = document.getElementById('dashRegisterBtn');
+  const mAddBtn = document.getElementById('mobileAddBtn');
   document.querySelectorAll('.reset-data-btn').forEach(b => b.classList.toggle('hidden', !isReadOnly));
   document.querySelectorAll('#nav-form, #bottom-nav-form, #nav-settings, #bottom-nav-settings, .excel-down-btn').forEach(el => el.classList.toggle('hidden', isReadOnly));
   rBadge?.classList.toggle('hidden', !isReadOnly);
   dRegBtn?.classList.toggle('hidden', isReadOnly);
+  mAddBtn?.classList.toggle('hidden', isReadOnly);
 }
 
 async function fetchUserCustomCode() {
@@ -1971,7 +1953,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
@@ -1985,7 +1967,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isReadOnly || !currentUser) return;
     try {
       if (editingId) {
-        // 기존 항목 수정
         await updateDoc(doc(db, "campaigns", editingId), {
           storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
           status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
@@ -1997,7 +1978,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         alert('수정되었습니다!');
       } else {
-        // [개선] 모바일 상단 새 체험 추가
         await addDoc(collection(db, "campaigns"), {
           userId: currentUser.uid,
           storeName: document.getElementById('editStoreName')?.value || '',
