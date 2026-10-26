@@ -17,24 +17,16 @@
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
     ::-webkit-scrollbar-track { background: transparent; }
 
-    /* 1. 일반 슬림폰 (아이폰 기본, 일반 갤럭시 등 가로 429px 이하) */
+    /* 1. 일반 슬림폰 (~ 429px) */
     @media (max-width: 429px) {
-      #sectionDashboard,
-      #sectionForm,
-      #sectionList,
-      #sectionSettlement,
-      #sectionSettings {
+      #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
         padding-bottom: 80px !important;
       }
     }
 
-    /* 2. 폴드 와이드 커버 화면 (가로 430px ~ 767px) */
+    /* 2. 폴드 와이드 커버 화면 (430px ~ 767px) */
     @media (min-width: 430px) and (max-width: 767px) {
-      #sectionDashboard,
-      #sectionForm,
-      #sectionList,
-      #sectionSettlement,
-      #sectionSettings {
+      #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
         padding-bottom: 160px !important;
       }
     }
