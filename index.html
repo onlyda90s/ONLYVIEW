@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 모달 및 숨김 요소가 화면 터치를 가로막지 않도록 보장 */
+    /* 미오픈 모달이 화면 터치/클릭을 가로막지 않도록 보장 */
     .hidden { display: none !important; }
 
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -51,7 +51,7 @@
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal bg-main">
 
-  <!-- 로그인 화면 -->
+  <!-- 로그인 화면 (relative z-10으로 터치 및 클릭 최우선 확보) -->
   <div id="authSection" class="relative z-10 min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
     <div class="text-center space-y-3 mb-10">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
@@ -191,7 +191,7 @@
         </div>
       </div>
 
-      <!-- 2. 체험단 등록 탭 (기존 4개 상태 및 자동 숨김 유지) -->
+      <!-- 2. 체험단 등록 탭 -->
       <div id="sectionForm" class="hidden space-y-3.5 sm:space-y-4 w-full max-w-full">
         <div class="flex items-center h-9 sm:h-10 shrink-0"><h2 class="text-xl sm:text-2xl font-black text-theme">체험단 등록</h2></div>
         <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 sm:space-y-5">
@@ -509,7 +509,7 @@
     </main>
   </div>
 
-  <!-- 공통 모달 -->
+  <!-- 공통 모달 (인라인 style="display: none;"으로 미오픈 시 화면 터치 차단 원천 방지) -->
   <div id="dayModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-5 md:p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3"><h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3><button id="closeModalBtn" type="button" onclick="window.closeModal('dayModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -517,7 +517,7 @@
     </div>
   </div>
 
-  <!-- [원복 완료] 등록 모달: 4개 상태 및 자동 숨김/표시 -->
+  <!-- 등록 모달: 상태 4개, 항목 자동 숨김 적용 (원복 완료) -->
   <div id="dashRegisterModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" type="button" onclick="window.closeDashRegisterModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -562,13 +562,10 @@
     </div>
   </div>
 
-  <!-- [유지] 수정 모달: 7개 상태 + 사이트 칩 편집 + 삭제 버튼 + 신규/수정 공용 -->
+  <!-- 수정 모달: 상태 7개, 사이트 칩 적용, 삭제 버튼 포함 (유지) -->
   <div id="editModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="editModalTitle" class="font-bold text-base text-gray-900">체험 정보 수정</h3>
-        <button id="closeEditModalBtn" type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button>
-      </div>
+      <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
       <form id="editForm" class="space-y-4 text-sm">
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
           <div class="flex flex-wrap gap-1.5">
@@ -602,8 +599,8 @@
         <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea></div>
         <div class="flex gap-2 pt-2 border-t border-gray-100">
-          <button type="button" id="editModalDeleteBtn" onclick="window.deleteCampaignFromModal()" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">삭제하기</button>
-          <button type="submit" id="editModalSubmitBtn" class="w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
+          <button type="button" onclick="window.deleteCampaignFromModal()" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">삭제하기</button>
+          <button type="submit" class="w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
         </div>
       </form>
     </div>
@@ -635,6 +632,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261026_final_combined"></script>
+  <!-- 캐시 갱신을 위해 최신 쿼리스트링 부여 -->
+  <script type="module" src="js/app.js?v=20261026_final_v3"></script>
 </body>
 </html>
