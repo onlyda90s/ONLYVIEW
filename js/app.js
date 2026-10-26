@@ -230,7 +230,7 @@ try {
   applyThemeCSS('slate');
 }
 
-// 안전한 모달 열기/닫기 (display 스타일 직접 제어로 화면 가림 원천 차단)
+// 안전한 모달 열기/닫기
 window.openModal = function(id) {
   const el = document.getElementById(id);
   if (el) {
@@ -753,7 +753,7 @@ function renderPlatformChips() {
   render(modalContainer, true);
 }
 
-// 수정 모달 전용 사이트 칩 렌더러
+// [유지] 수정 모달 전용 사이트 칩 렌더러
 function renderEditPlatformChips() {
   const container = document.getElementById('editPlatformChipsContainer');
   if (!container) return;
@@ -800,7 +800,7 @@ function updateDeadlineButtons() {
   });
 }
 
-// 등록 모달 열기 시 기본값 '신청' 세팅 및 자동 숨김 반영
+// 대시보드 등록 버튼 클릭 시 열리는 기본 등록 모달
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
@@ -812,6 +812,32 @@ window.openDashRegisterModal = function() {
   window.openModal('dashRegisterModal');
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
+
+// [신규 기능] 모바일 체험단 목록에서 수정 모드일 때 '+ 새 체험 추가'를 누르면 열리는 수정 모달 서식
+window.openNewCampaignFromModal = function() {
+  if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
+  editingId = null;
+  document.getElementById('editForm')?.reset();
+
+  const titleEl = document.querySelector('#editModal h3');
+  if (titleEl) titleEl.innerText = "새 체험 등록";
+
+  const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
+  if (delBtn) delBtn.classList.add('hidden');
+
+  const submitBtn = document.querySelector('#editModal button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
+    submitBtn.innerText = "등록하기";
+  }
+
+  window.setEditStatusBtn('선정');
+  const pInput = document.getElementById('editPlatformName');
+  if (pInput) pInput.value = '개별';
+  renderEditPlatformChips();
+
+  window.openModal('editModal');
+};
 
 window.handleSort = function(col) {
   if (sortColumn === col) sortAsc = !sortAsc;
@@ -910,12 +936,25 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// 수정 모달: 7개 상태 + 사이트 칩 선택 연동
+// 수정 모달 열기: 기존 항목 수정
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
   if (!item) return;
   editingId = id;
+  
+  const titleEl = document.querySelector('#editModal h3');
+  if (titleEl) titleEl.innerText = "체험 정보 수정";
+
+  const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
+  if (delBtn) delBtn.classList.remove('hidden');
+
+  const submitBtn = document.querySelector('#editModal button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.className = "w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
+    submitBtn.innerText = "수정 저장하기";
+  }
+
   const setVal = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val; };
   setVal('editStoreName', item.storeName || '');
   setVal('editPlatformName', item.platformName || '개별');
@@ -934,7 +973,7 @@ window.openEditModalFromId = function(id) {
   window.openModal('editModal');
 };
 
-// 엑셀 내보내기 모달 및 다운로드 (전체 누적 옵션 완전 배제)
+// 엑셀 내보내기 모달 및 다운로드
 window.openExcelExportModal = function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   
@@ -1291,11 +1330,11 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // 모바일 수정 모드일 때: 최상단에 '+ 새 체험 추가' 버튼 고정 배치
+  // 모바일 수정 모드일 때: 최상단에 '+ 새 체험 추가' 버튼 배치 (수정 모달 형식 호출)
   if (isBatchEditing) {
     const mobileAddBox = document.createElement('div');
     mobileAddBox.className = 'pb-1';
-    mobileAddBox.innerHTML = '<button type="button" onclick="window.openDashRegisterModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">+ 새 체험 추가</button>';
+    mobileAddBox.innerHTML = '<button type="button" onclick="window.openNewCampaignFromModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">+ 새 체험 추가</button>';
     cardList?.appendChild(mobileAddBox);
   }
 
@@ -1911,7 +1950,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
@@ -1920,20 +1959,46 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) { alert(err.message); }
   });
 
+  // editForm 제출 핸들러 (신규 등록 및 기존 항목 수정 분기 처리)
   document.getElementById('editForm')?.addEventListener('submit', async e => {
     e.preventDefault();
-    if (isReadOnly || !currentUser || !editingId) return;
+    if (isReadOnly || !currentUser) return;
     try {
-      await updateDoc(doc(db, "campaigns", editingId), {
-        storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
-        status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-        companions: document.getElementById('editCompanions')?.value || '',
-        sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
-        contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
-      });
-      alert('수정되었습니다!'); window.closeModal('editModal'); editingId = null; await loadCampaigns(); } catch (err) { alert(err.message); }
+      if (editingId) {
+        await updateDoc(doc(db, "campaigns", editingId), {
+          storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
+          status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
+          visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
+          companions: document.getElementById('editCompanions')?.value || '',
+          sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+          paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
+          contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
+        });
+        alert('수정되었습니다!');
+      } else {
+        await addDoc(collection(db, "campaigns"), {
+          userId: currentUser.uid,
+          storeName: document.getElementById('editStoreName')?.value || '',
+          platformName: document.getElementById('editPlatformName')?.value || '개별',
+          status: editSelectedStatus,
+          applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
+          deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
+          visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''),
+          visitTime: document.getElementById('editVisitTime')?.value || '',
+          companions: document.getElementById('editCompanions')?.value || '',
+          sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
+          paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value),
+          revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
+          contact: document.getElementById('editContact')?.value || '',
+          memo: document.getElementById('editMemo')?.value || '',
+          createdAt: serverTimestamp()
+        });
+        alert('등록되었습니다!');
+      }
+      window.closeModal('editModal');
+      editingId = null;
+      await loadCampaigns();
+    } catch (err) { alert(err.message); }
   });
 
   document.getElementById('editCodeBtn')?.addEventListener('click', async () => {
