@@ -17,17 +17,24 @@
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
     ::-webkit-scrollbar-track { background: transparent; }
 
-    /* 1. 슬림폰 (아이폰 일반, 일반 갤럭시 등 가로 429px 이하) */
+    /* 1. 슬림폰 (~ 429px) */
     @media (max-width: 429px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
-        padding-bottom: 80px !important; /* 👈 슬림폰 80px */
+        padding-bottom: 80px !important;
       }
     }
 
-    /* 2. 폴드 와이드 커버 화면 (가로 430px ~ 767px) */
+    /* 2. 폴드 와이드 커버 화면 (430px ~ 767px) */
     @media (min-width: 430px) and (max-width: 767px) {
       #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
-        padding-bottom: 160px !important; /* 👈 폴드 와이드 160px */
+        padding-bottom: 160px !important;
+      }
+    }
+
+    /* 3. 폴드 펼침 대화면 및 태블릿 (가로 768px 이상) 👈 추가 */
+    @media (min-width: 768px) {
+      #sectionDashboard, #sectionForm, #sectionList, #sectionSettlement, #sectionSettings {
+        padding-bottom: 70px !important; /* 👈 바닥 카드 짤림 방지용 여백 (필요 시 조절 가능) */
       }
     }
   </style>
@@ -57,7 +64,7 @@
   </div>
 
   <!-- 메인 앱 화면 -->
-  <div id="appSection" class="hidden h-screen w-full flex-col lg:flex-row overflow-hidden relative">
+  <div id="appSection" class="hidden h-[100dvh] w-full flex-col lg:flex-row overflow-hidden relative">
     
     <!-- 데스크톱 사이드바 -->
     <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-[100dvh] transition-all duration-200 relative z-10 overflow-y-auto">
@@ -127,7 +134,7 @@
     </nav>
 
     <!-- 메인 단일 스크롤 뷰포트 -->
-    <main class="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 pb-2 lg:pb-8 space-y-3.5 sm:space-y-4 h-screen overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
+   <main class="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 pb-2 lg:pb-8 space-y-3.5 sm:space-y-4 h-[100dvh] overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
       <!-- 1. 대시보드 탭 -->
