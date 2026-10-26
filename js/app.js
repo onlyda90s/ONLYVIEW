@@ -794,6 +794,20 @@ window.deleteCampaign = async function(id) {
   try { await deleteDoc(doc(db, "campaigns", id)); alert("삭제되었습니다."); loadCampaigns(); } catch (err) { alert("삭제 실패: " + err.message); }
 };
 
+window.deleteCampaignFromModal = async function() {
+  if (isReadOnly || !editingId) return alert("읽기 전용 모드에서는 삭제할 수 없습니다.");
+  if (!confirm("정말 이 체험단 항목을 삭제하시겠습니까?")) return;
+  try {
+    await deleteDoc(doc(db, "campaigns", editingId));
+    alert("삭제되었습니다.");
+    document.getElementById('editModal')?.classList.add('hidden');
+    editingId = null;
+    loadCampaigns();
+  } catch (err) {
+    alert("삭제 실패: " + err.message);
+  }
+};
+
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -878,7 +892,6 @@ window.downloadExcel = async function() {
 
     // 공통 월별 블록 빌더 함수 (시트 2, 3, 4 처리)
     const buildMonthlyBlockSheet = (sName, filterMode) => {
-      // filterMode: 'completed_detail' (2번 시트), 'ongoing_full' (3번 시트), 'completed_full' (4번 시트)
       const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
       const maxCol = filterMode === 'completed_detail' ? 'H' : 'M';
       
@@ -897,7 +910,6 @@ window.downloadExcel = async function() {
           { h: '실수익', k: 'revenue', w: 14, cur: true }
         ];
       } else {
-        // 12개 컬럼 (방문일, 방문시간 2칸 분리)
         cols = [
           { h: '매장명 (업체명)', k: 'storeName', w: 22 }, { h: '진행 상태', k: 'status', w: 9 }, 
           { h: '사이트', k: 'platformName', w: 11 }, { h: '방문일', k: 'visitDate', w: 12 }, 
@@ -1160,10 +1172,17 @@ window.filterAndRender = function() {
     }
 
     const card = document.createElement('div');
-    card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 cursor-pointer hover:border-theme transition-colors w-full';
-    card.onclick = () => window.openDetailItemModal(item.id);
-    card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><span class="text-xs font-bold text-gray-900 shrink-0">${sp.toLocaleString()}원</span></div>`
-      + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div><span class="text-gray-300">›</span></div>`;
+    card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 transition-colors w-full relative';
+    
+    if (isBatchEditing) {
+      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><button onclick="window.deleteCampaign('${item.id}')" class="shrink-0 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm">삭제</button></div>`
+        + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div></div>`;
+    } else {
+      card.classList.add('cursor-pointer', 'hover:border-theme');
+      card.onclick = () => window.openDetailItemModal(item.id);
+      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><span class="text-xs font-bold text-gray-900 shrink-0">${sp.toLocaleString()}원</span></div>`
+        + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div><span class="text-gray-300">›</span></div>`;
+    }
     cardList?.appendChild(card);
   });
 
@@ -1405,7 +1424,6 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 5. 세부 내역 (2번: 전월 접힘, 3번: [매장명|제공금액|결제금액] + 하단 소계 바)
   try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
