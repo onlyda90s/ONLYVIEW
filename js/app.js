@@ -1,11 +1,3 @@
-네, 네트워크 문제로 코드가 끊겼었네요.
-모달 HTML 구조를 따로 수정하지 않으셔도 되도록, 자바스크립트 안에서 자동으로 [수정] 모드와 [상세/삭제] 버튼 노출을 제어하도록 스마트하게 코드를 모두 반영했습니다.
-적용된 모바일 쾌적화 동선:
- * 모바일 목록 화면: 우측 상단의 번거로운 [수정] 버튼은 모바일에서 숨겨지고, 대신 목록 맨 위에 상시 노출되는 초록색 [+ 새 체험 추가] 버튼이 생성됩니다.
- * 모바일 상세 모달 (dayModal): 카드를 눌러 상세 내역을 볼 때, 하단에 [삭제하기](빨강)와 [수정하기](파랑) 버튼이 나란히 뜹니다. 이제 굳이 수정창에 들어가지 않아도 바로 삭제가 가능합니다.
- * 수정/등록 전용 모달 (editModal): [수정하기]나 [+ 새 체험 추가]를 누르면 입력창이 열리는데, 이때는 오직 내용 작성에만 집중할 수 있도록 하단의 삭제 버튼을 숨기고 [저장/등록] 버튼을 가로 100%로 꽉 차게 변경합니다.
-아래 전체 코드를 복사해서 js/app.js 파일에 모두 덮어쓰기 해주시면 완벽하게 동작합니다!
-📄 js/app.js (전체 코드)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -2076,4 +2068,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
   applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
 });
-
