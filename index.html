@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- 캐시 방지 메타태그 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>온리뷰 (onlyview) - 대시보드</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -245,9 +249,9 @@
             </div>
             <!-- 모바일 전용 + 추가 버튼 -->
             <button id="mobileAddBtn" onclick="window.openNewCampaignFromModal()" class="block sm:hidden px-[18px] py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 transition-colors">+ 추가</button>
-            <!-- PC 전용 일괄 수정/저장 버튼 -->
-            <button id="saveBatchBtn" onclick="window.saveAllBatchEdits()" class="hidden sm:hidden px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 transition-colors">저장</button>
-            <button id="batchEditBtn" onclick="window.toggleBatchEdit()" class="hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-theme hover:bg-theme-hover text-white shadow-sm shrink-0 transition-colors">수정</button>
+            <!-- PC/태블릿 전용 일괄 수정 및 저장 버튼 -->
+            <button id="saveBatchBtn" onclick="window.saveAllBatchEdits()" style="display: none;" class="px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 transition-colors">저장</button>
+            <button id="batchEditBtn" onclick="window.toggleBatchEdit()" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-theme hover:bg-theme-hover text-white shadow-sm shrink-0 transition-colors">수정</button>
           </div>
         </div>
 
@@ -519,6 +523,7 @@
     </div>
   </div>
 
+  <!-- 등록 모달 -->
   <div id="dashRegisterModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" type="button" onclick="window.closeDashRegisterModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -563,7 +568,7 @@
     </div>
   </div>
 
-  <!-- 수정 모달 -->
+  <!-- 수정 모달 (삭제 버튼 제거, 수정 저장하기 100% 단독 배치) -->
   <div id="editModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -599,9 +604,9 @@
         </div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea></div>
-        <div class="flex gap-2 pt-2 border-t border-gray-100">
-          <button type="button" onclick="window.deleteCampaignFromModal()" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">삭제하기</button>
-          <button type="submit" class="w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
+        <!-- 수정 저장하기 단독 100% 버튼 배치 -->
+        <div class="pt-2 border-t border-gray-100">
+          <button type="submit" class="w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
         </div>
       </form>
     </div>
@@ -632,6 +637,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261026_fixed_final"></script>
+  <script type="module" src="js/app.js?v=20261026_clean_v6"></script>
 </body>
 </html>
