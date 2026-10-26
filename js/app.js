@@ -1,3 +1,11 @@
+네, 네트워크 문제로 코드가 끊겼었네요.
+모달 HTML 구조를 따로 수정하지 않으셔도 되도록, 자바스크립트 안에서 자동으로 [수정] 모드와 [상세/삭제] 버튼 노출을 제어하도록 스마트하게 코드를 모두 반영했습니다.
+적용된 모바일 쾌적화 동선:
+ * 모바일 목록 화면: 우측 상단의 번거로운 [수정] 버튼은 모바일에서 숨겨지고, 대신 목록 맨 위에 상시 노출되는 초록색 [+ 새 체험 추가] 버튼이 생성됩니다.
+ * 모바일 상세 모달 (dayModal): 카드를 눌러 상세 내역을 볼 때, 하단에 [삭제하기](빨강)와 [수정하기](파랑) 버튼이 나란히 뜹니다. 이제 굳이 수정창에 들어가지 않아도 바로 삭제가 가능합니다.
+ * 수정/등록 전용 모달 (editModal): [수정하기]나 [+ 새 체험 추가]를 누르면 입력창이 열리는데, 이때는 오직 내용 작성에만 집중할 수 있도록 하단의 삭제 버튼을 숨기고 [저장/등록] 버튼을 가로 100%로 꽉 차게 변경합니다.
+아래 전체 코드를 복사해서 js/app.js 파일에 모두 덮어쓰기 해주시면 완벽하게 동작합니다!
+📄 js/app.js (전체 코드)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -230,7 +238,7 @@ try {
   applyThemeCSS('slate');
 }
 
-// 안전한 모달 열기/닫기
+// 안전한 모달 제어 함수 (display 직접 제어로 모바일 터치 가림 원천 차단)
 window.openModal = function(id) {
   const el = document.getElementById(id);
   if (el) {
@@ -596,7 +604,7 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// [원복 완료] 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
+// 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시 (원복)
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -626,7 +634,7 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// [원복 완료] 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
+// 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시 (원복)
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -656,7 +664,7 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// [유지] 수정 모달 7개 상태 버튼 제어
+// 수정 모달 7개 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -753,7 +761,6 @@ function renderPlatformChips() {
   render(modalContainer, true);
 }
 
-// [유지] 수정 모달 전용 사이트 칩 렌더러
 function renderEditPlatformChips() {
   const container = document.getElementById('editPlatformChipsContainer');
   if (!container) return;
@@ -800,7 +807,6 @@ function updateDeadlineButtons() {
   });
 }
 
-// 대시보드 등록 버튼 클릭 시 열리는 기본 등록 모달
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
@@ -813,7 +819,7 @@ window.openDashRegisterModal = function() {
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-// [신규 기능] 모바일 체험단 목록에서 수정 모드일 때 '+ 새 체험 추가'를 누르면 열리는 수정 모달 서식
+// [개선] 모바일 목록 상단 [+ 새 체험 추가] 전용 (수정 모달 활용)
 window.openNewCampaignFromModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   editingId = null;
@@ -822,9 +828,11 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
+  // 신규 등록이므로 삭제 버튼 숨김
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.classList.add('hidden');
 
+  // 등록 버튼을 가로 전체로 꽉 채움
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -936,7 +944,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// 수정 모달 열기: 기존 항목 수정
+// [개선] 기존 항목 수정용 모달 세팅
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -946,6 +954,7 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
+  // 삭제 버튼과 수정 저장 버튼을 함께 배치 (기존 구조)
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.classList.remove('hidden');
 
@@ -1287,14 +1296,15 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
+  // [개선] PC에서는 수정/취소 버튼 노출, 모바일에서는 숨김 (모바일은 개별 카드 탭으로 수정)
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
-      batchBtn.className = "px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
+      batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
       batchBtn.innerText = "취소";
-      saveBatchBtn.className = "px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 text-white shadow-sm shrink-0 hover:bg-emerald-700 cursor-pointer";
+      saveBatchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600 text-white shadow-sm shrink-0 hover:bg-emerald-700 cursor-pointer";
       saveBatchBtn.classList.remove('hidden');
     } else {
-      batchBtn.className = "px-3.5 py-2 rounded-xl font-bold text-xs bg-theme text-white shadow-sm shrink-0 hover:bg-theme-hover cursor-pointer";
+      batchBtn.className = "hidden sm:block px-3.5 py-2 rounded-xl font-bold text-xs bg-theme text-white shadow-sm shrink-0 hover:bg-theme-hover cursor-pointer";
       batchBtn.innerText = "수정";
       saveBatchBtn.classList.add('hidden');
     }
@@ -1330,15 +1340,15 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // 모바일 수정 모드일 때: 최상단에 '+ 새 체험 추가' 버튼 배치 (수정 모달 형식 호출)
-  if (isBatchEditing) {
+  // [개선] 모바일: 테이블 수정 버튼이 없어진 대신, [+ 새 체험 추가] 버튼 상시 최상단 배치
+  if (!isReadOnly && cardList) {
     const mobileAddBox = document.createElement('div');
     mobileAddBox.className = 'pb-1';
     mobileAddBox.innerHTML = '<button type="button" onclick="window.openNewCampaignFromModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">+ 새 체험 추가</button>';
-    cardList?.appendChild(mobileAddBox);
+    cardList.appendChild(mobileAddBox);
   }
 
-  // PC/태블릿 수정 모드일 때: 테이블 최상단에 '+ 새 체험 추가' 버튼 및 새 입력 행 배치
+  // PC/태블릿: 일괄 수정 모드일 때 최상단에 '+ 새 체험 추가' 입력 행 배치
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
@@ -1409,32 +1419,34 @@ window.filterAndRender = function() {
     const card = document.createElement('div');
     card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 transition-colors w-full relative';
     
-    if (isBatchEditing) {
-      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><button type="button" onclick="event.stopPropagation(); window.deleteCampaign('${item.id}')" class="shrink-0 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-colors cursor-pointer">삭제</button></div>`
-        + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2"><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span><span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div></div>`;
-    } else {
-      // 모바일 카드에서 수정 모드 없이 바로 상태를 변경할 수 있는 미니 드롭다운 배치
-      const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs">
-        <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
-        <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
-        <option value="방문" ${effSt==='방문'?'selected':''}>방문</option>
-        <option value="미제출" ${effSt==='미제출'?'selected':''}>미제출</option>
-        <option value="제출" ${effSt==='제출'?'selected':''}>제출</option>
-        <option value="배송" ${effSt==='배송'?'selected':''}>배송</option>
-        <option value="원고료" ${effSt==='원고료'?'selected':''}>원고료</option>
-      </select>`;
+    // 모바일 카드에서 수정 모드 없이 바로 상태를 변경할 수 있는 미니 드롭다운 배치
+    const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs">
+      <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
+      <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
+      <option value="방문" ${effSt==='방문'?'selected':''}>방문</option>
+      <option value="미제출" ${effSt==='미제출'?'selected':''}>미제출</option>
+      <option value="제출" ${effSt==='제출'?'selected':''}>제출</option>
+      <option value="배송" ${effSt==='배송'?'selected':''}>배송</option>
+      <option value="원고료" ${effSt==='원고료'?'selected':''}>원고료</option>
+    </select>`;
 
-      card.classList.add('cursor-pointer', 'hover:border-theme');
-      card.onclick = () => window.openDetailItemModal(item.id);
-      card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><span class="text-xs font-bold text-gray-900 shrink-0">${sp.toLocaleString()}원</span></div>`
-        + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2">${mobileCardStatusSelect}<span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div><span class="text-gray-300">›</span></div>`;
-    }
+    card.classList.add('cursor-pointer', 'hover:border-theme');
+    card.onclick = () => window.openDetailItemModal(item.id);
+    card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><span class="text-xs font-bold text-gray-900 shrink-0">${sp.toLocaleString()}원</span></div>`
+      + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2">${mobileCardStatusSelect}<span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div><span class="text-gray-300">›</span></div>`;
+    
     cardList?.appendChild(card);
   });
 
   if (filtered.length === 0 && !isBatchEditing) {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-8 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
-    if (cardList) cardList.innerHTML = '<div class="bg-white p-8 rounded-2xl border border-gray-100 text-center text-gray-400 text-xs font-normal shadow-sm">조건에 해당하는 체험단이 없습니다.</div>';
+    // 새 체험 추가 버튼이 이미 삽입되어 있으므로, 그 아래에 텍스트 표시
+    if (cardList) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'bg-white p-8 rounded-2xl border border-gray-100 text-center text-gray-400 text-xs font-normal shadow-sm mt-2';
+      emptyMsg.innerText = '조건에 해당하는 체험단이 없습니다.';
+      cardList.appendChild(emptyMsg);
+    }
   }
 };
 
@@ -1792,13 +1804,30 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
+// [개선 반영] 상세 정보 팝업에 삭제버튼과 수정버튼을 함께 노출
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
   document.getElementById('modalDateTitle').innerText = `${item.storeName} 상세 정보`;
   const mList = document.getElementById('modalItemList');
   if (mList) {
-    mList.innerHTML = `<div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm"><div class="flex justify-between items-center border-b pb-2"><span class="text-sm font-bold text-gray-900">${item.storeName}</span><span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span></div><div class="grid grid-cols-2 gap-2 text-gray-600"><div>체험단: <span class="font-normal text-gray-800">${item.platformName || '-'}</span></div><div>신청일: <span class="font-normal text-gray-800">${formatCleanDate(item.applyDate) || '-'}</span></div><div>방문일시: <span class="font-normal text-gray-800">${formatCleanDate(item.visitDate) || '미정'}</span></div><div>마감일: <span class="font-normal text-gray-800">${formatCleanDate(item.deadlineDate) || '미정'}</span></div><div>제공금액: <span class="font-normal text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div><div>결제금액: <span class="font-normal text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div></div>` + (!isReadOnly ? `<button onclick="window.closeModal('dayModal'); window.openEditModalFromId('${item.id}');" class="w-full bg-theme text-white py-2.5 rounded-xl font-bold mt-2 cursor-pointer">수정하기</button>` : '') + `</div>`;
+    mList.innerHTML = `<div class="p-4 bg-white rounded-2xl border border-gray-100 space-y-3 text-xs shadow-sm">
+      <div class="flex justify-between items-center border-b pb-2">
+        <span class="text-sm font-bold text-gray-900">${item.storeName}</span>
+        <span style="color:${window.getStatusColor(effSt)};" class="font-bold">${displayStatusName(effSt)}</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-gray-600">
+        <div>체험단: <span class="font-normal text-gray-800">${item.platformName || '-'}</span></div>
+        <div>신청일: <span class="font-normal text-gray-800">${formatCleanDate(item.applyDate) || '-'}</span></div>
+        <div>방문일시: <span class="font-normal text-gray-800">${formatCleanDate(item.visitDate) || '미정'}</span></div>
+        <div>마감일: <span class="font-normal text-gray-800">${formatCleanDate(item.deadlineDate) || '미정'}</span></div>
+        <div>제공금액: <span class="font-normal text-gray-800">${Number(item.sponsoredAmount || 0).toLocaleString()}원</span></div>
+        <div>결제금액: <span class="font-normal text-gray-800">${Number(item.paidAmount || 0).toLocaleString()}원</span></div>
+      </div>` 
+      + (!isReadOnly ? `<div class="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+          <button onclick="window.deleteCampaign('${item.id}')" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">삭제하기</button>
+          <button onclick="window.closeModal('dayModal'); window.openEditModalFromId('${item.id}');" class="w-2/3 bg-theme bg-theme-hover text-white py-3 rounded-xl font-bold transition-colors cursor-pointer text-xs">수정하기</button>
+        </div>` : '') + `</div>`;
   }
   window.openModal('dayModal');
 };
@@ -1950,21 +1979,21 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
       });
-      alert('등록되었습니다!'); window.closeDashRegisterModal(); loadCampaigns();
+      alert('등록되었습니다!'); window.closeModal('dashRegisterModal'); loadCampaigns();
     } catch (err) { alert(err.message); }
   });
 
-  // editForm 제출 핸들러 (신규 등록 및 기존 항목 수정 분기 처리)
   document.getElementById('editForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     if (isReadOnly || !currentUser) return;
     try {
       if (editingId) {
+        // 기존 항목 수정
         await updateDoc(doc(db, "campaigns", editingId), {
           storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
           status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
@@ -1976,6 +2005,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         alert('수정되었습니다!');
       } else {
+        // [개선] 모바일 상단 새 체험 추가
         await addDoc(collection(db, "campaigns"), {
           userId: currentUser.uid,
           storeName: document.getElementById('editStoreName')?.value || '',
@@ -1996,8 +2026,8 @@ document.addEventListener("DOMContentLoaded", () => {
         alert('등록되었습니다!');
       }
       window.closeModal('editModal');
-      editingId = null;
-      await loadCampaigns();
+      editingId = null; 
+      await loadCampaigns(); 
     } catch (err) { alert(err.message); }
   });
 
@@ -2046,3 +2076,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
 });
+
