@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,12 +17,8 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  // 팝업-부모창 간 토큰 유실을 방지하기 위해 로컬 영구 저장소 사용
-  setPersistence(auth, browserLocalPersistence).catch(e => console.error(e));
-} catch (e) {
-  console.error("Firebase 초기화 에러:", e);
-}
+  setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
+} catch (e) { console.error("Firebase 초기화 에러:", e); }
 
 let autoLogoutTimer;
 function resetAutoLogoutTimer() {
@@ -43,7 +39,7 @@ let isSettlementShared = localStorage.getItem('onlyview_shareSettlement') === 't
 let rawCampaignList = [], isBatchEditing = false, listSubTab = 'ongoing', settlementSubTab = 'report', isFilterExpanded = false, newBatchRows = [];
 let yearlyChartInstance = null, monthlyChartInstance = null, monthlyAnalysisChartInstance = null;
 let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
-let monthlyDetailsCollapseState = {};
+let monthlyDetailsCollapseState = {}; 
 let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none';
 let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true';
 let myCustomCode = localStorage.getItem('onlyview_customCode') || "";
@@ -68,13 +64,9 @@ try {
 } catch(e) {}
 
 const customStatusColors = {
-  apply: savedColors.apply || '#6B7280',
-  select: savedColors.select || '#111827',
-  visit: savedColors.visit || '#F4A261',
-  unsubmitted: savedColors.unsubmitted || '#E63946',
-  submit: savedColors.submit || '#059669',
-  delivery: savedColors.delivery || '#2563EB',
-  fee: savedColors.fee || '#9333EA'
+  apply: savedColors.apply || '#6B7280', select: savedColors.select || '#111827',
+  visit: savedColors.visit || '#F4A261', unsubmitted: savedColors.unsubmitted || '#E63946',
+  submit: savedColors.submit || '#059669', delivery: savedColors.delivery || '#2563EB', fee: savedColors.fee || '#9333EA'
 };
 
 let currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default';
@@ -95,7 +87,6 @@ const chartStylePalettes = {
     ink: { highlight: '#20242B', main: '#53575D', pending: '#AAABAF' }
   }
 };
-
 const themeColors = {
   slate: { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333' },
   terracotta: { primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333' },
@@ -283,31 +274,6 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
-async function loadTargetUserSettings(uid) {
-  if (!uid || !db) return;
-  try {
-    const userSnap = await getDoc(doc(db, "users", uid));
-    if (userSnap.exists()) {
-      const d = userSnap.data();
-      if (d.statusColors) { 
-        Object.assign(customStatusColors, d.statusColors); 
-        localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
-        applyStatusCSSColors(); 
-        renderStatusColorPickers(); 
-      }
-      if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
-        platformList = d.platforms;
-        localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
-        renderPlatformChips();
-      }
-      if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
-      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
-      if (d.deadlineAlertDays) { deadlineAlertDays = d.deadlineAlertDays; updateDeadlineButtons(); }
-    }
-  } catch (err) { console.error("설정 동기화 실패:", err); }
-}
-
-// 사용자 로그인 성공 후 대시보드 화면 전환을 100% 보장하는 공통 핸들러
 async function handleUserLoggedIn(user) {
   if (!user) return;
   currentUser = user;
@@ -339,10 +305,8 @@ window.loginWithGoogle = async function() {
       return alert("인앱 브라우저에서는 구글 정책상 로그인이 제한됩니다. Safari 또는 Chrome 등 정식 브라우저로 접속해 주세요.");
     }
     
-    // 팝업 로그인 실행
     const cred = await signInWithPopup(auth, provider);
     if (cred && cred.user) {
-      // 팝업 종료 즉시 부모창을 대시보드로 직접 진입
       await handleUserLoggedIn(cred.user);
     }
   } catch (err) {
@@ -858,7 +822,7 @@ window.openEditModalFromId = function(id) {
   document.getElementById('editModal')?.classList.remove('hidden');
 };
 
-// 4개 시트(대시보드, 정산 세부 내역, 진행중 체험단, 완료 체험단) 완전 복원
+// 4개 시트 완전 복원 엑셀 다운로드 (대시보드 / 정산 세부 내역 / 진행중 체험단 / 완료 체험단)
 window.downloadExcel = async function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   if (typeof ExcelJS === 'undefined') return alert("엑셀 모듈 로딩 중입니다.");
@@ -918,7 +882,7 @@ window.downloadExcel = async function() {
     sh1.columns = [{ width: 4 }, { width: 15 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 18 }];
 
     // 공통 시트 빌더 함수
-    const buildSheet = (sName, items) => {
+    const buildSheet = (sName, items, isDetail = false) => {
       const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
       const hds = [ { h: '매장명', k: 'storeName', w: 24 }, { h: '상태', k: 'status', w: 10 }, { h: '사이트', k: 'platformName', w: 12 }, { h: '방문일', k: 'visitDate', w: 12 }, { h: '마감일', k: 'deadlineDate', w: 12 }, { h: '제공금액', k: 'sponsoredAmount', w: 14 }, { h: '결제금액', k: 'paidAmount', w: 14 }, { h: '실수익', k: 'revenue', w: 14 }, { h: '비고', k: 'memo', w: 20 } ];
       const hr = sh.getRow(1); hr.height = 24;
@@ -933,8 +897,65 @@ window.downloadExcel = async function() {
       sh.columns = hds.map(h => ({ width: h.w }));
     };
 
-    // 2. 정산 세부 내역 (완료된 건 정렬)
-    buildSheet('정산 세부 내역', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료').sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || '')));
+    // 2. 정산 세부 내역 (완료된 건 정렬 및 월별 소계 처리)
+    const detailSheet = wb.addWorksheet('정산 세부 내역', { views: [{ showGridLines: true }] });
+    detailSheet.mergeCells('B2:H2');
+    const dTitle = detailSheet.getCell('B2'); dTitle.value = '월별 정산 세부 내역 (1월 ~ 12월)'; dTitle.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } }; dTitle.alignment = { vertical: 'middle', horizontal: 'left' }; detailSheet.getRow(2).height = 24;
+    detailSheet.getCell('B3').value = `* 완료된(제출) 체험단의 월별 세부 정산 내역입니다.`; detailSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } }; detailSheet.getRow(3).height = 18;
+
+    let dRowIdx = 5;
+    for (let m = 1; m <= 12; m++) {
+      const mItems = rawCampaignList.filter(item => {
+        const effSt = getEffectiveStatus(item); if (effSt !== '제출' && effSt !== '완료') return false;
+        const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
+        if (!refDate || refDate.length < 7) return false; return parseInt(refDate.slice(5, 7)) === m;
+      }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
+
+      const mCount = mItems.length; let mTotalRev = 0;
+      mItems.forEach(item => { const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const rev = Number(item.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); });
+
+      detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+      const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
+      mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`; mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } }; mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; mHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } }; detailSheet.getRow(dRowIdx).height = 24; dRowIdx++;
+
+      const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
+      mCols.forEach((colName, cIdx) => {
+        const colLetter = String.fromCharCode(66 + cIdx); const c = detailSheet.getCell(`${colLetter}${dRowIdx}`);
+        c.value = colName; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
+      });
+      detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
+
+      if (mCount === 0) {
+        detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+        const emptyCell = detailSheet.getCell(`B${dRowIdx}`); emptyCell.value = '해당 월에 완료된 정산 내역이 없습니다.'; emptyCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; emptyCell.alignment = { vertical: 'middle', horizontal: 'center' }; emptyCell.border = borderStyle; detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
+      } else {
+        const startItemRow = dRowIdx;
+        mItems.forEach(item => {
+          const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const inputRev = Number(item.revenue || 0);
+          const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
+          const r = detailSheet.getRow(dRowIdx); r.height = 19;
+          r.getCell(2).value = item.storeName || ''; r.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
+          r.getCell(3).value = item.platformName || '개별'; r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(4).value = formatCleanDate(item.visitDate) || '-'; r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(5).value = formatCleanDate(item.deadlineDate) || '-'; r.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
+          r.getCell(6).value = sp; r.getCell(6).numFmt = '#,##0"원"'; r.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+          r.getCell(7).value = pd; r.getCell(7).numFmt = '#,##0"원"'; r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+          r.getCell(8).value = calcRev; r.getCell(8).numFmt = '#,##0"원"'; r.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+          for (let c = 2; c <= 8; c++) { r.getCell(c).font = { name: '맑은 고딕', size: 9.5 }; r.getCell(c).border = borderStyle; }
+          dRowIdx++;
+        });
+        const subTotalRow = detailSheet.getRow(dRowIdx); subTotalRow.height = 21; detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
+        subTotalRow.getCell(2).value = `${m}월 소계`; subTotalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+        subTotalRow.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 1})` }; subTotalRow.getCell(6).numFmt = '#,##0"원"'; subTotalRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
+        subTotalRow.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 1})` }; subTotalRow.getCell(7).numFmt = '#,##0"원"'; subTotalRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+        subTotalRow.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 1})` }; subTotalRow.getCell(8).numFmt = '#,##0"원"'; subTotalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+        for (let c = 2; c <= 8; c++) { subTotalRow.getCell(c).font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF1F2937' } }; subTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; subTotalRow.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'double' } }; }
+        dRowIdx++;
+      }
+      dRowIdx++;
+    }
+    detailSheet.columns = [ { width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 } ];
+
     // 3. 진행중 체험단 (미완료 건)
     buildSheet('진행중 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) !== '제출' && getEffectiveStatus(c) !== '완료'));
     // 4. 완료 체험단
@@ -1212,7 +1233,6 @@ window.renderSettlementView = function() {
     }
   }
 
-  // 1. 연간 도넛 차트
   try {
     const ctxY = document.getElementById('yearlyDonutChart')?.getContext('2d');
     if (ctxY) {
@@ -1225,7 +1245,6 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 2. 월간 막대 차트
   try {
     let maxRevVal = 0, maxMonthIdx = 0;
     monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
@@ -1244,7 +1263,6 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 3. 월간 분석 꺾은선 차트
   try {
     let maxCountVal = 0, maxCountMonthIdx = 0;
     monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
@@ -1263,7 +1281,6 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 4. 플랫폼 분석
   try {
     const pLeft = document.getElementById('platformColLeft'), pRight = document.getElementById('platformColRight');
     if (pLeft && pRight) {
@@ -1290,7 +1307,6 @@ window.renderSettlementView = function() {
     }
   } catch(e) {}
 
-  // 5. 세부 내역
   try {
     const mGrid = document.getElementById('monthlyDetailsGrid');
     if (mGrid) {
@@ -1496,12 +1512,11 @@ async function fetchUserCustomCode() {
         renderPlatformChips();
       }
       if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
-      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
+      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); }
       if (d.statusColors) { 
         Object.assign(customStatusColors, d.statusColors); 
         localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
         applyStatusCSSColors(); 
-        renderStatusColorPickers(); 
       }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1533,7 +1548,6 @@ async function loadCampaigns() {
   } catch (e) { console.error("데이터 로드 실패:", e); }
 }
 
-// 페이지 새로고침 시 기존 로그인 세션을 감지하여 자동 복원
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     if (!currentUser || currentUser.uid !== user.uid) {
