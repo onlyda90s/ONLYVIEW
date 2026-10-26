@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -11,13 +11,19 @@ const firebaseConfig = {
   appId: "1:110107089396:web:a0670b16ce10655c2481a1"
 };
 
+// ==========================================
+// 엑셀 출력 모드 설정 (1: 1안 단일표, 2: 2안 월별블록+소계)
+// ==========================================
+const EXCEL_MODE = 2; 
+
 let app, auth, db, provider;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
-  setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
+  provider.setCustomParameters({ prompt: 'select_account' });
+  setPersistence(auth, browserLocalPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
 let autoLogoutTimer;
@@ -29,7 +35,7 @@ function resetAutoLogoutTimer() {
       alert("2시간 동안 활동이 없어 안전하게 자동 로그아웃 되었습니다.");
       window.location.reload();
     }
-  }, 2 * 60 * 60 * 1000);
+  }, 7200000);
 }
 ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetAutoLogoutTimer));
 resetAutoLogoutTimer();
@@ -39,16 +45,14 @@ let isSettlementShared = localStorage.getItem('onlyview_shareSettlement') === 't
 let rawCampaignList = [], isBatchEditing = false, listSubTab = 'ongoing', settlementSubTab = 'report', isFilterExpanded = false, newBatchRows = [];
 let yearlyChartInstance = null, monthlyChartInstance = null, monthlyAnalysisChartInstance = null;
 let isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true';
-let monthlyDetailsCollapseState = {}; 
+let monthlyDetailsCollapseState = {};
 let sortColumn = localStorage.getItem('onlyview_sortColumn') || 'none';
 let sortAsc = localStorage.getItem('onlyview_sortAsc') === 'true';
 let myCustomCode = localStorage.getItem('onlyview_customCode') || "";
 let currentCalDate = new Date();
 let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatus = "선정", editingId = null, activeColorPickerKey = null;
 let deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7;
-
-let isPlatformEditing = false;
-let isModalPlatformEditing = false;
+let isPlatformEditing = false, isModalPlatformEditing = false;
 
 let platformList = ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 try {
@@ -57,11 +61,8 @@ try {
 } catch(e) {}
 
 const presetPalette = ['#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A', '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706', '#EC4899', '#0891B2'];
-
 let savedColors = {};
-try {
-  savedColors = JSON.parse(localStorage.getItem('onlyview_statusColors') || '{}');
-} catch(e) {}
+try { savedColors = JSON.parse(localStorage.getItem('onlyview_statusColors') || '{}'); } catch(e) {}
 
 const customStatusColors = {
   apply: savedColors.apply || '#6B7280', select: savedColors.select || '#111827',
@@ -87,6 +88,7 @@ const chartStylePalettes = {
     ink: { highlight: '#20242B', main: '#53575D', pending: '#AAABAF' }
   }
 };
+
 const themeColors = {
   slate: { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333' },
   terracotta: { primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333' },
@@ -110,7 +112,7 @@ function formatCleanDate(d) {
     let day = p[2].replace(/[^0-9]/g, '').padStart(2, '0');
     if (y.length === 2) y = "20" + y;
     else if (y.length > 4) y = y.slice(0, 4);
-    if (y.length === 4 && m && day) return y + "-" + m + "-" + day;
+    if (y.length === 4 && m && day) return `${y}-${m}-${day}`;
   }
   return s;
 }
@@ -121,7 +123,7 @@ function formatShortDate(d) {
   const p = s.split("-");
   if (p.length === 3) {
     const yy = p[0].length === 4 ? p[0].substring(2, 4) : p[0];
-    return yy + "-" + String(Number(p[1])).padStart(2, '0') + "-" + String(Number(p[2])).padStart(2, '0');
+    return `${yy}-${String(Number(p[1])).padStart(2, '0')}-${String(Number(p[2])).padStart(2, '0')}`;
   }
   return s || "-";
 }
@@ -132,11 +134,11 @@ function isItemOverdue(item) {
   const now = new Date(); now.setHours(0, 0, 0, 0);
   if (item.deadlineDate) {
     const cD = formatCleanDate(item.deadlineDate);
-    if (cD && new Date(cD).setHours(0,0,0,0) < now) return true;
+    if (cD && new Date(cD).setHours(0, 0, 0, 0) < now) return true;
   }
   if (item.visitDate) {
     const cV = formatCleanDate(item.visitDate);
-    if (cV && new Date(cV).setHours(0,0,0,0) < now) return true;
+    if (cV && new Date(cV).setHours(0, 0, 0, 0) < now) return true;
   }
   return false;
 }
@@ -274,6 +276,30 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
+async function loadTargetUserSettings(uid) {
+  if (!uid || !db) return;
+  try {
+    const userSnap = await getDoc(doc(db, "users", uid));
+    if (userSnap.exists()) {
+      const d = userSnap.data();
+      if (d.statusColors) { 
+        Object.assign(customStatusColors, d.statusColors); 
+        localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
+        applyStatusCSSColors(); 
+        renderStatusColorPickers(); 
+      }
+      if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
+        platformList = d.platforms;
+        localStorage.setItem('onlyview_platforms', JSON.stringify(platformList));
+        renderPlatformChips();
+      }
+      if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
+      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
+      if (d.deadlineAlertDays) { deadlineAlertDays = d.deadlineAlertDays; updateDeadlineButtons(); }
+    }
+  } catch (err) { console.error("설정 동기화 실패:", err); }
+}
+
 async function handleUserLoggedIn(user) {
   if (!user) return;
   currentUser = user;
@@ -297,26 +323,19 @@ async function handleUserLoggedIn(user) {
 
 window.loginWithGoogle = async function() {
   try {
-    if (!auth || !provider) {
-      return alert("Firebase 초기화 중입니다. 잠시 후 다시 시도해 주세요.");
-    }
+    if (!auth || !provider) return alert("Firebase 초기화 중입니다. 잠시 후 다시 시도해 주세요.");
     const ua = navigator.userAgent.toLowerCase();
     if (ua.includes('kakao') || ua.includes('instagram') || ua.includes('naver')) {
       return alert("인앱 브라우저에서는 구글 정책상 로그인이 제한됩니다. Safari 또는 Chrome 등 정식 브라우저로 접속해 주세요.");
     }
-    
     const cred = await signInWithPopup(auth, provider);
-    if (cred && cred.user) {
-      await handleUserLoggedIn(cred.user);
-    }
+    if (cred && cred.user) await handleUserLoggedIn(cred.user);
   } catch (err) {
     console.error("로그인 에러:", err);
     if (err.code === 'auth/popup-closed-by-user') return;
-    if (err.code === 'auth/popup-blocked') {
-      return alert("브라우저 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
-    }
+    if (err.code === 'auth/popup-blocked') return alert("브라우저 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
     if (err.code === 'auth/unauthorized-domain') {
-      return alert("Firebase '승인된 도메인'에 현재 웹사이트 주소가 등록되지 않았습니다.\n\nFirebase 콘솔 > Authentication > Settings > 승인된 도메인에 현재 도메인을 추가해 주세요.");
+      return alert("Firebase '승인된 도메인'에 현재 웹사이트 주소가 등록되지 않았습니다.\nFirebase 콘솔 > Authentication > Settings > 승인된 도메인에 현재 도메인을 추가해 주세요.");
     }
     alert(`로그인 오류 (${err.code || '알 수 없음'}): ${err.message}`);
   }
@@ -358,7 +377,7 @@ window.enterWithInviteCode = async function() {
     appSec?.classList.remove('hidden');
     appSec?.classList.add('flex', 'lg:flex');
     const userNameElem = document.getElementById('userName');
-    if (userNameElem) userNameElem.innerText = "초대 접속자 (" + codeInput + ")";
+    if (userNameElem) userNameElem.innerText = `초대 접속자 (${codeInput})`;
     updateFormVisibility();
     await loadCampaigns();
     window.switchTab('dashboard', false);
@@ -383,7 +402,7 @@ window.openColorPickerModal = function(key, label) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
   activeColorPickerKey = key;
   const titleElem = document.getElementById('colorModalTitle');
-  if (titleElem) titleElem.innerText = label + " 상태 글자 색상 선택";
+  if (titleElem) titleElem.innerText = `${label} 상태 글자 색상 선택`;
   const grid = document.getElementById('colorPaletteGrid');
   if (grid) {
     grid.innerHTML = '';
@@ -391,7 +410,7 @@ window.openColorPickerModal = function(key, label) {
     presetPalette.forEach(hex => {
       const isSel = currentC.toLowerCase() === hex.toLowerCase();
       const btn = document.createElement('button'); btn.type = 'button';
-      btn.className = "w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center " + (isSel ? "border-gray-900 ring-2 ring-gray-400 scale-110" : "border-white");
+      btn.className = `w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center ${isSel ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
       btn.style.backgroundColor = hex;
       if (isSel) btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
       btn.onclick = () => window.updateCustomStatusColor(key, hex);
@@ -478,15 +497,15 @@ window.switchTab = function(tabName, pushState = true) {
   ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
   
   document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
-  const activeBtn = document.getElementById("nav-" + tabName);
+  const activeBtn = document.getElementById(`nav-${tabName}`);
   if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
   
   document.querySelectorAll('.bottom-nav-item').forEach(btn => { btn.classList.remove('text-theme'); btn.classList.add('text-gray-400'); });
-  const activeBottomBtn = document.getElementById("bottom-nav-" + tabName);
+  const activeBottomBtn = document.getElementById(`bottom-nav-${tabName}`);
   if (activeBottomBtn) { activeBottomBtn.classList.remove('text-gray-400'); activeBottomBtn.classList.add('text-theme'); }
   
-  if (pushState && window.location.hash !== "#" + tabName) {
-    history.pushState({ tab: tabName }, '', "#" + tabName);
+  if (pushState && window.location.hash !== `#${tabName}`) {
+    history.pushState({ tab: tabName }, '', `#${tabName}`);
   }
   
   ['dayModal', 'editModal', 'colorPickerModal', 'dashRegisterModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -494,8 +513,7 @@ window.switchTab = function(tabName, pushState = true) {
   if (tabName === 'dashboard') {
     document.getElementById('sectionDashboard')?.classList.remove('hidden');
     window.renderDashboardView();
-  }
-  else if (tabName === 'list') {
+  } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
     if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
@@ -503,22 +521,18 @@ window.switchTab = function(tabName, pushState = true) {
     const stEl = document.getElementById('filterStatus'); if (stEl) stEl.value = 'ALL';
     const yrEl = document.getElementById('filterYear'); if (yrEl) yrEl.value = 'ALL';
     const moEl = document.getElementById('filterMonth'); if (moEl) moEl.value = 'ALL';
-    
     document.getElementById('sectionList')?.classList.remove('hidden');
     window.filterAndRender();
-  }
-  else if (tabName === 'form') {
+  } else if (tabName === 'form') {
     document.getElementById('campaignForm')?.reset();
     isPlatformEditing = false;
     window.setStatusBtn('신청'); window.selectPlatformChip('개별');
     document.getElementById('sectionForm')?.classList.remove('hidden');
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
-  }
-  else if (tabName === 'settlement') {
+  } else if (tabName === 'settlement') {
     document.getElementById('sectionSettlement')?.classList.remove('hidden');
     window.setSettlementSubTab('report');
-  }
-  else if (tabName === 'settings') {
+  } else if (tabName === 'settings') {
     document.getElementById('sectionSettings')?.classList.remove('hidden');
     renderSettingsUI();
   }
@@ -532,12 +546,8 @@ window.addEventListener('popstate', () => {
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById("btnStatus_" + s);
-    if (btn) {
-      btn.className = (s === status)
-        ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm"
-        : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
-    }
+    const btn = document.getElementById(`btnStatus_${s}`);
+    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
   });
   const sL = document.getElementById('storeNameLabel'), aL = document.getElementById('sponsoredAmountLabel');
   const rApp = document.getElementById('rowApplyDate'), rDead = document.getElementById('rowDeadlineDate');
@@ -551,7 +561,7 @@ window.setStatusBtn = function(status) {
     if (status === '선정') {
       if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
       rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
-      if (!document.getElementById('visitTime')?.value) { const n = new Date(); document.getElementById('visitTime').value = String(n.getHours()).padStart(2, '0') + ":" + String(n.getMinutes()).padStart(2, '0'); }
+      if (!document.getElementById('visitTime')?.value) { const n = new Date(); document.getElementById('visitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
     } else if (status === '배송') {
       if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
       rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
@@ -565,12 +575,8 @@ window.setStatusBtn = function(status) {
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById("btnModalStatus_" + s);
-    if (btn) {
-      btn.className = (s === status)
-        ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm"
-        : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center";
-    }
+    const btn = document.getElementById(`btnModalStatus_${s}`);
+    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center";
   });
   const rApp = document.getElementById('modalRowApplyDate'), rDead = document.getElementById('modalRowDeadlineDate');
   const rVis = document.getElementById('modalRowVisit'), rFin = document.getElementById('modalRowFinancial');
@@ -581,7 +587,7 @@ window.setModalStatusBtn = function(status) {
     rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
     if (status === '선정') {
       rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
-      if (!document.getElementById('modalVisitTime')?.value) { const n = new Date(); document.getElementById('modalVisitTime').value = String(n.getHours()).padStart(2, '0') + ":" + String(n.getMinutes()).padStart(2, '0'); }
+      if (!document.getElementById('modalVisitTime')?.value) { const n = new Date(); document.getElementById('modalVisitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
     } else if (status === '배송') {
       rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
     } else if (status === '원고료') {
@@ -593,7 +599,7 @@ window.setModalStatusBtn = function(status) {
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById("btnEditStatus_" + s);
+    const btn = document.getElementById(`btnEditStatus_${s}`);
     if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
   });
 };
@@ -647,19 +653,15 @@ function renderPlatformChips() {
       const isSelected = (name === curVal);
       const chipWrap = document.createElement('div');
       chipWrap.className = "relative inline-flex items-center";
-
       const btn = document.createElement('button');
       btn.type = 'button'; btn.innerText = name;
-      btn.className = (isSelected)
-        ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors"
-        : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
+      btn.className = isSelected ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
       btn.onclick = () => { const el = document.getElementById(inputId); if (el) el.value = name; renderPlatformChips(); };
       chipWrap.appendChild(btn);
 
       if (isEditing && name !== '개별') {
         const delBtn = document.createElement('button');
-        delBtn.type = 'button'; delBtn.innerHTML = '×';
-        delBtn.title = '사이트 삭제';
+        delBtn.type = 'button'; delBtn.innerHTML = '×'; delBtn.title = '사이트 삭제';
         delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5";
         delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
         chipWrap.appendChild(delBtn);
@@ -677,9 +679,7 @@ function renderPlatformChips() {
     const editToggleBtn = document.createElement('button');
     editToggleBtn.type = 'button';
     editToggleBtn.innerText = isEditing ? '완료' : '수정';
-    editToggleBtn.className = isEditing
-      ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors"
-      : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors";
+    editToggleBtn.className = isEditing ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors" : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors";
     editToggleBtn.onclick = () => window.togglePlatformEdit(isM);
     target.appendChild(editToggleBtn);
   };
@@ -700,12 +700,8 @@ window.setDeadlineDays = async function(days) {
 
 function updateDeadlineButtons() {
   [7, 10, 14].forEach(d => {
-    const btn = document.getElementById("btnDeadlineDay_" + d);
-    if (btn) {
-      btn.className = (d === deadlineAlertDays)
-        ? "py-2 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm"
-        : "py-2 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
-    }
+    const btn = document.getElementById(`btnDeadlineDay_${d}`);
+    if (btn) btn.className = (d === deadlineAlertDays) ? "py-2 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
   });
 }
 
@@ -743,38 +739,38 @@ window.toggleBatchEdit = function() {
 };
 window.addNewBatchRow = function() { newBatchRows.push({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
 window.removeNewBatchRow = function(i) { newBatchRows.splice(i, 1); window.filterAndRender(); };
-window.toggleNewRowTimeInput = function(i) { document.getElementById("newTimeContainer_" + i)?.classList.toggle('hidden'); };
+window.toggleNewRowTimeInput = function(i) { document.getElementById(`newTimeContainer_${i}`)?.classList.toggle('hidden'); };
 
 window.saveAllBatchEdits = async function() {
   if (isReadOnly || !currentUser) return;
   const promises = [];
   rawCampaignList.forEach(item => {
-    const sEl = document.getElementById("batch_store_" + item.id);
+    const sEl = document.getElementById(`batch_store_${item.id}`);
     if (!sEl) return;
     promises.push(updateDoc(doc(db, "campaigns", item.id), {
       storeName: sEl.value || '',
-      status: document.getElementById("batch_status_" + item.id)?.value || '선정',
-      platformName: document.getElementById("batch_platform_" + item.id)?.value || '개별',
-      visitDate: formatCleanDate(document.getElementById("batch_visitDate_" + item.id)?.value || ''),
-      visitTime: document.getElementById("batch_visitTime_" + item.id)?.value || '',
-      deadlineDate: formatCleanDate(document.getElementById("batch_deadlineDate_" + item.id)?.value || ''),
-      sponsoredAmount: parseCurrencyValue(document.getElementById("batch_sponsored_" + item.id)?.value),
-      paidAmount: parseCurrencyValue(document.getElementById("batch_paid_" + item.id)?.value)
+      status: document.getElementById(`batch_status_${item.id}`)?.value || '선정',
+      platformName: document.getElementById(`batch_platform_${item.id}`)?.value || '개별',
+      visitDate: formatCleanDate(document.getElementById(`batch_visitDate_${item.id}`)?.value || ''),
+      visitTime: document.getElementById(`batch_visitTime_${item.id}`)?.value || '',
+      deadlineDate: formatCleanDate(document.getElementById(`batch_deadlineDate_${item.id}`)?.value || ''),
+      sponsoredAmount: parseCurrencyValue(document.getElementById(`batch_sponsored_${item.id}`)?.value),
+      paidAmount: parseCurrencyValue(document.getElementById(`batch_paid_${item.id}`)?.value)
     }));
   });
   newBatchRows.forEach((row, idx) => {
-    const sVal = document.getElementById("new_batch_store_" + idx)?.value;
+    const sVal = document.getElementById(`new_batch_store_${idx}`)?.value;
     if (sVal && sVal.trim()) {
       promises.push(addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: sVal.trim(),
-        status: document.getElementById("new_batch_status_" + idx)?.value || '선정',
-        platformName: document.getElementById("new_batch_platform_" + idx)?.value || '개별',
+        status: document.getElementById(`new_batch_status_${idx}`)?.value || '선정',
+        platformName: document.getElementById(`new_batch_platform_${idx}`)?.value || '개별',
         applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
-        visitDate: formatCleanDate(document.getElementById("new_batch_visitDate_" + idx)?.value || ''),
-        visitTime: document.getElementById("new_batch_visitTime_" + idx)?.value || '',
-        deadlineDate: formatCleanDate(document.getElementById("new_batch_deadlineDate_" + idx)?.value || ''),
-        sponsoredAmount: parseCurrencyValue(document.getElementById("new_batch_sponsored_" + idx)?.value),
-        paidAmount: parseCurrencyValue(document.getElementById("new_batch_paid_" + idx)?.value),
+        visitDate: formatCleanDate(document.getElementById(`new_batch_visitDate_${idx}`)?.value || ''),
+        visitTime: document.getElementById(`new_batch_visitTime_${idx}`)?.value || '',
+        deadlineDate: formatCleanDate(document.getElementById(`new_batch_deadlineDate_${idx}`)?.value || ''),
+        sponsoredAmount: parseCurrencyValue(document.getElementById(`new_batch_sponsored_${idx}`)?.value),
+        paidAmount: parseCurrencyValue(document.getElementById(`new_batch_paid_${idx}`)?.value),
         revenue: 0, createdAt: serverTimestamp()
       }));
     }
@@ -822,7 +818,9 @@ window.openEditModalFromId = function(id) {
   document.getElementById('editModal')?.classList.remove('hidden');
 };
 
-// 4개 시트 완전 복원 엑셀 다운로드 (대시보드 / 정산 세부 내역 / 진행중 체험단 / 완료 체험단)
+// ========================================================
+// 엑셀 다운로드 (EXCEL_MODE: 1이면 1안, 2이면 2안)
+// ========================================================
 window.downloadExcel = async function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   if (typeof ExcelJS === 'undefined') return alert("엑셀 모듈 로딩 중입니다.");
@@ -832,32 +830,32 @@ window.downloadExcel = async function() {
     const COLOR_PRIMARY = 'FF3B6FB6', COLOR_LIGHT = 'FFE5EBF4', COLOR_BORDER = 'FFD1D5DB';
     const borderStyle = { top: { style: 'thin', color: { argb: COLOR_BORDER } }, left: { style: 'thin', color: { argb: COLOR_BORDER } }, bottom: { style: 'thin', color: { argb: COLOR_BORDER } }, right: { style: 'thin', color: { argb: COLOR_BORDER } } };
     const dateStr = new Date().toLocaleDateString('ko-KR');
-    
-    let tCnt = rawCampaignList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
-    const mSum = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
-    const pMap = {};
-    
-    rawCampaignList.forEach(item => {
-      const isDone = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
-      const sp = Number(item.sponsoredAmount || 0), pd = Number(item.paidAmount || 0), rev = Number(item.revenue || 0);
-      const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
-      if (isDone) {
-        cCnt++; tSpon += sp; tPaid += pd; tRev += calcRev;
-        const refD = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-        if (refD && refD.length >= 7) {
-          const m = parseInt(refD.slice(5, 7));
-          if (m >= 1 && m <= 12) { mSum[m - 1].done++; mSum[m - 1].revenue += calcRev; }
-        }
-        const pN = item.platformName || '개별'; pMap[pN] = (pMap[pN] || 0) + calcRev;
-      }
-    });
 
-    // 1. 대시보드 시트
+    // 1. 대시보드 시트 (1안, 2안 공통 유지)
     const sh1 = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
     sh1.mergeCells('B2:H2');
     const tCell = sh1.getCell('B2'); tCell.value = '온리뷰 (ONLYVIEW) 종합 리포트'; tCell.font = { name: '맑은 고딕', size: 15, bold: true, color: { argb: COLOR_PRIMARY } };
     sh1.getCell('B3').value = `기준일시: ${dateStr}`;
-    
+
+    let tCnt = rawCampaignList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
+    const mSum = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
+    const pMap = {};
+
+    rawCampaignList.forEach(it => {
+      const isDone = (getEffectiveStatus(it) === '제출' || getEffectiveStatus(it) === '완료');
+      const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
+      const cRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+      if (isDone) {
+        cCnt++; tSpon += sp; tPaid += pd; tRev += cRev;
+        const refD = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
+        if (refD && refD.length >= 7) {
+          const m = parseInt(refD.slice(5, 7));
+          if (m >= 1 && m <= 12) { mSum[m - 1].done++; mSum[m - 1].revenue += cRev; }
+        }
+        const pN = it.platformName || '개별'; pMap[pN] = (pMap[pN] || 0) + cRev;
+      }
+    });
+
     const kpi = [ { c: 'B', t: '총 진행 건수', v: `${tCnt}건` }, { c: 'C', t: '제출 완료 건수', v: `${cCnt}건` }, { c: 'D', t: '총 제공금액', v: `${tSpon.toLocaleString()}원` }, { c: 'E', t: '순 실수익 (누적)', v: `${tRev.toLocaleString()}원` } ];
     kpi.forEach(k => {
       const h = sh1.getCell(`${k.c}5`), v = sh1.getCell(`${k.c}6`);
@@ -866,100 +864,175 @@ window.downloadExcel = async function() {
     });
 
     sh1.getCell('B8').value = '1. 월별 완료 실적'; sh1.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true };
-    ['월', '완료 건수', '실수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(66+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+    ['월', '완료 건수', '실수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(66 + i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
     mSum.forEach((m, i) => {
       const r = 10 + i;
       sh1.getCell(`B${r}`).value = `${m.month}월`; sh1.getCell(`C${r}`).value = m.done; sh1.getCell(`C${r}`).numFmt = '#,##0"건"'; sh1.getCell(`D${r}`).value = m.revenue; sh1.getCell(`D${r}`).numFmt = '#,##0"원"';
-      ['B','C','D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
+      ['B', 'C', 'D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
     });
 
     sh1.getCell('F8').value = '2. 플랫폼 수익 랭킹'; sh1.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true };
-    ['플랫폼명', '총 수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(70+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+    ['플랫폼명', '총 수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(70 + i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
     Object.entries(pMap).sort((a, b) => b[1] - a[1]).forEach(([n, v], i) => {
       const r = 10 + i; sh1.getCell(`F${r}`).value = n; sh1.getCell(`G${r}`).value = v; sh1.getCell(`G${r}`).numFmt = '#,##0"원"';
-      ['F','G'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
+      ['F', 'G'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
     });
     sh1.columns = [{ width: 4 }, { width: 15 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 18 }];
 
-    // 공통 시트 빌더 함수
-    const buildSheet = (sName, items, isDetail = false) => {
+    // 공통 단일 표 생성 함수 (1안용)
+    const buildFlatSheet = (sName, items) => {
       const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
-      const hds = [ { h: '매장명', k: 'storeName', w: 24 }, { h: '상태', k: 'status', w: 10 }, { h: '사이트', k: 'platformName', w: 12 }, { h: '방문일', k: 'visitDate', w: 12 }, { h: '마감일', k: 'deadlineDate', w: 12 }, { h: '제공금액', k: 'sponsoredAmount', w: 14 }, { h: '결제금액', k: 'paidAmount', w: 14 }, { h: '실수익', k: 'revenue', w: 14 }, { h: '비고', k: 'memo', w: 20 } ];
+      const hds = [ { h: '매장명', w: 24 }, { h: '진행 상태', w: 10 }, { h: '사이트', w: 12 }, { h: '방문일', w: 12 }, { h: '마감일', w: 12 }, { h: '제공금액', w: 14 }, { h: '결제금액', w: 14 }, { h: '실수익', w: 14 }, { h: '비고', w: 20 } ];
       const hr = sh.getRow(1); hr.height = 24;
-      hds.forEach((h, i) => { const c = hr.getCell(i+1); c.value = h.h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
+      hds.forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h.h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
       let rIdx = 2;
       items.forEach(it => {
         const r = sh.getRow(rIdx++);
         const eff = getEffectiveStatus(it); const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); const cRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
         r.getCell(1).value = it.storeName || ''; r.getCell(2).value = displayStatusName(eff); r.getCell(3).value = it.platformName || '개별'; r.getCell(4).value = formatCleanDate(it.visitDate) || '-'; r.getCell(5).value = formatCleanDate(it.deadlineDate) || '-'; r.getCell(6).value = sp; r.getCell(7).value = pd; r.getCell(8).value = cRev; r.getCell(9).value = it.memo || '';
-        hds.forEach((h, i) => { const c = r.getCell(i+1); c.border = borderStyle; if(i>=5 && i<=7) c.numFmt = '#,##0"원"'; });
+        hds.forEach((h, i) => { const c = r.getCell(i + 1); c.border = borderStyle; if(i >= 5 && i <= 7) c.numFmt = '#,##0"원"'; });
       });
+      if (items.length > 0) {
+        const tr = sh.getRow(rIdx); tr.height = 22;
+        tr.getCell(1).value = '합계'; tr.getCell(6).value = { formula: `SUM(F2:F${rIdx - 1})` }; tr.getCell(7).value = { formula: `SUM(G2:G${rIdx - 1})` }; tr.getCell(8).value = { formula: `SUM(H2:H${rIdx - 1})` };
+        hds.forEach((h, i) => { const c = tr.getCell(i + 1); c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; c.border = { top: { style: 'thin' }, bottom: { style: 'double' } }; if (i >= 5 && i <= 7) c.numFmt = '#,##0"원"'; });
+      }
       sh.columns = hds.map(h => ({ width: h.w }));
     };
 
-    // 2. 정산 세부 내역 (완료된 건 정렬 및 월별 소계 처리)
-    const detailSheet = wb.addWorksheet('정산 세부 내역', { views: [{ showGridLines: true }] });
-    detailSheet.mergeCells('B2:H2');
-    const dTitle = detailSheet.getCell('B2'); dTitle.value = '월별 정산 세부 내역 (1월 ~ 12월)'; dTitle.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } }; dTitle.alignment = { vertical: 'middle', horizontal: 'left' }; detailSheet.getRow(2).height = 24;
-    detailSheet.getCell('B3').value = `* 완료된(제출) 체험단의 월별 세부 정산 내역입니다.`; detailSheet.getCell('B3').font = { name: '맑은 고딕', size: 9, color: { argb: 'FF6B7280' } }; detailSheet.getRow(3).height = 18;
+    // 공통 월별 블록 생성 함수 (2안용)
+    const buildMonthlyBlockSheet = (sName, isCompletedOnly, includeUnscheduled = false) => {
+      const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
+      sh.mergeCells('B2:H2');
+      const titleCell = sh.getCell('B2'); titleCell.value = `${sName} (1월 ~ 12월 월별 내역)`; titleCell.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
+      sh.getRow(2).height = 24;
 
-    let dRowIdx = 5;
-    for (let m = 1; m <= 12; m++) {
-      const mItems = rawCampaignList.filter(item => {
-        const effSt = getEffectiveStatus(item); if (effSt !== '제출' && effSt !== '완료') return false;
-        const refDate = formatCleanDate(item.visitDate || item.deadlineDate || item.applyDate || '');
-        if (!refDate || refDate.length < 7) return false; return parseInt(refDate.slice(5, 7)) === m;
-      }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
+      const mCols = isCompletedOnly 
+        ? ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익']
+        : ['매장명 (업체명)', '진행 상태', '사이트', '방문(예정)일', '제공금액', '결제금액', '실수익'];
 
-      const mCount = mItems.length; let mTotalRev = 0;
-      mItems.forEach(item => { const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const rev = Number(item.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); });
+      let dRowIdx = 4;
 
-      detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
-      const mHeaderCell = detailSheet.getCell(`B${dRowIdx}`);
-      mHeaderCell.value = `■ ${m}월 정산 내역  (완료: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`; mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } }; mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } }; mHeaderCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } }; detailSheet.getRow(dRowIdx).height = 24; dRowIdx++;
+      for (let m = 1; m <= 12; m++) {
+        const mItems = rawCampaignList.filter(it => {
+          const eff = getEffectiveStatus(it);
+          const isDone = (eff === '제출' || eff === '완료');
+          if (isCompletedOnly ? !isDone : isDone) return false;
+          const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
+          if (!refDate || refDate.length < 7) return false;
+          return parseInt(refDate.slice(5, 7)) === m;
+        }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
 
-      const mCols = ['매장명 (업체명)', '사이트', '방문일', '마감일', '제공금액', '결제금액', '실수익'];
-      mCols.forEach((colName, cIdx) => {
-        const colLetter = String.fromCharCode(66 + cIdx); const c = detailSheet.getCell(`${colLetter}${dRowIdx}`);
-        c.value = colName; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
-      });
-      detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
+        const mCount = mItems.length;
+        let mTotalRev = 0;
+        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv); });
 
-      if (mCount === 0) {
-        detailSheet.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
-        const emptyCell = detailSheet.getCell(`B${dRowIdx}`); emptyCell.value = '해당 월에 완료된 정산 내역이 없습니다.'; emptyCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; emptyCell.alignment = { vertical: 'middle', horizontal: 'center' }; emptyCell.border = borderStyle; detailSheet.getRow(dRowIdx).height = 20; dRowIdx++;
-      } else {
-        const startItemRow = dRowIdx;
-        mItems.forEach(item => {
-          const sp = Number(item.sponsoredAmount || 0); const pd = Number(item.paidAmount || 0); const inputRev = Number(item.revenue || 0);
-          const calcRev = pd === 0 ? (sp > 0 ? sp : inputRev) : ((sp - pd) + inputRev);
-          const r = detailSheet.getRow(dRowIdx); r.height = 19;
-          r.getCell(2).value = item.storeName || ''; r.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' };
-          r.getCell(3).value = item.platformName || '개별'; r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
-          r.getCell(4).value = formatCleanDate(item.visitDate) || '-'; r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
-          r.getCell(5).value = formatCleanDate(item.deadlineDate) || '-'; r.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
-          r.getCell(6).value = sp; r.getCell(6).numFmt = '#,##0"원"'; r.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-          r.getCell(7).value = pd; r.getCell(7).numFmt = '#,##0"원"'; r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
-          r.getCell(8).value = calcRev; r.getCell(8).numFmt = '#,##0"원"'; r.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
-          for (let c = 2; c <= 8; c++) { r.getCell(c).font = { name: '맑은 고딕', size: 9.5 }; r.getCell(c).border = borderStyle; }
-          dRowIdx++;
+        sh.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+        const mHeaderCell = sh.getCell(`B${dRowIdx}`);
+        mHeaderCell.value = `■ ${m}월 내역  (건수: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
+        mHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } };
+        mHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
+        mHeaderCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
+        sh.getRow(dRowIdx++).height = 24;
+
+        mCols.forEach((colName, cIdx) => {
+          const c = sh.getCell(`${String.fromCharCode(66 + cIdx)}${dRowIdx}`);
+          c.value = colName; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
         });
-        const subTotalRow = detailSheet.getRow(dRowIdx); subTotalRow.height = 21; detailSheet.mergeCells(`B${dRowIdx}:E${dRowIdx}`);
-        subTotalRow.getCell(2).value = `${m}월 소계`; subTotalRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-        subTotalRow.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 1})` }; subTotalRow.getCell(6).numFmt = '#,##0"원"'; subTotalRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-        subTotalRow.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 1})` }; subTotalRow.getCell(7).numFmt = '#,##0"원"'; subTotalRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
-        subTotalRow.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 1})` }; subTotalRow.getCell(8).numFmt = '#,##0"원"'; subTotalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
-        for (let c = 2; c <= 8; c++) { subTotalRow.getCell(c).font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF1F2937' } }; subTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; subTotalRow.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'double' } }; }
+        sh.getRow(dRowIdx++).height = 20;
+
+        if (mCount === 0) {
+          sh.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+          const ec = sh.getCell(`B${dRowIdx}`); ec.value = '해당 월에 등록된 내역이 없습니다.'; ec.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; ec.alignment = { vertical: 'middle', horizontal: 'center' }; ec.border = borderStyle;
+          sh.getRow(dRowIdx++).height = 20;
+        } else {
+          const startItemRow = dRowIdx;
+          mItems.forEach(it => {
+            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const r = sh.getRow(dRowIdx++); r.height = 19;
+            r.getCell(2).value = it.storeName || '';
+            if (isCompletedOnly) {
+              r.getCell(3).value = it.platformName || '개별';
+              r.getCell(4).value = formatCleanDate(it.visitDate) || '-';
+              r.getCell(5).value = formatCleanDate(it.deadlineDate) || '-';
+            } else {
+              r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
+              r.getCell(4).value = it.platformName || '개별';
+              r.getCell(5).value = formatCleanDate(it.visitDate) || '-';
+            }
+            r.getCell(6).value = sp; r.getCell(6).numFmt = '#,##0"원"';
+            r.getCell(7).value = pd; r.getCell(7).numFmt = '#,##0"원"';
+            r.getCell(8).value = calcRev; r.getCell(8).numFmt = '#,##0"원"';
+            for (let col = 2; col <= 8; col++) { r.getCell(col).font = { name: '맑은 고딕', size: 9.5 }; r.getCell(col).border = borderStyle; }
+          });
+          const subR = sh.getRow(dRowIdx++); subR.height = 21; sh.mergeCells(`B${subR.number}:E${subR.number}`);
+          subR.getCell(2).value = `${m}월 소계`; subR.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+          subR.getCell(6).value = { formula: `SUM(F${startItemRow}:F${dRowIdx - 2})` }; subR.getCell(6).numFmt = '#,##0"원"';
+          subR.getCell(7).value = { formula: `SUM(G${startItemRow}:G${dRowIdx - 2})` }; subR.getCell(7).numFmt = '#,##0"원"';
+          subR.getCell(8).value = { formula: `SUM(H${startItemRow}:H${dRowIdx - 2})` }; subR.getCell(8).numFmt = '#,##0"원"';
+          for (let col = 2; col <= 8; col++) { subR.getCell(col).font = { name: '맑은 고딕', size: 9.5, bold: true }; subR.getCell(col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; subR.getCell(col).border = { top: { style: 'thin' }, bottom: { style: 'double' } }; }
+        }
         dRowIdx++;
       }
-      dRowIdx++;
-    }
-    detailSheet.columns = [ { width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 } ];
 
-    // 3. 진행중 체험단 (미완료 건)
-    buildSheet('진행중 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) !== '제출' && getEffectiveStatus(c) !== '완료'));
-    // 4. 완료 체험단
-    buildSheet('완료 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료'));
+      // 일정 미정 / 예약 대기 전용 블록 (진행중 시트에만 추가)
+      if (includeUnscheduled) {
+        const unItems = rawCampaignList.filter(it => {
+          const eff = getEffectiveStatus(it);
+          const isDone = (eff === '제출' || eff === '완료');
+          if (isDone) return false;
+          const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
+          return (!refDate || refDate.length < 7);
+        });
+
+        sh.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+        const unHeaderCell = sh.getCell(`B${dRowIdx}`);
+        unHeaderCell.value = `■ 일정 미정 / 예약 대기  (건수: ${unItems.length}건)`;
+        unHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: 'FF92400E' } };
+        unHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+        unHeaderCell.border = { top: { style: 'thin' }, bottom: { style: 'thin' } };
+        sh.getRow(dRowIdx++).height = 24;
+
+        if (unItems.length === 0) {
+          sh.mergeCells(`B${dRowIdx}:H${dRowIdx}`);
+          const ec = sh.getCell(`B${dRowIdx}`); ec.value = '일정 미정 항목이 없습니다.'; ec.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; ec.border = borderStyle;
+          sh.getRow(dRowIdx++).height = 20;
+        } else {
+          unItems.forEach(it => {
+            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const r = sh.getRow(dRowIdx++); r.height = 19;
+            r.getCell(2).value = it.storeName || '';
+            r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
+            r.getCell(4).value = it.platformName || '개별';
+            r.getCell(5).value = '미정';
+            r.getCell(6).value = sp; r.getCell(6).numFmt = '#,##0"원"';
+            r.getCell(7).value = pd; r.getCell(7).numFmt = '#,##0"원"';
+            r.getCell(8).value = calcRev; r.getCell(8).numFmt = '#,##0"원"';
+            for (let col = 2; col <= 8; col++) { r.getCell(col).font = { name: '맑은 고딕', size: 9.5 }; r.getCell(col).border = borderStyle; }
+          });
+        }
+      }
+
+      sh.columns = [{ width: 3 }, { width: 26 }, { width: 14 }, { width: 13 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 16 }];
+    };
+
+    // ==========================================
+    // 모드에 따라 시트 2, 3, 4 빌드 분기
+    // ==========================================
+    if (EXCEL_MODE === 1) {
+      // [1안: 단일 표 톤앤매너 통일]
+      buildFlatSheet('정산 세부 내역', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료').sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || '')));
+      buildFlatSheet('진행중 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) !== '제출' && getEffectiveStatus(c) !== '완료'));
+      buildFlatSheet('완료 체험단', rawCampaignList.filter(c => getEffectiveStatus(c) === '제출' || getEffectiveStatus(c) === '완료'));
+    } else {
+      // [2안: 월별 블록 + 소계 수식 통일 (추천안)]
+      buildMonthlyBlockSheet('정산 세부 내역', true, false);
+      buildMonthlyBlockSheet('진행중 체험단', false, true);
+      buildMonthlyBlockSheet('완료 체험단', true, false);
+    }
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -995,7 +1068,7 @@ window.filterAndRender = function() {
   }
 
   ['storeName', 'status', 'platformName', 'visitDate', 'deadlineDate', 'sponsoredAmount', 'paidAmount', 'revenue'].forEach(c => {
-    const el = document.getElementById("sortInd_" + c); if (el) el.innerHTML = getSortIndicatorHtml(c);
+    const el = document.getElementById(`sortInd_${c}`); if (el) el.innerHTML = getSortIndicatorHtml(c);
   });
 
   let filtered = rawCampaignList.filter(item => {
@@ -1116,9 +1189,9 @@ window.renderCalendar = function(year, month) {
 
   const todayStr = new Date().toISOString().slice(0, 10);
   for (let date = 1; date <= lastDate; date++) {
-    const dateStr = year + "-" + String(month).padStart(2, '0') + "-" + String(date).padStart(2, '0');
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
     const dayCell = document.createElement('div');
-    dayCell.className = "bg-white p-1 md:p-1.5 rounded-xl border border-gray-100 min-h-[64px] sm:min-h-[85px] w-full flex flex-col justify-start cursor-pointer hover:border-theme transition-colors " + (dateStr === todayStr ? 'ring-2 ring-theme' : '');
+    dayCell.className = `bg-white p-1 md:p-1.5 rounded-xl border border-gray-100 min-h-[64px] sm:min-h-[85px] w-full flex flex-col justify-start cursor-pointer hover:border-theme transition-colors ${dateStr === todayStr ? 'ring-2 ring-theme' : ''}`;
     
     const visitMatches = rawCampaignList.filter(c => formatCleanDate(c.visitDate) === dateStr);
     const deadlineMatches = rawCampaignList.filter(c => formatCleanDate(c.deadlineDate) === dateStr && c.status !== '신청');
@@ -1137,7 +1210,7 @@ window.renderCalendar = function(year, month) {
 window.renderDashboardView = function() {
   const year = currentCalDate.getFullYear();
   const month = currentCalDate.getMonth() + 1;
-  const monthPrefix = year + "-" + String(month).padStart(2, '0');
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
   const titleEl = document.getElementById('dashMonthTitle');
   if (titleEl) titleEl.innerText = `${year}년 ${month}월`;
 
@@ -1179,7 +1252,7 @@ window.renderSettlementView = function() {
   const isCurrentYear = (targetYear === actualRealYear);
 
   const lbl = document.getElementById('yearlyAccumulatedLabel');
-  if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : targetYear + "년 누적";
+  if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : `${targetYear}년 누적`;
 
   const chartColors = getActiveChartColors();
   let doneCount = 0, doneAmount = 0, planCount = 0, planAmount = 0, prevDoneAmount = 0, hasPrevYearData = false;
@@ -1358,7 +1431,7 @@ window.renderSettlementView = function() {
 
 function renderUpcomingDeadlines() {
   const c = document.getElementById('upcomingList'); if (!c) return; c.innerHTML = '';
-  const now = new Date(); now.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   const list = rawCampaignList.filter(item => {
     const st = getEffectiveStatus(item);
     if (!item.deadlineDate || st === '제출' || st === '완료' || st === '신청') return false;
@@ -1380,7 +1453,7 @@ function renderAllScheduledVisits() {
   const vC = document.getElementById('scheduledVisitList'), uC = document.getElementById('unscheduledVisitList');
   if (vC) {
     vC.innerHTML = '';
-    const now = new Date(); now.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
     const list = rawCampaignList.filter(c => c.visitDate && (getEffectiveStatus(c) !== '제출' && getEffectiveStatus(c) !== '완료') && new Date(formatCleanDate(c.visitDate)) >= now);
     if (list.length === 0) vC.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">예정된 방문 일정이 없습니다.</div>';
     else list.forEach(i => {
@@ -1406,8 +1479,8 @@ function renderAllScheduledVisits() {
 }
 
 window.openCounterListModal = function(counterType, titleName) {
-  const now = new Date(); now.setHours(0,0,0,0);
-  const mPrefix = currentCalDate.getFullYear() + "-" + String(currentCalDate.getMonth() + 1).padStart(2, '0');
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const mPrefix = `${currentCalDate.getFullYear()}-${String(currentCalDate.getMonth() + 1).padStart(2, '0')}`;
   let matched = rawCampaignList.filter(c => {
     const st = getEffectiveStatus(c);
     if (counterType === 'select') return st !== '제출' && st !== '완료';
@@ -1512,11 +1585,12 @@ async function fetchUserCustomCode() {
         renderPlatformChips();
       }
       if (d.theme) { applyThemeCSS(d.theme); localStorage.setItem('onlyview_theme', d.theme); }
-      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); }
+      if (d.chartMode) { currentChartMode = d.chartMode; localStorage.setItem('onlyview_chartMode', d.chartMode); updateChartModeButtonsUI(); }
       if (d.statusColors) { 
         Object.assign(customStatusColors, d.statusColors); 
         localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors));
         applyStatusCSSColors(); 
+        renderStatusColorPickers(); 
       }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
