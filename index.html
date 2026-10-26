@@ -12,9 +12,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 미오픈 모달이 화면 터치/클릭을 가로막지 않도록 보장 */
-    .hidden { display: none !important; }
-
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
@@ -51,7 +48,7 @@
 </head>
 <body class="text-[#333333] min-h-screen h-screen overflow-hidden font-normal bg-main">
 
-  <!-- 로그인 화면 (relative z-10으로 터치 및 클릭 최우선 확보) -->
+  <!-- 로그인 화면 -->
   <div id="authSection" class="relative z-10 min-h-screen w-full flex flex-col justify-center items-center p-6 max-w-sm mx-auto">
     <div class="text-center space-y-3 mb-10">
       <h1 class="text-5xl font-black text-theme tracking-tight">온리뷰</h1>
@@ -76,7 +73,7 @@
   <!-- 메인 앱 화면 -->
   <div id="appSection" class="hidden h-[100dvh] w-full flex-col lg:flex-row overflow-hidden relative">
     
-    <!-- 데스크톱 사이드바 -->
+    <!-- 데스크톱 사이드바 네비게이션 -->
     <aside id="mainSidebar" class="hidden lg:flex w-64 bg-sidebar border-r border-black/5 p-4 flex-col justify-between shrink-0 h-[100dvh] transition-all duration-200 relative z-10 overflow-y-auto">
       <div class="space-y-5">
         <div class="flex items-center justify-between">
@@ -119,7 +116,7 @@
       </div>
     </aside>
 
-    <!-- 모바일/태블릿 54px 슬림 바텀 탭바 -->
+    <!-- 모바일/태블릿 바텀 탭바 -->
     <nav id="bottomNav" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex lg:hidden justify-around items-center h-[54px] pb-safe z-40 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
       <button id="bottom-nav-dashboard" onclick="window.switchTab('dashboard')" class="bottom-nav-item flex-1 flex flex-col items-center justify-center h-full text-theme transition-colors">
         <svg class="w-[18px] h-[18px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
@@ -143,7 +140,7 @@
       </button>
     </nav>
 
-    <!-- 메인 단일 스크롤 뷰포트 -->
+    <!-- 메인 뷰포트 -->
     <main class="flex-1 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 pb-2 lg:pb-8 space-y-3.5 sm:space-y-4 h-[100dvh] overflow-y-auto overflow-x-hidden flex flex-col justify-start w-full max-w-full">
       <div id="readOnlyBadge" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-2.5 rounded-2xl font-normal shrink-0">현재 동반자 읽기 전용 모드입니다. 데이터를 추가하거나 수정할 수 없습니다.</div>
 
@@ -262,6 +259,7 @@
           </select>
         </div>
         
+        <!-- PC/태블릿 테이블 목록 -->
         <div class="hidden sm:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto w-full">
           <table class="w-full text-left border-collapse table-fixed min-w-[760px]">
             <thead class="bg-gray-50 border-b border-gray-100 text-gray-400 text-[11px]">
@@ -281,6 +279,7 @@
           </table>
         </div>
 
+        <!-- 모바일 카드 목록 -->
         <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full"></div>
       </div>
 
@@ -509,7 +508,7 @@
     </main>
   </div>
 
-  <!-- 공통 모달 (인라인 style="display: none;"으로 미오픈 시 화면 터치 차단 원천 방지) -->
+  <!-- 공통 모달 (style="display: none;"으로 미오픈 시 화면 터치 차단 방지) -->
   <div id="dayModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-5 md:p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3"><h3 id="modalDateTitle" class="font-bold text-base text-gray-800">일정 상세</h3><button id="closeModalBtn" type="button" onclick="window.closeModal('dayModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -517,7 +516,7 @@
     </div>
   </div>
 
-  <!-- 등록 모달: 상태 4개, 항목 자동 숨김 적용 (원복 완료) -->
+  <!-- 등록 모달: 상태 4개, 항목 자동 숨김 적용 (기존 유지) -->
   <div id="dashRegisterModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험단 등록</h3><button id="closeDashRegisterModalBtn" type="button" onclick="window.closeDashRegisterModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
@@ -562,11 +561,11 @@
     </div>
   </div>
 
-  <!-- 수정 모달: 상태 7개, 사이트 칩 적용, 삭제 버튼 포함 (유지) -->
+  <!-- 수정 모달: 상태 7개, 사이트 칩, 하단 버튼 1:1 대칭 (유지) -->
   <div id="editModal" style="display: none;" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b pb-3"><h3 class="font-bold text-base text-gray-900">체험 정보 수정</h3><button id="closeEditModalBtn" type="button" onclick="window.closeModal('editModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg">x</button></div>
-      <form id="editForm" class="space-y-4 text-sm">
+      <form id="editForm" class="space-y-4 text-sm pb-1">
         <div class="space-y-1.5"><label class="block text-xs font-normal text-gray-900">진행 상태 변경</label>
           <div class="flex flex-wrap gap-1.5">
             <button type="button" id="btnEditStatus_신청" onclick="window.setEditStatusBtn('신청')" class="py-1.5 px-3 rounded-lg font-bold border text-xs">신청</button>
@@ -598,9 +597,11 @@
         </div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea></div>
+        
+        <!-- 하단 삭제 / 수정 저장 버튼 1:1 대칭 (50%:50%) -->
         <div class="flex gap-2 pt-2 border-t border-gray-100">
-          <button type="button" onclick="window.deleteCampaignFromModal()" class="w-1/3 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">삭제하기</button>
-          <button type="submit" class="w-2/3 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
+          <button type="button" onclick="window.deleteCampaignFromModal()" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer text-center">삭제하기</button>
+          <button type="submit" class="flex-1 bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer text-center">수정 저장하기</button>
         </div>
       </form>
     </div>
@@ -632,7 +633,6 @@
     </div>
   </div>
 
-  <!-- 캐시 갱신을 위해 최신 쿼리스트링 부여 -->
-  <script type="module" src="js/app.js?v=20261026_final_v3"></script>
+  <script type="module" src="js/app.js?v=20261026_restore_final"></script>
 </body>
 </html>
