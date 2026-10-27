@@ -190,6 +190,8 @@ function formatCurrencyInput(v) {
   const num = String(v).replace(/[^0-9]/g, '');
   return num ? Number(num).toLocaleString() : "";
 }
+window.formatCurrencyInput = formatCurrencyInput;
+
 function parseCurrencyValue(v) {
   if (!v) return 0;
   return Number(String(v).replace(/[^0-9]/g, '')) || 0;
@@ -715,7 +717,7 @@ window.switchTab = function(tabName, pushState = true) {
     window.renderDashboardView();
   } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
-    completedVisibleCount = 20; // 탭 진입 시 20개로 초기화
+    completedVisibleCount = 20;
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
     if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
     const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
@@ -893,28 +895,90 @@ window.handleSort = function(col) {
 
 window.setListSubTab = function(type) {
   listSubTab = type;
-  completedVisibleCount = 20; // 탭 전환 시 20개로 리셋
+  completedVisibleCount = 20;
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
   if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
   if (btnS) btnS.className = (type === 'submitted') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
   window.filterAndRender();
 };
 
-// 더보기 버튼 핸들러 (20개씩 추가 렌더링)
 window.handleLoadMore = function() {
   completedVisibleCount += 20;
   window.filterAndRender();
 };
 
+// -------------------------------------------------------------
+// [핵심] 테이블 재렌더링 전 작성 중이던 텍스트/선택값 일괄 백업
+// -------------------------------------------------------------
+function snapshotBatchEdits() {
+  // 1. 신규 추가 행 데이터 스냅샷
+  newBatchRows.forEach((row, idx) => {
+    const storeEl = document.getElementById(`new_batch_store_${idx}`);
+    if (storeEl) row.storeName = storeEl.value;
+    const statusEl = document.getElementById(`new_batch_status_${idx}`);
+    if (statusEl) row.status = statusEl.value;
+    const platformEl = document.getElementById(`new_batch_platform_${idx}`);
+    if (platformEl) row.platformName = platformEl.value;
+    const visitDateEl = document.getElementById(`new_batch_visitDate_${idx}`);
+    if (visitDateEl) row.visitDate = visitDateEl.value;
+    const deadlineDateEl = document.getElementById(`new_batch_deadlineDate_${idx}`);
+    if (deadlineDateEl) row.deadlineDate = deadlineDateEl.value;
+    const sponsoredEl = document.getElementById(`new_batch_sponsored_${idx}`);
+    if (sponsoredEl) row.sponsoredAmount = sponsoredEl.value;
+    const paidEl = document.getElementById(`new_batch_paid_${idx}`);
+    if (paidEl) row.paidAmount = paidEl.value;
+  });
+
+  // 2. 기존 목록 행 수정 데이터 스냅샷
+  rawCampaignList.forEach(item => {
+    const sEl = document.getElementById(`batch_store_${item.id}`);
+    if (sEl) item.storeName = sEl.value;
+    const stEl = document.getElementById(`batch_status_${item.id}`);
+    if (stEl) item.status = stEl.value;
+    const pEl = document.getElementById(`batch_platform_${item.id}`);
+    if (pEl) item.platformName = pEl.value;
+    const vEl = document.getElementById(`batch_visitDate_${item.id}`);
+    if (vEl) item.visitDate = vEl.value;
+    const dEl = document.getElementById(`batch_deadlineDate_${item.id}`);
+    if (dEl) item.deadlineDate = dEl.value;
+    const spEl = document.getElementById(`batch_sponsored_${item.id}`);
+    if (spEl) item.sponsoredAmount = parseCurrencyValue(spEl.value);
+    const pdEl = document.getElementById(`batch_paid_${item.id}`);
+    if (pdEl) item.paidAmount = parseCurrencyValue(pdEl.value);
+  });
+}
+
 window.toggleBatchEdit = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   isBatchEditing = !isBatchEditing; 
   newBatchRows = []; 
+  if (!isBatchEditing) {
+    loadCampaigns(); // 수정 취소 시 서버 원본 데이터로 롤백
+  } else {
+    window.filterAndRender();
+  }
+};
+
+window.addNewBatchRow = function() {
+  snapshotBatchEdits(); // 작성 중이던 내용 백업 후 새 행 추가
+  newBatchRows.unshift({
+    tempId: Date.now() + Math.random(),
+    storeName: '',
+    status: '선정',
+    platformName: '개별',
+    visitDate: '',
+    deadlineDate: '',
+    sponsoredAmount: '',
+    paidAmount: ''
+  });
   window.filterAndRender();
 };
-window.addNewBatchRow = function() { newBatchRows.unshift({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
-window.removeNewBatchRow = function(i) { newBatchRows.splice(i, 1); window.filterAndRender(); };
-window.toggleNewRowTimeInput = function(i) { document.getElementById(`newTimeContainer_${i}`)?.classList.toggle('hidden'); };
+
+window.removeNewBatchRow = function(i) {
+  snapshotBatchEdits(); // 작성 중이던 내용 백업 후 특정 행 삭제
+  newBatchRows.splice(i, 1);
+  window.filterAndRender();
+};
 
 window.saveAllBatchEdits = async function() {
   if (isReadOnly || !currentUser) return;
@@ -934,19 +998,21 @@ window.saveAllBatchEdits = async function() {
     }));
   });
   newBatchRows.forEach((row, idx) => {
-    const sVal = document.getElementById(`new_batch_store_${idx}`)?.value;
+    const sVal = document.getElementById(`new_batch_store_${idx}`)?.value || row.storeName || '';
     if (sVal && sVal.trim()) {
       promises.push(addDoc(collection(db, "campaigns"), {
-        userId: currentUser.uid, storeName: sVal.trim(),
-        status: document.getElementById(`new_batch_status_${idx}`)?.value || '선정',
-        platformName: document.getElementById(`new_batch_platform_${idx}`)?.value || '개별',
+        userId: currentUser.uid,
+        storeName: sVal.trim(),
+        status: document.getElementById(`new_batch_status_${idx}`)?.value || row.status || '선정',
+        platformName: document.getElementById(`new_batch_platform_${idx}`)?.value || row.platformName || '개별',
         applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
-        visitDate: formatCleanDate(document.getElementById(`new_batch_visitDate_${idx}`)?.value || ''),
+        visitDate: formatCleanDate(document.getElementById(`new_batch_visitDate_${idx}`)?.value || row.visitDate || ''),
         visitTime: document.getElementById(`new_batch_visitTime_${idx}`)?.value || '',
-        deadlineDate: formatCleanDate(document.getElementById(`new_batch_deadlineDate_${idx}`)?.value || ''),
-        sponsoredAmount: parseCurrencyValue(document.getElementById(`new_batch_sponsored_${idx}`)?.value),
-        paidAmount: parseCurrencyValue(document.getElementById(`new_batch_paid_${idx}`)?.value),
-        revenue: 0, createdAt: serverTimestamp()
+        deadlineDate: formatCleanDate(document.getElementById(`new_batch_deadlineDate_${idx}`)?.value || row.deadlineDate || ''),
+        sponsoredAmount: parseCurrencyValue(document.getElementById(`new_batch_sponsored_${idx}`)?.value || row.sponsoredAmount),
+        paidAmount: parseCurrencyValue(document.getElementById(`new_batch_paid_${idx}`)?.value || row.paidAmount),
+        revenue: 0,
+        createdAt: serverTimestamp()
       }));
     }
   });
@@ -1383,7 +1449,7 @@ window.filterAndRender = function() {
   const totalFilteredCount = filtered.length;
   let itemsToRender = filtered;
 
-  // 완료됨 탭일 때 20개 페이징 분할 (일괄 수정 모드는 제외)
+  // 완료됨 탭일 때 20개 페이징 분할
   if (listSubTab === 'submitted' && !isBatchEditing) {
     itemsToRender = filtered.slice(0, completedVisibleCount);
   }
@@ -1396,19 +1462,29 @@ window.filterAndRender = function() {
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
-      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
-
+    // 새 행 렌더링 (보관된 데이터가 그대로 복원되어 출력됨)
     newBatchRows.forEach((row, idx) => {
+      const curPlat = row.platformName || '개별';
+      const rowPlatOptions = platformList.map(p => `<option value="${p}" ${p === curPlat ? 'selected' : ''}>${p}</option>`).join('')
+        + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
+
       const nRow = document.createElement('tr');
       nRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
-      nRow.innerHTML = `<td class="py-1 px-2 truncate"><input type="text" id="new_batch_store_${idx}" placeholder="+ 매장명 입력" class="w-full border p-1 rounded-lg text-xs bg-white font-normal"></td>`
-        + `<td class="py-1 px-1 text-center"><select id="new_batch_status_${idx}" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center font-normal"><option value="신청">신청</option><option value="선정" selected>선정</option><option value="방문">방문</option><option value="미제출">미제출</option><option value="제출">제출</option><option value="배송">배송</option><option value="원고료">원고료</option></select></td>`
-        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${newRowPlatformOptions}</select></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" min="2000-01-01" max="2099-12-31" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
-        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" min="2000-01-01" max="2099-12-31" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
-        + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
-        + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_paid_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
+      nRow.innerHTML = `<td class="py-1 px-2 truncate"><input type="text" id="new_batch_store_${idx}" value="${row.storeName || ''}" placeholder="+ 매장명 입력" class="w-full border p-1 rounded-lg text-xs bg-white font-normal"></td>`
+        + `<td class="py-1 px-1 text-center"><select id="new_batch_status_${idx}" style="color:${window.getStatusColor(row.status || '선정')}; font-weight:600;" onchange="this.style.color = window.getStatusColor(this.value);" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center font-normal">
+            <option value="신청" ${(row.status)==='신청'?'selected':''}>신청</option>
+            <option value="선정" ${(row.status||'선정')==='선정'?'selected':''}>선정</option>
+            <option value="방문" ${(row.status)==='방문'?'selected':''}>방문</option>
+            <option value="미제출" ${(row.status)==='미제출'?'selected':''}>미제출</option>
+            <option value="제출" ${(row.status)==='제출'?'selected':''}>제출</option>
+            <option value="배송" ${(row.status)==='배송'?'selected':''}>배송</option>
+            <option value="원고료" ${(row.status)==='원고료'?'selected':''}>원고료</option>
+          </select></td>`
+        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${rowPlatOptions}</select></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(row.visitDate || '')}" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
+        + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(row.deadlineDate || '')}" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
+        + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_sponsored_${idx}" value="${formatCurrencyInput(row.sponsoredAmount || '')}" oninput="this.value = window.formatCurrencyInput(this.value)" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
+        + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_paid_${idx}" value="${formatCurrencyInput(row.paidAmount || '')}" oninput="this.value = window.formatCurrencyInput(this.value)" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right text-gray-400 truncate">자동계산</td>`
         + `<td class="py-1 px-2 text-center"><button onclick="window.removeNewBatchRow(${idx})" class="text-xs bg-gray-400 text-white px-2 py-1 rounded-lg font-bold cursor-pointer">취소</button></td>`;
       tableBody?.appendChild(nRow);
@@ -1437,12 +1513,12 @@ window.filterAndRender = function() {
       const row = document.createElement('tr');
       row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
       row.innerHTML = `<td class="py-1 px-2.5 truncate"><input type="text" id="batch_store_${item.id}" value="${item.storeName || ''}" class="w-full border p-1 rounded-lg outline-none text-xs bg-white font-normal">${overdueBadge}</td>`
-        + `<td class="py-1 px-1 text-center"><select id="batch_status_${item.id}" style="color:${window.getStatusColor(item.status)}; font-weight:600;" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center"><option value="신청" ${item.status==='신청'?'selected':''}>신청</option><option value="선정" ${item.status==='선정'?'selected':''}>선정</option><option value="방문" ${item.status==='방문'?'selected':''}>방문</option><option value="미제출" ${item.status==='미제출'?'selected':''}>미제출</option><option value="제출" ${item.status==='제출'?'selected':''}>제출</option><option value="배송" ${item.status==='배송'?'selected':''}>배송</option><option value="원고료" ${item.status==='원고료'?'selected':''}>원고료</option></select></td>`
+        + `<td class="py-1 px-1 text-center"><select id="batch_status_${item.id}" style="color:${window.getStatusColor(item.status)}; font-weight:600;" onchange="this.style.color = window.getStatusColor(this.value);" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center"><option value="신청" ${item.status==='신청'?'selected':''}>신청</option><option value="선정" ${item.status==='선정'?'selected':''}>선정</option><option value="방문" ${item.status==='방문'?'selected':''}>방문</option><option value="미제출" ${item.status==='미제출'?'selected':''}>미제출</option><option value="제출" ${item.status==='제출'?'selected':''}>제출</option><option value="배송" ${item.status==='배송'?'selected':''}>배송</option><option value="원고료" ${item.status==='원고료'?'selected':''}>원고료</option></select></td>`
         + `<td class="py-1 px-2 text-center truncate">${platformSelectHtml}</td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="batch_visitDate_${item.id}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(item.visitDate)}" class="border p-1 rounded-lg text-xs bg-white w-full"><input type="hidden" id="batch_visitTime_${item.id}" value="${item.visitTime || ''}"></td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="batch_deadlineDate_${item.id}" min="2000-01-01" max="2099-12-31" value="${formatCleanDate(item.deadlineDate)}" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
-        + `<td class="py-1 px-2 text-right"><input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(sp)}" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
-        + `<td class="py-1 px-2 text-right"><input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(pd)}" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
+        + `<td class="py-1 px-2 text-right"><input type="text" id="batch_sponsored_${item.id}" value="${formatCurrencyInput(sp)}" oninput="this.value = window.formatCurrencyInput(this.value)" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
+        + `<td class="py-1 px-2 text-right"><input type="text" id="batch_paid_${item.id}" value="${formatCurrencyInput(pd)}" oninput="this.value = window.formatCurrencyInput(this.value)" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
         + `<td class="py-1 px-2 text-right truncate font-bold text-gray-900">${formatRevenueDisplay(calcRev)}</td>`
         + `<td class="py-1 px-2 text-center"><button onclick="window.deleteCampaign('${item.id}')" class="text-xs bg-rose-500 text-white px-2 py-1 rounded-lg font-bold cursor-pointer">삭제</button></td>`;
       tableBody?.appendChild(row);
@@ -1874,7 +1950,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치[cite: 2]
+// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
