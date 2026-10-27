@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- 캐시 방지 메타태그 -->
+  <!-- 모바일/태블릿 캐시 방지 메타태그 -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -555,7 +555,7 @@
           <div><label class="block text-xs font-normal text-gray-900 mb-1">결제금액 (원)</label><input type="text" id="modalPaidAmount" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
           <div><label class="block text-xs font-normal text-gray-900 mb-1">실수익 (원)</label><input type="text" id="modalRevenue" placeholder="0" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         </div>
-        <div id="modalRowContact" class="hidden">
+        <div id="rowContact" class="hidden">
           <label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label>
           <input type="text" id="modalContact" placeholder="010-0000-0000" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal">
         </div>
@@ -604,7 +604,6 @@
         </div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">업체 연락처</label><input type="text" id="editContact" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm font-normal"></div>
         <div><label class="block text-xs font-normal text-gray-900 mb-1">메모</label><textarea id="editMemo" rows="2" class="w-full border border-gray-200 p-2.5 rounded-xl text-sm resize-none font-normal"></textarea></div>
-        <!-- 수정 저장하기 단독 100% 버튼 배치 -->
         <div class="pt-2 border-t border-gray-100">
           <button type="submit" class="w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer">수정 저장하기</button>
         </div>
@@ -637,6 +636,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js?v=20261026_clean_v6"></script>
+  <script type="module" src="js/app.js?v=20261027_sync_v1"></script>
 </body>
 </html>
