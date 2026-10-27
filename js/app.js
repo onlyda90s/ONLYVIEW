@@ -60,7 +60,10 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-let isPlatformEditing = false, isModalPlatformEditing = false;
+// 플랫폼 통합 관리 상태 (각 모달별 관리 모드 분리)
+let isPlatformEditingForm = false;
+let isPlatformEditingModal = false;
+let isPlatformEditingEdit = false;
 
 let platformList = ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 try {
@@ -306,6 +309,162 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
+// -------------------------------------------------------------
+// [통합 플랫폼 관리 시스템: Single Source of Truth]
+// -------------------------------------------------------------
+window.addCustomPlatform = async function(activeContext = 'form') {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  const newSite = prompt("추가할 사이트명을 입력하세요:");
+  if (!newSite || !newSite.trim()) return;
+  const trimmed = newSite.trim();
+
+  if (!platformList.includes(trimmed)) {
+    platformList.push(trimmed);
+    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+    if (currentUser && !isReadOnly && db) {
+      try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+    }
+  }
+
+  // 현재 모달/화면에 추가된 사이트를 즉시 선택 상태로 연결
+  if (activeContext === 'form') {
+    const el = document.getElementById('platformName'); if (el) el.value = trimmed;
+  } else if (activeContext === 'modal') {
+    const el = document.getElementById('modalPlatformName'); if (el) el.value = trimmed;
+  } else if (activeContext === 'edit') {
+    const el = document.getElementById('editPlatformName'); if (el) el.value = trimmed;
+  }
+
+  window.renderAllPlatformComponents();
+  if (isBatchEditing) window.filterAndRender();
+};
+
+window.deleteCustomPlatform = async function(name) {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
+  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
+
+  platformList = platformList.filter(p => p !== name);
+  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+
+  ['platformName', 'modalPlatformName', 'editPlatformName'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value === name) el.value = '개별';
+  });
+
+  if (currentUser && !isReadOnly && db) {
+    try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+  }
+
+  window.renderAllPlatformComponents();
+  if (isBatchEditing) window.filterAndRender();
+};
+
+window.togglePlatformManagement = function(context) {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (context === 'form') isPlatformEditingForm = !isPlatformEditingForm;
+  else if (context === 'modal') isPlatformEditingModal = !isPlatformEditingModal;
+  else if (context === 'edit') isPlatformEditingEdit = !isPlatformEditingEdit;
+  window.renderAllPlatformComponents();
+};
+
+window.selectPlatformChip = function(name, context = 'form') {
+  let inputId = 'platformName';
+  if (context === 'modal') inputId = 'modalPlatformName';
+  else if (context === 'edit') inputId = 'editPlatformName';
+  const el = document.getElementById(inputId);
+  if (el) el.value = name;
+  window.renderAllPlatformComponents();
+};
+
+// PC/태블릿 테이블 일괄 수정 드롭다운 전용 즉석 추가 핸들러
+window.handleTablePlatformChange = async function(selectEl) {
+  if (selectEl.value === '__ADD_NEW__') {
+    const newSite = prompt("추가할 새 사이트명을 입력하세요:");
+    if (!newSite || !newSite.trim()) {
+      selectEl.value = '개별';
+      return;
+    }
+    const trimmed = newSite.trim();
+    if (!platformList.includes(trimmed)) {
+      platformList.push(trimmed);
+      try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+      if (currentUser && !isReadOnly && db) {
+        try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+      }
+    }
+    window.renderAllPlatformComponents();
+    window.filterAndRender();
+    const updatedSelect = document.getElementById(selectEl.id);
+    if (updatedSelect) updatedSelect.value = trimmed;
+  }
+};
+
+function renderPlatformChipsContainer(containerId, inputId, context, isManaging) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const curVal = document.getElementById(inputId)?.value || '개별';
+
+  const displayList = [...platformList];
+  if (curVal && !displayList.includes(curVal)) {
+    displayList.push(curVal);
+  }
+
+  displayList.forEach(name => {
+    const isSelected = (name === curVal);
+    const chipWrap = document.createElement('div');
+    chipWrap.className = "relative inline-flex items-center";
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerText = name;
+    btn.className = isSelected
+      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors cursor-pointer"
+      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors cursor-pointer";
+    btn.onclick = () => window.selectPlatformChip(name, context);
+    chipWrap.appendChild(btn);
+
+    if (isManaging && name !== '개별') {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.innerHTML = '×';
+      delBtn.title = '사이트 삭제';
+      delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5 cursor-pointer";
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        window.deleteCustomPlatform(name);
+      };
+      chipWrap.appendChild(delBtn);
+    }
+    container.appendChild(chipWrap);
+  });
+
+  // '+ 추가' 버튼 상시 배치
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.innerText = '+ 추가';
+  addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 font-normal text-xs hover:bg-gray-100 transition-colors cursor-pointer";
+  addBtn.onclick = () => window.addCustomPlatform(context);
+  container.appendChild(addBtn);
+
+  // '관리' / '완료' 모드 토글 버튼
+  const manageBtn = document.createElement('button');
+  manageBtn.type = 'button';
+  manageBtn.innerText = isManaging ? '완료' : '관리';
+  manageBtn.className = isManaging
+    ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer"
+    : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
+  manageBtn.onclick = () => window.togglePlatformManagement(context);
+  container.appendChild(manageBtn);
+}
+
+window.renderAllPlatformComponents = function() {
+  renderPlatformChipsContainer('platformChipsContainer', 'platformName', 'form', isPlatformEditingForm);
+  renderPlatformChipsContainer('modalPlatformChipsContainer', 'modalPlatformName', 'modal', isPlatformEditingModal);
+  renderPlatformChipsContainer('editPlatformChipsContainer', 'editPlatformName', 'edit', isPlatformEditingEdit);
+};
+
 async function loadTargetUserSettings(uid) {
   if (!uid || !db) return;
   try {
@@ -321,8 +480,7 @@ async function loadTargetUserSettings(uid) {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformComponents();
       }
       if (d.theme) { 
         applyThemeCSS(d.theme); 
@@ -569,8 +727,9 @@ window.switchTab = function(tabName, pushState = true) {
     window.filterAndRender();
   } else if (tabName === 'form') {
     document.getElementById('campaignForm')?.reset();
-    isPlatformEditing = false;
-    window.setStatusBtn('신청'); window.selectPlatformChip('개별');
+    isPlatformEditingForm = false;
+    window.setStatusBtn('신청'); 
+    window.selectPlatformChip('개별', 'form');
     document.getElementById('sectionForm')?.classList.remove('hidden');
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
   } else if (tabName === 'settlement') {
@@ -656,122 +815,6 @@ window.setEditStatusBtn = function(status) {
   });
 };
 
-window.selectPlatformChip = function(name) {
-  const el = document.getElementById('platformName'); if (el) el.value = name;
-  renderPlatformChips();
-};
-
-window.togglePlatformEdit = function(isModal = false) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (isModal) isModalPlatformEditing = !isModalPlatformEditing;
-  else isPlatformEditing = !isPlatformEditing;
-  renderPlatformChips();
-};
-
-window.deleteCustomPlatform = async function(name) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
-  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
-  platformList = platformList.filter(p => p !== name);
-  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-  const pInput = document.getElementById('platformName'); if (pInput && pInput.value === name) pInput.value = '개별';
-  const mInput = document.getElementById('modalPlatformName'); if (mInput && mInput.value === name) mInput.value = '개별';
-  const eInput = document.getElementById('editPlatformName'); if (eInput && eInput.value === name) eInput.value = '개별';
-  renderPlatformChips();
-  renderEditPlatformChips();
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-};
-
-window.addCustomPlatform = async function() {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  const newSite = prompt("추가할 사이트명을 입력하세요:");
-  if (!newSite || !newSite.trim()) return;
-  const t = newSite.trim();
-  if (!platformList.includes(t)) {
-    platformList.push(t); 
-    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-    window.selectPlatformChip(t);
-    renderEditPlatformChips();
-    if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-  } else { window.selectPlatformChip(t); }
-};
-
-function renderPlatformChips() {
-  const container = document.getElementById('platformChipsContainer');
-  const modalContainer = document.getElementById('modalPlatformChipsContainer');
-  const render = (target, isM) => {
-    if (!target) return;
-    target.innerHTML = '';
-    const inputId = isM ? 'modalPlatformName' : 'platformName';
-    const curVal = document.getElementById(inputId)?.value || platformList[0] || '개별';
-    const isEditing = isM ? isModalPlatformEditing : isPlatformEditing;
-
-    platformList.forEach(name => {
-      const isSelected = (name === curVal);
-      const chipWrap = document.createElement('div');
-      chipWrap.className = "relative inline-flex items-center";
-      const btn = document.createElement('button');
-      btn.type = 'button'; btn.innerText = name;
-      btn.className = isSelected ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-      btn.onclick = () => { const el = document.getElementById(inputId); if (el) el.value = name; renderPlatformChips(); };
-      chipWrap.appendChild(btn);
-
-      if (isEditing && name !== '개별') {
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button'; delBtn.innerHTML = '×'; delBtn.title = '사이트 삭제';
-        delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5";
-        delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
-        chipWrap.appendChild(delBtn);
-      }
-      target.appendChild(chipWrap);
-    });
-
-    if (isEditing) {
-      const addBtn = document.createElement('button');
-      addBtn.type = 'button'; addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
-      addBtn.onclick = window.addCustomPlatform;
-      target.appendChild(addBtn);
-    }
-    const editToggleBtn = document.createElement('button');
-    editToggleBtn.type = 'button';
-    editToggleBtn.innerText = isEditing ? '완료' : '수정';
-    editToggleBtn.className = isEditing ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors" : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors";
-    editToggleBtn.onclick = () => window.togglePlatformEdit(isM);
-    target.appendChild(editToggleBtn);
-  };
-  render(container, false);
-  render(modalContainer, true);
-}
-
-function renderEditPlatformChips() {
-  const container = document.getElementById('editPlatformChipsContainer');
-  if (!container) return;
-  container.innerHTML = '';
-  const curVal = document.getElementById('editPlatformName')?.value || '개별';
-  
-  const displayList = [...platformList];
-  if (curVal && !displayList.includes(curVal)) {
-    displayList.push(curVal);
-  }
-
-  displayList.forEach(name => {
-    const isSelected = (name === curVal);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.innerText = name;
-    btn.className = isSelected 
-      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" 
-      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-    btn.onclick = () => {
-      const el = document.getElementById('editPlatformName');
-      if (el) el.value = name;
-      renderEditPlatformChips();
-    };
-    container.appendChild(btn);
-  });
-}
-
 window.setDeadlineDays = async function(days) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
   deadlineAlertDays = Number(days);
@@ -793,11 +836,11 @@ function updateDeadlineButtons() {
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
-  isModalPlatformEditing = false;
+  isPlatformEditingModal = false;
   window.setModalStatusBtn('신청');
   const mApp = document.getElementById('modalApplyDate');
   if (mApp) mApp.value = new Date().toISOString().slice(0, 10);
-  renderPlatformChips();
+  window.renderAllPlatformComponents();
   window.openModal('dashRegisterModal');
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
@@ -811,7 +854,6 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
-  // 삭제 버튼 숨김 (신규 등록이므로 불필요)
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.style.display = 'none';
 
@@ -824,7 +866,8 @@ window.openNewCampaignFromModal = function() {
   window.setEditStatusBtn('선정');
   const pInput = document.getElementById('editPlatformName');
   if (pInput) pInput.value = '개별';
-  renderEditPlatformChips();
+  isPlatformEditingEdit = false;
+  window.renderAllPlatformComponents();
 
   window.openModal('editModal');
 };
@@ -932,7 +975,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// [수정 모달] 상세 정보 창에서 이미 삭제/수정을 선택했으므로, 삭제 버튼을 완전히 감추고 [수정 저장하기]만 100% 단독 배치
+// [수정 모달] 삭제 버튼은 완전 제거, [수정 저장하기] 버튼만 100% 가로 폭으로 단독 배치
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -942,11 +985,11 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
-  // 삭제 버튼은 상세 팝업에 있으므로 수정 모달에서는 완전 숨김
+  // 삭제 버튼 제거
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.style.display = 'none';
 
-  // 수정 저장하기 버튼 100% 단독 배치
+  // 수정 저장하기 100% 폭으로 세팅
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -967,7 +1010,8 @@ window.openEditModalFromId = function(id) {
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
-  renderEditPlatformChips();
+  isPlatformEditingEdit = false;
+  window.renderAllPlatformComponents();
   window.openModal('editModal');
 };
 
@@ -1282,7 +1326,7 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // PC/태블릿 전용 수정/저장 버튼 제어 (미디어쿼리 충돌 방지를 위해 인라인 display 강제 동기화)
+  // PC/태블릿 수정 및 저장 버튼 제어
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
@@ -1327,20 +1371,21 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // PC/태블릿 일괄 수정 모드일 때 최상단 추가 행 노출
+  // PC 일괄 수정 모드일 때 테이블 최상단 신규 행 추가
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('');
+    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
+      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
 
     newBatchRows.forEach((row, idx) => {
       const nRow = document.createElement('tr');
       nRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
       nRow.innerHTML = `<td class="py-1 px-2 truncate"><input type="text" id="new_batch_store_${idx}" placeholder="+ 매장명 입력" class="w-full border p-1 rounded-lg text-xs bg-white font-normal"></td>`
         + `<td class="py-1 px-1 text-center"><select id="new_batch_status_${idx}" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center font-normal"><option value="신청">신청</option><option value="선정" selected>선정</option><option value="방문">방문</option><option value="미제출">미제출</option><option value="제출">제출</option><option value="배송">배송</option><option value="원고료">원고료</option></select></td>`
-        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${newRowPlatformOptions}</select></td>`
+        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${newRowPlatformOptions}</select></td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" min="2000-01-01" max="2099-12-31" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" min="2000-01-01" max="2099-12-31" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
@@ -1365,7 +1410,10 @@ window.filterAndRender = function() {
       if (curPlatform && !batchPlatformOptions.includes(curPlatform)) {
         batchPlatformOptions.push(curPlatform);
       }
-      const platformSelectHtml = `<select id="batch_platform_${item.id}" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}</select>`;
+      const platformSelectHtml = `<select id="batch_platform_${item.id}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">
+        ${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}
+        <option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>
+      </select>`;
 
       const row = document.createElement('tr');
       row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
@@ -1860,8 +1908,7 @@ async function fetchUserCustomCode() {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformComponents();
       }
       if (d.theme) { applyThemeCSS(d.theme); try { localStorage.setItem('onlyview_theme', d.theme); } catch(e) {} }
       if (d.chartMode) { currentChartMode = d.chartMode; try { localStorage.setItem('onlyview_chartMode', d.chartMode); } catch(e) {} updateChartModeButtonsUI(); }
@@ -1947,7 +1994,7 @@ document.addEventListener("DOMContentLoaded", () => {
         paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
         contact: document.getElementById('contact')?.value || '', memo: document.getElementById('memo')?.value || '', createdAt: serverTimestamp()
       });
-      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별'); loadCampaigns();
+      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form'); loadCampaigns();
     } catch (err) { alert(err.message); }
   });
 
@@ -1958,7 +2005,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
@@ -2051,5 +2098,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
+  applySidebarUI(); 
+  window.renderAllPlatformComponents(); 
+  renderSettingsUI(); 
+  populateYearFilter();
 });
