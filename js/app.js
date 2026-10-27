@@ -18,11 +18,10 @@ try {
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  // 브라우저 탭/창 종료 시 즉시 세션 만료 설정
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-// 7시간 절대 세션 만료 시스템 (PC, 태블릿, 모바일 공통)
+// 7시간 절대 세션 만료 시스템
 const SESSION_TIMEOUT_MS = 7 * 60 * 60 * 1000;
 
 function checkAbsoluteSessionTimeout() {
@@ -38,7 +37,6 @@ function checkAbsoluteSessionTimeout() {
   }
 }
 
-// 모바일 백그라운드 복귀 및 실시간 감지
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkAbsoluteSessionTimeout();
 });
@@ -70,7 +68,10 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-let isPlatformEditing = false, isModalPlatformEditing = false;
+// 사이트 관리 모드 상태 변수
+let isPlatformEditingForm = false;
+let isPlatformEditingModal = false;
+let isPlatformEditingEdit = false;
 
 let platformList = ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 try {
@@ -314,6 +315,189 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
+// -------------------------------------------------------------
+// [통합] 사이트 (플랫폼) 단일 관리 시스템 (등록탭 / 등록모달 / 수정모달)
+// -------------------------------------------------------------
+window.togglePlatformManagement = function(context) {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (context === 'form') isPlatformEditingForm = !isPlatformEditingForm;
+  else if (context === 'modal') isPlatformEditingModal = !isPlatformEditingModal;
+  else if (context === 'edit') isPlatformEditingEdit = !isPlatformEditingEdit;
+  window.renderAllPlatformComponents();
+};
+
+window.selectPlatformChip = function(name, context = 'form') {
+  let inputId = 'platformName';
+  if (context === 'modal') inputId = 'modalPlatformName';
+  else if (context === 'edit') inputId = 'editPlatformName';
+  const el = document.getElementById(inputId);
+  if (el) el.value = name;
+  window.renderAllPlatformComponents();
+};
+
+window.addCustomPlatform = async function(context = 'form') {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  const newSite = prompt("추가할 사이트명을 입력하세요:");
+  if (!newSite || !newSite.trim()) return;
+  const t = newSite.trim();
+
+  if (!platformList.includes(t)) {
+    platformList.push(t);
+    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+    if (currentUser && !isReadOnly && db) {
+      try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+    }
+  }
+  window.selectPlatformChip(t, context);
+  if (isBatchEditing) window.filterAndRender();
+};
+
+window.deleteCustomPlatform = async function(name, context = 'form') {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
+  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
+
+  platformList = platformList.filter(p => p !== name);
+  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+
+  ['platformName', 'modalPlatformName', 'editPlatformName'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value === name) el.value = '개별';
+  });
+
+  if (currentUser && !isReadOnly && db) {
+    try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+  }
+
+  window.renderAllPlatformComponents();
+  if (isBatchEditing) window.filterAndRender();
+};
+
+function renderPlatformChipsContainer(containerId, inputId, context, isEditing) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const curVal = document.getElementById(inputId)?.value || '개별';
+
+  const displayList = [...platformList];
+  if (curVal && !displayList.includes(curVal)) {
+    displayList.push(curVal);
+  }
+
+  displayList.forEach(name => {
+    const isSelected = (name === curVal);
+    const chipWrap = document.createElement('div');
+    chipWrap.className = "relative inline-flex items-center";
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerText = name;
+    btn.className = isSelected 
+      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors cursor-pointer" 
+      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors cursor-pointer";
+    btn.onclick = () => window.selectPlatformChip(name, context);
+    chipWrap.appendChild(btn);
+
+    // 수정 모드일 때만 삭제(X) 버튼 노출
+    if (isEditing && name !== '개별') {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.innerHTML = '×';
+      delBtn.title = '사이트 삭제';
+      delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5 cursor-pointer";
+      delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name, context); };
+      chipWrap.appendChild(delBtn);
+    }
+    container.appendChild(chipWrap);
+  });
+
+  if (isEditing) {
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button'; addBtn.innerText = '+ 추가';
+    addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 font-normal text-xs hover:bg-gray-100 transition-colors cursor-pointer";
+    addBtn.onclick = () => window.addCustomPlatform(context);
+    container.appendChild(addBtn);
+
+    const finishBtn = document.createElement('button');
+    finishBtn.type = 'button'; finishBtn.innerText = '완료';
+    finishBtn.className = "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer";
+    finishBtn.onclick = () => window.togglePlatformManagement(context);
+    container.appendChild(finishBtn);
+  } else {
+    const editToggleBtn = document.createElement('button');
+    editToggleBtn.type = 'button';
+    editToggleBtn.innerText = '수정';
+    editToggleBtn.className = "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
+    editToggleBtn.onclick = () => window.togglePlatformManagement(context);
+    container.appendChild(editToggleBtn);
+  }
+}
+
+window.renderAllPlatformComponents = function() {
+  renderPlatformChipsContainer('platformChipsContainer', 'platformName', 'form', isPlatformEditingForm);
+  renderPlatformChipsContainer('modalPlatformChipsContainer', 'modalPlatformName', 'modal', isPlatformEditingModal);
+  renderPlatformChipsContainer('editPlatformChipsContainer', 'editPlatformName', 'edit', isPlatformEditingEdit);
+};
+
+// -------------------------------------------------------------
+// [PC/태블릿 목록 테이블] 일괄 수정 및 새 체험 추가 드롭다운 내 사이트 추가/삭제
+// -------------------------------------------------------------
+window.handleTablePlatformChange = async function(selectEl) {
+  if (selectEl.value === '__ADD_NEW__') {
+    const newSite = prompt("추가할 새 사이트명을 입력하세요:");
+    if (!newSite || !newSite.trim()) {
+      selectEl.value = '개별';
+      return;
+    }
+    const trimmed = newSite.trim();
+    if (!platformList.includes(trimmed)) {
+      platformList.push(trimmed);
+      try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+      if (currentUser && !isReadOnly && db) {
+        try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+      }
+    }
+    window.renderAllPlatformComponents();
+    window.filterAndRender();
+    const updatedSelect = document.getElementById(selectEl.id);
+    if (updatedSelect) updatedSelect.value = trimmed;
+  } else if (selectEl.value === '__MANAGE_DELETE__') {
+    const deletable = platformList.filter(p => p !== '개별');
+    if (deletable.length === 0) {
+      alert("삭제할 수 있는 추가 사이트가 없습니다.");
+      selectEl.value = '개별';
+      return;
+    }
+    const targetSite = prompt(`삭제할 사이트명을 정확히 입력하세요:\n(현재 추가된 사이트 목록: ${deletable.join(', ')})`);
+    if (!targetSite || !targetSite.trim()) {
+      selectEl.value = '개별';
+      return;
+    }
+    const trimmed = targetSite.trim();
+    if (trimmed === '개별') {
+      alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
+      selectEl.value = '개별';
+      return;
+    }
+    if (!platformList.includes(trimmed)) {
+      alert(`'${trimmed}' 사이트를 찾을 수 없습니다.`);
+      selectEl.value = '개별';
+      return;
+    }
+    if (confirm(`'${trimmed}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) {
+      platformList = platformList.filter(p => p !== trimmed);
+      try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+      if (currentUser && !isReadOnly && db) {
+        try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+      }
+      window.renderAllPlatformComponents();
+      window.filterAndRender();
+    } else {
+      selectEl.value = '개별';
+    }
+  }
+};
+
 async function loadTargetUserSettings(uid) {
   if (!uid || !db) return;
   try {
@@ -329,8 +513,7 @@ async function loadTargetUserSettings(uid) {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformComponents();
       }
       if (d.theme) { 
         applyThemeCSS(d.theme); 
@@ -380,7 +563,6 @@ window.loginWithGoogle = async function() {
     }
     const cred = await signInWithPopup(auth, provider);
     if (cred && cred.user) {
-      // 로그인 시점 기록 (7시간 만료 기준점)
       localStorage.setItem('onlyview_loginTimestamp', Date.now().toString());
       await handleUserLoggedIn(cred.user);
     }
@@ -580,8 +762,8 @@ window.switchTab = function(tabName, pushState = true) {
     window.filterAndRender();
   } else if (tabName === 'form') {
     document.getElementById('campaignForm')?.reset();
-    isPlatformEditing = false;
-    window.setStatusBtn('신청'); window.selectPlatformChip('개별');
+    isPlatformEditingForm = false;
+    window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form');
     document.getElementById('sectionForm')?.classList.remove('hidden');
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
   } else if (tabName === 'settlement') {
@@ -598,7 +780,7 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
+// 등록 탭 상태 버튼 제어
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -628,7 +810,7 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
+// 등록 모달 상태 버튼 제어
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -658,7 +840,7 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// 수정 모달 7개 상태 버튼 제어
+// 수정 모달 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -666,122 +848,6 @@ window.setEditStatusBtn = function(status) {
     if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
   });
 };
-
-window.selectPlatformChip = function(name) {
-  const el = document.getElementById('platformName'); if (el) el.value = name;
-  renderPlatformChips();
-};
-
-window.togglePlatformEdit = function(isModal = false) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (isModal) isModalPlatformEditing = !isModalPlatformEditing;
-  else isPlatformEditing = !isPlatformEditing;
-  renderPlatformChips();
-};
-
-window.deleteCustomPlatform = async function(name) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
-  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
-  platformList = platformList.filter(p => p !== name);
-  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-  const pInput = document.getElementById('platformName'); if (pInput && pInput.value === name) pInput.value = '개별';
-  const mInput = document.getElementById('modalPlatformName'); if (mInput && mInput.value === name) mInput.value = '개별';
-  const eInput = document.getElementById('editPlatformName'); if (eInput && eInput.value === name) eInput.value = '개별';
-  renderPlatformChips();
-  renderEditPlatformChips();
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-};
-
-window.addCustomPlatform = async function() {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  const newSite = prompt("추가할 사이트명을 입력하세요:");
-  if (!newSite || !newSite.trim()) return;
-  const t = newSite.trim();
-  if (!platformList.includes(t)) {
-    platformList.push(t); 
-    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-    window.selectPlatformChip(t);
-    renderEditPlatformChips();
-    if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-  } else { window.selectPlatformChip(t); }
-};
-
-function renderPlatformChips() {
-  const container = document.getElementById('platformChipsContainer');
-  const modalContainer = document.getElementById('modalPlatformChipsContainer');
-  const render = (target, isM) => {
-    if (!target) return;
-    target.innerHTML = '';
-    const inputId = isM ? 'modalPlatformName' : 'platformName';
-    const curVal = document.getElementById(inputId)?.value || platformList[0] || '개별';
-    const isEditing = isM ? isModalPlatformEditing : isPlatformEditing;
-
-    platformList.forEach(name => {
-      const isSelected = (name === curVal);
-      const chipWrap = document.createElement('div');
-      chipWrap.className = "relative inline-flex items-center";
-      const btn = document.createElement('button');
-      btn.type = 'button'; btn.innerText = name;
-      btn.className = isSelected ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-      btn.onclick = () => { const el = document.getElementById(inputId); if (el) el.value = name; renderPlatformChips(); };
-      chipWrap.appendChild(btn);
-
-      if (isEditing && name !== '개별') {
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button'; delBtn.innerHTML = '×'; delBtn.title = '사이트 삭제';
-        delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5";
-        delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
-        chipWrap.appendChild(delBtn);
-      }
-      target.appendChild(chipWrap);
-    });
-
-    if (isEditing) {
-      const addBtn = document.createElement('button');
-      addBtn.type = 'button'; addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
-      addBtn.onclick = window.addCustomPlatform;
-      target.appendChild(addBtn);
-    }
-    const editToggleBtn = document.createElement('button');
-    editToggleBtn.type = 'button';
-    editToggleBtn.innerText = isEditing ? '완료' : '수정';
-    editToggleBtn.className = isEditing ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors" : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors";
-    editToggleBtn.onclick = () => window.togglePlatformEdit(isM);
-    target.appendChild(editToggleBtn);
-  };
-  render(container, false);
-  render(modalContainer, true);
-}
-
-function renderEditPlatformChips() {
-  const container = document.getElementById('editPlatformChipsContainer');
-  if (!container) return;
-  container.innerHTML = '';
-  const curVal = document.getElementById('editPlatformName')?.value || '개별';
-  
-  const displayList = [...platformList];
-  if (curVal && !displayList.includes(curVal)) {
-    displayList.push(curVal);
-  }
-
-  displayList.forEach(name => {
-    const isSelected = (name === curVal);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.innerText = name;
-    btn.className = isSelected 
-      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" 
-      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-    btn.onclick = () => {
-      const el = document.getElementById('editPlatformName');
-      if (el) el.value = name;
-      renderEditPlatformChips();
-    };
-    container.appendChild(btn);
-  });
-}
 
 window.setDeadlineDays = async function(days) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
@@ -804,11 +870,11 @@ function updateDeadlineButtons() {
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
-  isModalPlatformEditing = false;
+  isPlatformEditingModal = false;
   window.setModalStatusBtn('신청');
   const mApp = document.getElementById('modalApplyDate');
   if (mApp) mApp.value = new Date().toISOString().slice(0, 10);
-  renderPlatformChips();
+  window.renderAllPlatformComponents();
   window.openModal('dashRegisterModal');
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
@@ -834,7 +900,8 @@ window.openNewCampaignFromModal = function() {
   window.setEditStatusBtn('선정');
   const pInput = document.getElementById('editPlatformName');
   if (pInput) pInput.value = '개별';
-  renderEditPlatformChips();
+  isPlatformEditingEdit = false;
+  window.renderAllPlatformComponents();
 
   window.openModal('editModal');
 };
@@ -974,7 +1041,8 @@ window.openEditModalFromId = function(id) {
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
-  renderEditPlatformChips();
+  isPlatformEditingEdit = false;
+  window.renderAllPlatformComponents();
   window.openModal('editModal');
 };
 
@@ -1160,7 +1228,7 @@ window.executeExcelExport = async function() {
           const startRow = dRowIdx;
           mItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
             const r = sh.getRow(dRowIdx++); r.height = 19;
 
             if (filterMode === 'completed_detail') {
@@ -1239,7 +1307,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1332,19 +1400,22 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
+  // PC/태블릿 일괄 수정 모드일 때 최상단 추가 행 노출
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('');
+    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
+      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>'
+      + '<option value="__MANAGE_DELETE__" class="text-rose-600 font-normal">✕ 사이트 삭제 관리...</option>';
 
     newBatchRows.forEach((row, idx) => {
       const nRow = document.createElement('tr');
       nRow.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
       nRow.innerHTML = `<td class="py-1 px-2 truncate"><input type="text" id="new_batch_store_${idx}" placeholder="+ 매장명 입력" class="w-full border p-1 rounded-lg text-xs bg-white font-normal"></td>`
         + `<td class="py-1 px-1 text-center"><select id="new_batch_status_${idx}" class="w-full border py-1 px-0.5 rounded-lg text-xs bg-white text-center font-normal"><option value="신청">신청</option><option value="선정" selected>선정</option><option value="방문">방문</option><option value="미제출">미제출</option><option value="제출">제출</option><option value="배송">배송</option><option value="원고료">원고료</option></select></td>`
-        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${newRowPlatformOptions}</select></td>`
+        + `<td class="py-1 px-2 text-center truncate"><select id="new_batch_platform_${idx}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${newRowPlatformOptions}</select></td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_visitDate_${idx}" min="2000-01-01" max="2099-12-31" class="border p-1 rounded-lg text-xs bg-white w-full"></td>`
         + `<td class="py-1 px-2 text-center"><input type="date" id="new_batch_deadlineDate_${idx}" min="2000-01-01" max="2099-12-31" class="w-full border p-1 rounded-lg text-xs bg-white"></td>`
         + `<td class="py-1 px-2 text-right"><input type="text" id="new_batch_sponsored_${idx}" placeholder="0" class="w-full border p-1 rounded-lg text-xs bg-white text-right"></td>`
@@ -1369,7 +1440,11 @@ window.filterAndRender = function() {
       if (curPlatform && !batchPlatformOptions.includes(curPlatform)) {
         batchPlatformOptions.push(curPlatform);
       }
-      const platformSelectHtml = `<select id="batch_platform_${item.id}" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}</select>`;
+      const platformSelectHtml = `<select id="batch_platform_${item.id}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">
+        ${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}
+        <option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>
+        <option value="__MANAGE_DELETE__" class="text-rose-600 font-normal">✕ 사이트 삭제 관리...</option>
+      </select>`;
 
       const row = document.createElement('tr');
       row.className = 'bg-amber-50/60 border-b border-amber-200 text-xs text-gray-900';
@@ -1785,7 +1860,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치[cite: 2]
+// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -1864,8 +1939,7 @@ async function fetchUserCustomCode() {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformComponents();
       }
       if (d.theme) { applyThemeCSS(d.theme); try { localStorage.setItem('onlyview_theme', d.theme); } catch(e) {} }
       if (d.chartMode) { currentChartMode = d.chartMode; try { localStorage.setItem('onlyview_chartMode', d.chartMode); } catch(e) {} updateChartModeButtonsUI(); }
@@ -1953,7 +2027,7 @@ document.addEventListener("DOMContentLoaded", () => {
         paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
         contact: document.getElementById('contact')?.value || '', memo: document.getElementById('memo')?.value || '', createdAt: serverTimestamp()
       });
-      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별'); loadCampaigns();
+      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form'); loadCampaigns();
     } catch (err) { alert(err.message); }
   });
 
@@ -2057,5 +2131,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
+  applySidebarUI();
+  window.renderAllPlatformComponents();
+  renderSettingsUI();
+  populateYearFilter();
 });
