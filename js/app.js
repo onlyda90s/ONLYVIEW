@@ -18,23 +18,34 @@ try {
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  // 브라우저 종료 시 자동 로그아웃 (세션 지속성)
+  // 브라우저 닫을 시 세션 해제
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-let autoLogoutTimer;
-function resetAutoLogoutTimer() {
-  clearTimeout(autoLogoutTimer);
-  autoLogoutTimer = setTimeout(() => {
-    if (auth && auth.currentUser) {
-      signOut(auth);
-      alert("2시간 동안 활동이 없어 안전하게 자동 로그아웃 되었습니다.");
+// -------------------------------------------------------------
+// [7시간 절대 세션 만료 시스템 (PC, 태블릿, 모바일 공통)]
+// -------------------------------------------------------------
+const SESSION_TIMEOUT_MS = 7 * 60 * 60 * 1000; // 7시간 (25,200,000ms)
+
+function checkAbsoluteSessionTimeout() {
+  if (!auth || !auth.currentUser) return;
+  const loginTimestamp = Number(localStorage.getItem('onlyview_loginTimestamp') || '0');
+  
+  if (loginTimestamp > 0 && Date.now() - loginTimestamp > SESSION_TIMEOUT_MS) {
+    localStorage.removeItem('onlyview_loginTimestamp');
+    signOut(auth).then(() => {
+      alert("로그인 세션(7시간)이 만료되어 안전하게 자동 로그아웃되었습니다.");
       window.location.reload();
-    }
-  }, 7200000);
+    });
+  }
 }
-['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => window.addEventListener(evt, resetAutoLogoutTimer));
-resetAutoLogoutTimer();
+
+// 모바일 백그라운드 복귀, 탭 전환, 1분 주기 감지
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkAbsoluteSessionTimeout();
+});
+window.addEventListener('focus', checkAbsoluteSessionTimeout);
+setInterval(checkAbsoluteSessionTimeout, 60000);
 
 let currentUser = null, targetUserId = null, isReadOnly = false;
 let isSettlementShared = false;
@@ -61,7 +72,7 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-// 플랫폼 편집 모드 상태값 (3개 컨텍스트별 관리)
+// 플랫폼 편집(관리) 상태 분리
 let isPlatformEditingForm = false;
 let isPlatformEditingModal = false;
 let isPlatformEditingEdit = false;
@@ -311,7 +322,7 @@ function renderSettingsUI() {
 }
 
 // -------------------------------------------------------------
-// [단일화된 플랫폼 UI 관리: 평상시 1개 버튼 -> 수정 시 추가/삭제/완료 노출]
+// [플랫폼 단일 버튼 관리 UI: 평상시 [수정] 1개 -> 클릭 시 [✕], [+ 추가], [완료]]
 // -------------------------------------------------------------
 window.addCustomPlatform = async function(activeContext = 'form') {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
@@ -400,7 +411,7 @@ window.handleTablePlatformChange = async function(selectEl) {
   }
 };
 
-// [단일화 로직 적용] 평상시 [수정] 1개 노출 -> 수정 모드 시 [✕ 삭제], [+ 추가], [완료] 노출
+// 단일 버튼 토글 렌더러
 function renderPlatformChipsContainer(containerId, inputId, context, isManaging) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -426,7 +437,7 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
     btn.onclick = () => window.selectPlatformChip(name, context);
     chipWrap.appendChild(btn);
 
-    // 수정 모드일 때만 빨간색 삭제(X) 배지 노출
+    // 수정 모드일 때만 X 버튼 노출
     if (isManaging && name !== '개별') {
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -443,7 +454,7 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
   });
 
   if (isManaging) {
-    // 1. 수정 모드일 때: [+ 추가] 버튼 노출
+    // 1. 관리 모드: [+ 추가]
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.innerText = '+ 추가';
@@ -451,7 +462,7 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
     addBtn.onclick = () => window.addCustomPlatform(context);
     container.appendChild(addBtn);
 
-    // 2. 수정 모드일 때: [완료] 버튼 노출
+    // 2. 관리 모드: [완료]
     const finishBtn = document.createElement('button');
     finishBtn.type = 'button';
     finishBtn.innerText = '완료';
@@ -512,6 +523,20 @@ async function loadTargetUserSettings(uid) {
 
 async function handleUserLoggedIn(user) {
   if (!user) return;
+
+  // 7시간 절대 타이머 확인
+  let loginTime = Number(localStorage.getItem('onlyview_loginTimestamp') || '0');
+  if (loginTime === 0) {
+    loginTime = Date.now();
+    localStorage.setItem('onlyview_loginTimestamp', loginTime.toString());
+  } else if (Date.now() - loginTime > SESSION_TIMEOUT_MS) {
+    localStorage.removeItem('onlyview_loginTimestamp');
+    if (auth) await signOut(auth);
+    alert("로그인 세션(7시간)이 만료되어 안전하게 자동 로그아웃되었습니다.");
+    window.location.reload();
+    return;
+  }
+
   currentUser = user;
   targetUserId = user.uid;
   isReadOnly = false;
@@ -540,6 +565,8 @@ window.loginWithGoogle = async function() {
     }
     const cred = await signInWithPopup(auth, provider);
     if (cred && cred.user) {
+      // 신규 로그인 시 타임스탬프 갱신
+      localStorage.setItem('onlyview_loginTimestamp', Date.now().toString());
       await handleUserLoggedIn(cred.user);
     }
   } catch (err) {
@@ -554,6 +581,7 @@ window.loginWithGoogle = async function() {
 };
 
 window.logout = function() {
+  localStorage.removeItem('onlyview_loginTimestamp');
   if (auth) signOut(auth);
   window.location.reload();
 };
@@ -1012,7 +1040,6 @@ window.openEditModalFromId = function(id) {
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
-  // 수정 모달 전용 사이트 관리 상태 초기화 및 칩 렌더링
   isPlatformEditingEdit = false;
   window.renderAllPlatformComponents();
   window.openModal('editModal');
@@ -1279,7 +1306,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1328,7 +1355,6 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // PC/태블릿 수정 및 저장 버튼 제어
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
@@ -1373,7 +1399,7 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // PC 일괄 수정 모드일 때 테이블 최상단 신규 행 추가
+  // PC 일괄 수정 모드 테이블 상단 행 추가
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
@@ -1831,7 +1857,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치 (PC, 태블릿, 모바일 동일 적용)[cite: 2]
+// 상세 정보 팝업: 삭제/수정 버튼 1:1 배치
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -1957,6 +1983,7 @@ onAuthStateChanged(auth, async (user) => {
     }
   } else if (!targetUserId) {
     currentUser = null;
+    localStorage.removeItem('onlyview_loginTimestamp');
     const authSec = document.getElementById('authSection');
     const appSec = document.getElementById('appSection');
     authSec?.classList.remove('hidden');
