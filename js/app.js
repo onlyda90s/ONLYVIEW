@@ -18,7 +18,7 @@ try {
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  // 브라우저 닫을 시 자동 로그아웃 (세션 지속성)
+  // 브라우저 종료 시 자동 로그아웃 (세션 지속성)
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
@@ -61,7 +61,7 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-// 플랫폼 편집(관리) 모드 상태값 분리
+// 플랫폼 편집 모드 상태값 (3개 컨텍스트별 관리)
 let isPlatformEditingForm = false;
 let isPlatformEditingModal = false;
 let isPlatformEditingEdit = false;
@@ -311,7 +311,7 @@ function renderSettingsUI() {
 }
 
 // -------------------------------------------------------------
-// [플랫폼(사이트) 전역 통합 관리: 등록 탭, 등록 모달, 수정 모달, 테이블 일괄 수정 연동]
+// [단일화된 플랫폼 UI 관리: 평상시 1개 버튼 -> 수정 시 추가/삭제/완료 노출]
 // -------------------------------------------------------------
 window.addCustomPlatform = async function(activeContext = 'form') {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
@@ -327,7 +327,6 @@ window.addCustomPlatform = async function(activeContext = 'form') {
     }
   }
 
-  // 작업 중인 폼의 hidden input 값 자동 갱신
   if (activeContext === 'form') {
     const el = document.getElementById('platformName'); if (el) el.value = trimmed;
   } else if (activeContext === 'modal') {
@@ -401,7 +400,7 @@ window.handleTablePlatformChange = async function(selectEl) {
   }
 };
 
-// 칩 컨테이너 공통 렌더러 (+ 추가 및 수정/완료 버튼 포함)
+// [단일화 로직 적용] 평상시 [수정] 1개 노출 -> 수정 모드 시 [✕ 삭제], [+ 추가], [완료] 노출
 function renderPlatformChipsContainer(containerId, inputId, context, isManaging) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -427,6 +426,7 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
     btn.onclick = () => window.selectPlatformChip(name, context);
     chipWrap.appendChild(btn);
 
+    // 수정 모드일 때만 빨간색 삭제(X) 배지 노출
     if (isManaging && name !== '개별') {
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -442,23 +442,31 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
     container.appendChild(chipWrap);
   });
 
-  // [+ 추가] 버튼
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.innerText = '+ 추가';
-  addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 font-normal text-xs hover:bg-gray-100 transition-colors cursor-pointer";
-  addBtn.onclick = () => window.addCustomPlatform(context);
-  container.appendChild(addBtn);
+  if (isManaging) {
+    // 1. 수정 모드일 때: [+ 추가] 버튼 노출
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.innerText = '+ 추가';
+    addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-600 font-normal text-xs hover:bg-gray-100 transition-colors cursor-pointer";
+    addBtn.onclick = () => window.addCustomPlatform(context);
+    container.appendChild(addBtn);
 
-  // [수정] / [완료] 모드 토글 버튼
-  const manageBtn = document.createElement('button');
-  manageBtn.type = 'button';
-  manageBtn.innerText = isManaging ? '완료' : '수정';
-  manageBtn.className = isManaging
-    ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer"
-    : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
-  manageBtn.onclick = () => window.togglePlatformManagement(context);
-  container.appendChild(manageBtn);
+    // 2. 수정 모드일 때: [완료] 버튼 노출
+    const finishBtn = document.createElement('button');
+    finishBtn.type = 'button';
+    finishBtn.innerText = '완료';
+    finishBtn.className = "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer";
+    finishBtn.onclick = () => window.togglePlatformManagement(context);
+    container.appendChild(finishBtn);
+  } else {
+    // 3. 평상시: 단 1개의 [수정] 버튼만 노출
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.innerText = '수정';
+    editBtn.className = "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
+    editBtn.onclick = () => window.togglePlatformManagement(context);
+    container.appendChild(editBtn);
+  }
 }
 
 window.renderAllPlatformComponents = function() {
@@ -1271,7 +1279,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
