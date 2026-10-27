@@ -53,6 +53,8 @@ let isSidebarCollapsed = false;
 try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true'; } catch(e) {}
 
 let monthlyDetailsCollapseState = {};
+
+// 정렬 상태 관리 (none -> asc -> desc -> none 3단계 순환)
 let sortColumn = 'none';
 let sortAsc = true;
 try {
@@ -68,7 +70,6 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-// 사이트 관리 모드 상태 변수
 let isPlatformEditingForm = false;
 let isPlatformEditingModal = false;
 let isPlatformEditingEdit = false;
@@ -247,6 +248,7 @@ window.closeModal = function(id) {
   if (el) el.style.display = 'none';
 };
 
+// 정렬 인디케이터 (▲ / ▼ / ↕)
 function getSortIndicatorHtml(col) {
   if (sortColumn !== col || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
   return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
@@ -316,7 +318,7 @@ function renderSettingsUI() {
 }
 
 // -------------------------------------------------------------
-// [통합] 사이트 (플랫폼) 단일 관리 시스템 (등록탭 / 등록모달 / 수정모달)
+// 사이트 (플랫폼) 단일 관리 시스템
 // -------------------------------------------------------------
 window.togglePlatformManagement = function(context) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
@@ -398,7 +400,6 @@ function renderPlatformChipsContainer(containerId, inputId, context, isEditing) 
     btn.onclick = () => window.selectPlatformChip(name, context);
     chipWrap.appendChild(btn);
 
-    // 수정 모드일 때만 삭제(X) 버튼 노출
     if (isEditing && name !== '개별') {
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -440,7 +441,7 @@ window.renderAllPlatformComponents = function() {
 };
 
 // -------------------------------------------------------------
-// [PC/태블릿 목록 테이블] 일괄 수정 및 새 체험 추가 드롭다운 내 사이트 추가/삭제
+// [PC/태블릿 목록 테이블] 드롭다운: + 새 사이트 추가만 유지 (삭제 관리 제거)
 // -------------------------------------------------------------
 window.handleTablePlatformChange = async function(selectEl) {
   if (selectEl.value === '__ADD_NEW__') {
@@ -461,40 +462,6 @@ window.handleTablePlatformChange = async function(selectEl) {
     window.filterAndRender();
     const updatedSelect = document.getElementById(selectEl.id);
     if (updatedSelect) updatedSelect.value = trimmed;
-  } else if (selectEl.value === '__MANAGE_DELETE__') {
-    const deletable = platformList.filter(p => p !== '개별');
-    if (deletable.length === 0) {
-      alert("삭제할 수 있는 추가 사이트가 없습니다.");
-      selectEl.value = '개별';
-      return;
-    }
-    const targetSite = prompt(`삭제할 사이트명을 정확히 입력하세요:\n(현재 추가된 사이트 목록: ${deletable.join(', ')})`);
-    if (!targetSite || !targetSite.trim()) {
-      selectEl.value = '개별';
-      return;
-    }
-    const trimmed = targetSite.trim();
-    if (trimmed === '개별') {
-      alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
-      selectEl.value = '개별';
-      return;
-    }
-    if (!platformList.includes(trimmed)) {
-      alert(`'${trimmed}' 사이트를 찾을 수 없습니다.`);
-      selectEl.value = '개별';
-      return;
-    }
-    if (confirm(`'${trimmed}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) {
-      platformList = platformList.filter(p => p !== trimmed);
-      try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-      if (currentUser && !isReadOnly && db) {
-        try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
-      }
-      window.renderAllPlatformComponents();
-      window.filterAndRender();
-    } else {
-      selectEl.value = '개별';
-    }
   }
 };
 
@@ -780,7 +747,7 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 상태 버튼 제어
+// 등록 탭 4개 상태 버튼 제어
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -810,7 +777,7 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 상태 버튼 제어
+// 등록 모달 4개 상태 버튼 제어
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -840,7 +807,7 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// 수정 모달 상태 버튼 제어
+// 수정 모달 7개 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -879,7 +846,7 @@ window.openDashRegisterModal = function() {
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-// 모바일 상단 [+ 추가] 버튼 전용 (수정 모달 서식 활용)
+// 모바일 상단 [+ 추가] 버튼 전용
 window.openNewCampaignFromModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   editingId = null;
@@ -906,9 +873,22 @@ window.openNewCampaignFromModal = function() {
   window.openModal('editModal');
 };
 
+// -------------------------------------------------------------
+// [3단계 정렬 회전] 1클릭(오름차순) -> 2클릭(내림차순) -> 3클릭(정렬 해제 / 등록순 복귀)
+// -------------------------------------------------------------
 window.handleSort = function(col) {
-  if (sortColumn === col) sortAsc = !sortAsc;
-  else { sortColumn = col; sortAsc = true; }
+  if (sortColumn === col) {
+    if (sortAsc) {
+      sortAsc = false; // 2번째 클릭: 내림차순
+    } else {
+      sortColumn = 'none'; // 3번째 클릭: 정렬 해제 (기본 등록순)
+      sortAsc = true;
+    }
+  } else {
+    sortColumn = col; // 1번째 클릭: 오름차순
+    sortAsc = true;
+  }
+
   try {
     localStorage.setItem('onlyview_sortColumn', sortColumn);
     localStorage.setItem('onlyview_sortAsc', sortAsc.toString());
@@ -1228,7 +1208,7 @@ window.executeExcelExport = async function() {
           const startRow = dRowIdx;
           mItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
 
             if (filterMode === 'completed_detail') {
@@ -1307,7 +1287,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1389,6 +1369,7 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
+  // 정렬 적용 (sortColumn이 'none'이면 기존 등록 순서 유지)
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
@@ -1400,15 +1381,14 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // PC/태블릿 일괄 수정 모드일 때 최상단 추가 행 노출
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
+    // 드롭다운: + 새 사이트 추가만 유지
     const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
-      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>'
-      + '<option value="__MANAGE_DELETE__" class="text-rose-600 font-normal">✕ 사이트 삭제 관리...</option>';
+      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
 
     newBatchRows.forEach((row, idx) => {
       const nRow = document.createElement('tr');
@@ -1440,10 +1420,10 @@ window.filterAndRender = function() {
       if (curPlatform && !batchPlatformOptions.includes(curPlatform)) {
         batchPlatformOptions.push(curPlatform);
       }
+      // 드롭다운: + 새 사이트 추가만 유지
       const platformSelectHtml = `<select id="batch_platform_${item.id}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">
         ${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}
         <option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>
-        <option value="__MANAGE_DELETE__" class="text-rose-600 font-normal">✕ 사이트 삭제 관리...</option>
       </select>`;
 
       const row = document.createElement('tr');
@@ -1860,7 +1840,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
+// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치[cite: 2]
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
