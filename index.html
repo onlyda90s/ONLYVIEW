@@ -255,33 +255,33 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-1 sm:gap-2 w-full sm:w-auto sm:flex">
-  <select id="filterYear" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto"></select>
-  
-  <select id="filterMonth" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
-    <option value="ALL">월 전체</option>
-    <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
-    <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
-    <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
-    <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
-  </select>
-  
-  <select id="filterStatus" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
-    <option value="ALL">상태 전체</option>
-    <option value="신청">신청</option><option value="선정">선정</option>
-    <option value="방문">방문</option><option value="미제출">미제출</option>
-    <option value="제출">제출/완료</option><option value="배송">배송</option>
-    <option value="원고료">원고료</option>
-  </select>
-  
-  <!-- 표시 개수 드롭다운 (20개씩 보기) -->
-  <select id="filterPageSize" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
-    <option value="20">20개씩</option>
-    <option value="50">50개씩</option>
-    <option value="100">100개씩</option>
-    <option value="ALL">전체 보기</option>
-  </select>
-</div>
+        <!-- 필터 박스 컨테이너 (평상시 hidden, ▼ 필터 클릭 시 노출) -->
+        <div id="filterBoxContainer" class="hidden flex-col sm:flex-row items-center justify-end gap-2 shrink-0 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm w-full">
+          <input type="text" id="searchInput" placeholder="업체명 / 사이트 검색..." class="border p-2 rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 ring-theme bg-white shadow-sm font-normal">
+          <div class="grid grid-cols-4 gap-1 sm:gap-2 w-full sm:w-auto sm:flex shrink-0">
+            <select id="filterYear" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto"></select>
+            <select id="filterMonth" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
+              <option value="ALL">월 전체</option>
+              <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+              <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+              <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+              <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+            </select>
+            <select id="filterStatus" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
+              <option value="ALL">상태 전체</option>
+              <option value="신청">신청</option><option value="선정">선정</option>
+              <option value="방문">방문</option><option value="미제출">미제출</option>
+              <option value="제출">제출/완료</option><option value="배송">배송</option>
+              <option value="원고료">원고료</option>
+            </select>
+            <select id="filterPageSize" class="border py-2 px-1 sm:px-2 rounded-xl text-[10.5px] sm:text-xs text-center tracking-tight bg-white outline-none focus:ring-2 ring-theme shadow-sm font-normal w-full sm:w-auto">
+              <option value="20">20개씩</option>
+              <option value="50">50개씩</option>
+              <option value="100">100개씩</option>
+              <option value="ALL">전체 보기</option>
+            </select>
+          </div>
+        </div>
         
         <!-- PC/태블릿 테이블 래퍼 -->
         <div class="hidden sm:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto w-full">
@@ -306,7 +306,7 @@
         <!-- 모바일 카드 리스트 -->
         <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full"></div>
 
-        <!-- 더보기 버튼 (신규 추가) -->
+        <!-- 더보기 버튼 -->
         <div id="loadMoreContainer" class="hidden mt-3 pb-6 text-center w-full">
           <button id="loadMoreBtn" type="button" onclick="window.handleLoadMore()" class="w-full sm:w-auto px-8 py-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold shadow-sm transition-colors cursor-pointer">
             + 더보기
