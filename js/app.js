@@ -54,6 +54,9 @@ try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') ===
 
 let monthlyDetailsCollapseState = {};
 
+// 완료됨 탭 페이징 건수 변수 (기본 20개)
+let completedVisibleCount = 20;
+
 // 정렬 상태 관리 (none -> asc -> desc -> none 3단계 순환)
 let sortColumn = 'none';
 let sortAsc = true;
@@ -248,7 +251,6 @@ window.closeModal = function(id) {
   if (el) el.style.display = 'none';
 };
 
-// 정렬 인디케이터
 function getSortIndicatorHtml(col) {
   if (sortColumn !== col || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
   return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
@@ -317,9 +319,6 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
-// -------------------------------------------------------------
-// 사이트 (플랫폼) 단일 관리 시스템
-// -------------------------------------------------------------
 window.togglePlatformManagement = function(context) {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
   if (context === 'form') isPlatformEditingForm = !isPlatformEditingForm;
@@ -440,9 +439,6 @@ window.renderAllPlatformComponents = function() {
   renderPlatformChipsContainer('editPlatformChipsContainer', 'editPlatformName', 'edit', isPlatformEditingEdit);
 };
 
-// -------------------------------------------------------------
-// [PC/태블릿 목록 테이블] 드롭다운: + 새 사이트 추가만 유지
-// -------------------------------------------------------------
 window.handleTablePlatformChange = async function(selectEl) {
   if (selectEl.value === '__ADD_NEW__') {
     const newSite = prompt("추가할 새 사이트명을 입력하세요:");
@@ -719,6 +715,7 @@ window.switchTab = function(tabName, pushState = true) {
     window.renderDashboardView();
   } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
+    completedVisibleCount = 20; // 탭 진입 시 20개로 초기화
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
     if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
     const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
@@ -873,19 +870,17 @@ window.openNewCampaignFromModal = function() {
   window.openModal('editModal');
 };
 
-// -------------------------------------------------------------
-// [3단계 정렬 회전] 1클릭(오름차순) -> 2클릭(내림차순) -> 3클릭(정렬 해제 / 등록순 복귀)
-// -------------------------------------------------------------
+// 3단계 정렬 회전
 window.handleSort = function(col) {
   if (sortColumn === col) {
     if (sortAsc) {
-      sortAsc = false; // 2번째 클릭: 내림차순
+      sortAsc = false;
     } else {
-      sortColumn = 'none'; // 3번째 클릭: 정렬 해제 (기본 등록순)
+      sortColumn = 'none';
       sortAsc = true;
     }
   } else {
-    sortColumn = col; // 1번째 클릭: 오름차순
+    sortColumn = col;
     sortAsc = true;
   }
 
@@ -898,9 +893,16 @@ window.handleSort = function(col) {
 
 window.setListSubTab = function(type) {
   listSubTab = type;
+  completedVisibleCount = 20; // 탭 전환 시 20개로 리셋
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
   if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
   if (btnS) btnS.className = (type === 'submitted') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
+  window.filterAndRender();
+};
+
+// 더보기 버튼 핸들러 (20개씩 추가 렌더링)
+window.handleLoadMore = function() {
+  completedVisibleCount += 20;
   window.filterAndRender();
 };
 
@@ -1287,7 +1289,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1369,13 +1371,21 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
-  // 3단계 정렬 적용 (sortColumn === 'none'일 때는 초기 등록순 원본 유지)
+  // 3단계 정렬 적용
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
       if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) { vA = Number(vA) || 0; vB = Number(vB) || 0; }
       return sortAsc ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
     });
+  }
+
+  const totalFilteredCount = filtered.length;
+  let itemsToRender = filtered;
+
+  // 완료됨 탭일 때 20개 페이징 분할 (일괄 수정 모드는 제외)
+  if (listSubTab === 'submitted' && !isBatchEditing) {
+    itemsToRender = filtered.slice(0, completedVisibleCount);
   }
 
   if (tableBody) tableBody.innerHTML = '';
@@ -1386,7 +1396,6 @@ window.filterAndRender = function() {
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    // 드롭다운: + 새 사이트 추가만 유지 (삭제 관리 제거)
     const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
       + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
 
@@ -1406,7 +1415,7 @@ window.filterAndRender = function() {
     });
   }
 
-  filtered.forEach(item => {
+  itemsToRender.forEach(item => {
     const effSt = getEffectiveStatus(item);
     const overdue = isItemOverdue(item);
     const isCompleted = (effSt === '제출' || effSt === '완료');
@@ -1420,7 +1429,6 @@ window.filterAndRender = function() {
       if (curPlatform && !batchPlatformOptions.includes(curPlatform)) {
         batchPlatformOptions.push(curPlatform);
       }
-      // 드롭다운: + 새 사이트 추가만 유지
       const platformSelectHtml = `<select id="batch_platform_${item.id}" onchange="window.handleTablePlatformChange(this)" class="w-full border py-1 px-1 rounded-lg text-xs bg-white text-center font-normal">
         ${batchPlatformOptions.map(p => `<option value="${p}" ${p === curPlatform ? 'selected' : ''}>${p}</option>`).join('')}
         <option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>
@@ -1454,7 +1462,7 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 2분할 카드 뷰 (좌측 정보 블록 / 우측 상하중앙 상태 드롭다운)
+    // 모바일 2분할 카드 뷰
     const card = document.createElement('div');
     card.className = 'bg-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2.5 w-full cursor-pointer hover:border-theme transition-colors min-h-[64px] box-border overflow-hidden';
     card.onclick = () => window.openDetailItemModal(item.id);
@@ -1488,6 +1496,18 @@ window.filterAndRender = function() {
     
     cardList?.appendChild(card);
   });
+
+  // 하단 더보기 버튼 처리
+  const loadMoreContainer = document.getElementById('loadMoreContainer');
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreContainer && loadMoreBtn) {
+    if (listSubTab === 'submitted' && !isBatchEditing && totalFilteredCount > itemsToRender.length) {
+      loadMoreContainer.classList.remove('hidden');
+      loadMoreBtn.innerText = `+ 더보기 (${itemsToRender.length}건 / ${totalFilteredCount}건)`;
+    } else {
+      loadMoreContainer.classList.add('hidden');
+    }
+  }
 
   if (filtered.length === 0 && !isBatchEditing) {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-8 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
@@ -1854,7 +1874,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
+// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치[cite: 2]
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
