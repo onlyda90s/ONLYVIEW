@@ -21,7 +21,6 @@ try {
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-// 7시간 절대 세션 만료 시스템
 const SESSION_TIMEOUT_MS = 7 * 60 * 60 * 1000;
 
 function checkAbsoluteSessionTimeout() {
@@ -54,10 +53,10 @@ try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') ===
 
 let monthlyDetailsCollapseState = {};
 
-// 완료됨 탭 페이징 건수 변수 (기본 20개)
+// 렌더링 표시 개수 및 더보기 카운트 관리
+let currentListPageSize = 20;
 let completedVisibleCount = 20;
 
-// 정렬 상태 관리 (none -> asc -> desc -> none 3단계 순환)
 let sortColumn = 'none';
 let sortAsc = true;
 try {
@@ -717,13 +716,21 @@ window.switchTab = function(tabName, pushState = true) {
     window.renderDashboardView();
   } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
+    
+    // 탭 이동 시 휘발성 설정 초기화
+    currentListPageSize = 20; 
     completedVisibleCount = 20;
+    
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
     if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
     const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
     const stEl = document.getElementById('filterStatus'); if (stEl) stEl.value = 'ALL';
     const yrEl = document.getElementById('filterYear'); if (yrEl) yrEl.value = 'ALL';
     const moEl = document.getElementById('filterMonth'); if (moEl) moEl.value = 'ALL';
+    
+    // 드롭다운 값도 기본 '20'으로 리셋
+    const psEl = document.getElementById('filterPageSize'); if (psEl) psEl.value = '20';
+    
     document.getElementById('sectionList')?.classList.remove('hidden');
     window.filterAndRender();
   } else if (tabName === 'form') {
@@ -746,7 +753,7 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 4개 상태 버튼 제어
+// 등록 탭 상태 버튼 제어
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -776,7 +783,7 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 4개 상태 버튼 제어
+// 등록 모달 상태 버튼 제어
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -806,7 +813,7 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// 수정 모달 7개 상태 버튼 제어
+// 수정 모달 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -845,7 +852,6 @@ window.openDashRegisterModal = function() {
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-// 모바일 상단 [+ 추가] 버튼 전용
 window.openNewCampaignFromModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   editingId = null;
@@ -872,7 +878,6 @@ window.openNewCampaignFromModal = function() {
   window.openModal('editModal');
 };
 
-// 3단계 정렬 회전
 window.handleSort = function(col) {
   if (sortColumn === col) {
     if (sortAsc) {
@@ -895,7 +900,8 @@ window.handleSort = function(col) {
 
 window.setListSubTab = function(type) {
   listSubTab = type;
-  completedVisibleCount = 20;
+  // 탭 이동 시에도 현재 선택된 표시 개수로 맞춰서 리셋 적용
+  completedVisibleCount = currentListPageSize === 999999 ? 999999 : currentListPageSize; 
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
   if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
   if (btnS) btnS.className = (type === 'submitted') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
@@ -903,15 +909,13 @@ window.setListSubTab = function(type) {
 };
 
 window.handleLoadMore = function() {
-  completedVisibleCount += 20;
-  window.filterAndRender();
+  if (currentListPageSize !== 999999) {
+    completedVisibleCount += currentListPageSize;
+    window.filterAndRender();
+  }
 };
 
-// -------------------------------------------------------------
-// [핵심] 테이블 재렌더링 전 작성 중이던 텍스트/선택값 일괄 백업
-// -------------------------------------------------------------
 function snapshotBatchEdits() {
-  // 1. 신규 추가 행 데이터 스냅샷
   newBatchRows.forEach((row, idx) => {
     const storeEl = document.getElementById(`new_batch_store_${idx}`);
     if (storeEl) row.storeName = storeEl.value;
@@ -929,7 +933,6 @@ function snapshotBatchEdits() {
     if (paidEl) row.paidAmount = paidEl.value;
   });
 
-  // 2. 기존 목록 행 수정 데이터 스냅샷
   rawCampaignList.forEach(item => {
     const sEl = document.getElementById(`batch_store_${item.id}`);
     if (sEl) item.storeName = sEl.value;
@@ -953,14 +956,14 @@ window.toggleBatchEdit = function() {
   isBatchEditing = !isBatchEditing; 
   newBatchRows = []; 
   if (!isBatchEditing) {
-    loadCampaigns(); // 수정 취소 시 서버 원본 데이터로 롤백
+    loadCampaigns(); 
   } else {
     window.filterAndRender();
   }
 };
 
 window.addNewBatchRow = function() {
-  snapshotBatchEdits(); // 작성 중이던 내용 백업 후 새 행 추가
+  snapshotBatchEdits(); 
   newBatchRows.unshift({
     tempId: Date.now() + Math.random(),
     storeName: '',
@@ -975,7 +978,7 @@ window.addNewBatchRow = function() {
 };
 
 window.removeNewBatchRow = function(i) {
-  snapshotBatchEdits(); // 작성 중이던 내용 백업 후 특정 행 삭제
+  snapshotBatchEdits(); 
   newBatchRows.splice(i, 1);
   window.filterAndRender();
 };
@@ -1437,7 +1440,6 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
-  // 3단계 정렬 적용
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
@@ -1449,9 +1451,10 @@ window.filterAndRender = function() {
   const totalFilteredCount = filtered.length;
   let itemsToRender = filtered;
 
-  // 완료됨 탭일 때 20개 페이징 분할
   if (listSubTab === 'submitted' && !isBatchEditing) {
-    itemsToRender = filtered.slice(0, completedVisibleCount);
+    if (currentListPageSize !== 999999) {
+      itemsToRender = filtered.slice(0, completedVisibleCount);
+    }
   }
 
   if (tableBody) tableBody.innerHTML = '';
@@ -1462,7 +1465,9 @@ window.filterAndRender = function() {
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    // 새 행 렌더링 (보관된 데이터가 그대로 복원되어 출력됨)
+    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
+      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
+
     newBatchRows.forEach((row, idx) => {
       const curPlat = row.platformName || '개별';
       const rowPlatOptions = platformList.map(p => `<option value="${p}" ${p === curPlat ? 'selected' : ''}>${p}</option>`).join('')
@@ -1538,7 +1543,6 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 2분할 카드 뷰
     const card = document.createElement('div');
     card.className = 'bg-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2.5 w-full cursor-pointer hover:border-theme transition-colors min-h-[64px] box-border overflow-hidden';
     card.onclick = () => window.openDetailItemModal(item.id);
@@ -1573,11 +1577,10 @@ window.filterAndRender = function() {
     cardList?.appendChild(card);
   });
 
-  // 하단 더보기 버튼 처리
   const loadMoreContainer = document.getElementById('loadMoreContainer');
   const loadMoreBtn = document.getElementById('loadMoreBtn');
   if (loadMoreContainer && loadMoreBtn) {
-    if (listSubTab === 'submitted' && !isBatchEditing && totalFilteredCount > itemsToRender.length) {
+    if (listSubTab === 'submitted' && !isBatchEditing && currentListPageSize !== 999999 && totalFilteredCount > itemsToRender.length) {
       loadMoreContainer.classList.remove('hidden');
       loadMoreBtn.innerText = `+ 더보기 (${itemsToRender.length}건 / ${totalFilteredCount}건)`;
     } else {
@@ -2094,6 +2097,14 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById('filterMonth')?.addEventListener('change', window.filterAndRender);
   document.getElementById('settlementYearSelect')?.addEventListener('change', window.renderSettlementView);
 
+  // 새 드롭다운(표시 개수) 이벤트 리스너 추가
+  document.getElementById('filterPageSize')?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    currentListPageSize = val === 'ALL' ? 999999 : parseInt(val, 10);
+    completedVisibleCount = currentListPageSize;
+    window.filterAndRender();
+  });
+
   document.getElementById('prevMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() - 1); window.renderDashboardView(); });
   document.getElementById('todayMonthBtn')?.addEventListener('click', () => { currentCalDate = new Date(); window.renderDashboardView(); });
   document.getElementById('nextMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() + 1); window.renderDashboardView(); });
@@ -2128,7 +2139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
