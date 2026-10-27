@@ -21,7 +21,6 @@ try {
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
-// 7시간 절대 세션 만료 시스템
 const SESSION_TIMEOUT_MS = 7 * 60 * 60 * 1000;
 
 function checkAbsoluteSessionTimeout() {
@@ -52,10 +51,6 @@ let yearlyChartInstance = null, monthlyChartInstance = null, monthlyAnalysisChar
 let isSidebarCollapsed = false;
 try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true'; } catch(e) {}
 
-// 페이징 및 표시 개수 관리 (기본 20개 시작, 브라우저 캐시 미저장 / 휘발성)
-let completedPageSize = 20;
-let completedVisibleCount = 20;
-
 let monthlyDetailsCollapseState = {};
 let sortColumn = 'none';
 let sortAsc = true;
@@ -68,7 +63,7 @@ let myCustomCode = "";
 try { myCustomCode = localStorage.getItem('onlyview_customCode') || ""; } catch(e) {}
 
 let currentCalDate = new Date();
-let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatus = "선정", editingId = null, activeColorPickerKey = null;
+let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatus = "선정", editingId = null;
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
@@ -82,48 +77,14 @@ try {
   if (savedP) platformList = JSON.parse(savedP);
 } catch(e) {}
 
-const presetPalette = ['#6B7280', '#111827', '#E63946', '#F4A261', '#E9C46A', '#059669', '#2563EB', '#4F46E5', '#9333EA', '#D97706', '#EC4899', '#0891B2'];
-let savedColors = {};
-try { savedColors = JSON.parse(localStorage.getItem('onlyview_statusColors') || '{}'); } catch(e) {}
-
 const customStatusColors = {
-  apply: savedColors.apply || '#6B7280', select: savedColors.select || '#111827',
-  visit: savedColors.visit || '#F4A261', unsubmitted: savedColors.unsubmitted || '#E63946',
-  submit: savedColors.submit || '#059669', delivery: savedColors.delivery || '#2563EB', fee: savedColors.fee || '#9333EA'
+  apply: '#6B7280', select: '#111827',
+  visit: '#F4A261', unsubmitted: '#E63946',
+  submit: '#059669', delivery: '#2563EB', fee: '#9333EA'
 };
-
-let currentChartMode = 'default';
-try { currentChartMode = localStorage.getItem('onlyview_chartMode') || 'default'; } catch(e) {}
 
 const chartStylePalettes = {
-  default: { highlight: '#335A90', main: '#658EC6', pending: '#B2C6E2', isOutline: false },
-  light:   { highlight: '#2F5FA8', main: '#5C8FD6', pending: '#A9C6EC', isOutline: false },
-  outline: { highlightBorder: '#3F73C2', highlightFill: '#9DB8E3', mainBorder: '#4F82CC', mainFill: '#C7D7EE', pendingBorder: '#4F82CC', pendingFill: '#E3EAF5', isOutline: true },
-  themePreset: {
-    slate: { highlight: '#335A90', main: '#658EC6', pending: '#B2C6E2' },
-    terracotta: { highlight: '#994A20', main: '#CF7B4F', pending: '#E7BCA5' },
-    forest: { highlight: '#2A583F', main: '#5B8B71', pending: '#ACC4B7' },
-    violet: { highlight: '#58419A', main: '#8C75CF', pending: '#C6BAE7' },
-    graphite: { highlight: '#272B31', main: '#595C61', pending: '#ACADB0' },
-    brick: { highlight: '#8D3029', main: '#C3635B', pending: '#E1B0AC' },
-    mustard: { highlight: '#7D5705', main: '#B28A36', pending: '#D9C598' },
-    indigo: { highlight: '#2C3B89', main: '#606EBB', pending: '#AFB6DD' },
-    emerald: { highlight: '#0F6554', main: '#429887', pending: '#A0CCC3' },
-    ink: { highlight: '#20242B', main: '#53575D', pending: '#AAABAF' }
-  }
-};
-
-const themeColors = {
-  slate: { primary: '#3B6FB6', hover: '#2C5796', text: '#3B6FB6', light: '#E5EBF4', bg: '#F4F6F9', sidebarBg: '#E5EBF4', sidebarText: '#333333' },
-  terracotta: { primary: '#C2571F', hover: '#A04313', text: '#C2571F', light: '#F4E7DD', bg: '#F8F3EE', sidebarBg: '#F4E7DD', sidebarText: '#333333' },
-  forest: { primary: '#2E6B4A', hover: '#225238', text: '#2E6B4A', light: '#E1EAE4', bg: '#F4F7F5', sidebarBg: '#E1EAE4', sidebarText: '#333333' },
-  violet: { primary: '#6D4FC2', hover: '#553BA3', text: '#6D4FC2', light: '#EAE6F6', bg: '#F3F3F4', sidebarBg: '#EAE6F6', sidebarText: '#333333' },
-  graphite: { primary: '#2B2F36', hover: '#191C21', text: '#2B2F36', light: '#E3E3E5', bg: '#F3F3F4', sidebarBg: '#E3E3E5', sidebarText: '#333333' },
-  brick: { primary: '#B2382F', hover: '#8E2820', text: '#B2382F', light: '#F3E4E1', bg: '#F9F3F1', sidebarBg: '#F3E4E1', sidebarText: '#333333' },
-  mustard: { primary: '#9C6A00', hover: '#7A5200', text: '#9C6A00', light: '#F2EBD7', bg: '#FAF6EA', sidebarBg: '#F2EBD7', sidebarText: '#333333' },
-  indigo: { primary: '#3446A8', hover: '#253488', text: '#3446A8', light: '#E8EBF8', bg: '#F2F4FA', sidebarBg: '#1D2760', sidebarText: '#E6E8EE' },
-  emerald: { primary: '#0E7C66', hover: '#095E4D', text: '#0E7C66', light: '#DCEDE9', bg: '#EEF7F4', sidebarBg: '#DCEDE9', sidebarText: '#333333' },
-  ink: { primary: '#232830', hover: '#14171C', text: '#232830', light: '#E2E5EB', bg: '#F4F4F6', sidebarBg: '#16181D', sidebarText: '#E6E8EE' }
+  default: { highlight: '#335A90', main: '#658EC6', pending: '#B2C6E2', isOutline: false }
 };
 
 function formatCleanDate(d) {
@@ -171,13 +132,13 @@ function getEffectiveStatus(item) { return item.status || '신청'; }
 function displayStatusName(status) { return status || '신청'; }
 
 window.getStatusColor = function(st) {
-  if (st === '제출' || st === '완료') return customStatusColors.submit || '#059669';
-  if (st === '원고료') return customStatusColors.fee || '#9333EA';
-  if (st === '배송') return customStatusColors.delivery || '#2563EB';
-  if (st === '미제출') return customStatusColors.unsubmitted || '#E63946';
-  if (st === '방문') return customStatusColors.visit || '#F4A261';
-  if (st === '선정') return customStatusColors.select || '#111827';
-  return customStatusColors.apply || '#6B7280';
+  if (st === '제출' || st === '완료') return customStatusColors.submit;
+  if (st === '원고료') return customStatusColors.fee;
+  if (st === '배송') return customStatusColors.delivery;
+  if (st === '미제출') return customStatusColors.unsubmitted;
+  if (st === '방문') return customStatusColors.visit;
+  if (st === '선정') return customStatusColors.select;
+  return customStatusColors.apply;
 };
 
 function formatCurrencyInput(v) {
@@ -208,60 +169,12 @@ function formatPhoneNumber(v) {
   }
 }
 
-function applyStatusCSSColors() {
-  document.documentElement.style.setProperty('--color-status-apply', customStatusColors.apply);
-  document.documentElement.style.setProperty('--color-status-select', customStatusColors.select);
-  document.documentElement.style.setProperty('--color-status-visit', customStatusColors.visit || '#F4A261');
-  document.documentElement.style.setProperty('--color-status-unsubmitted', customStatusColors.unsubmitted || '#E63946');
-  document.documentElement.style.setProperty('--color-status-submit', customStatusColors.submit);
-  document.documentElement.style.setProperty('--color-status-delivery', customStatusColors.delivery);
-  document.documentElement.style.setProperty('--color-status-fee', customStatusColors.fee);
-}
-
-function applyThemeCSS(k) {
-  const theme = themeColors[k] || themeColors.slate;
-  document.documentElement.style.setProperty('--primary', theme.primary);
-  document.documentElement.style.setProperty('--primary-hover', theme.hover);
-  document.documentElement.style.setProperty('--primary-text', theme.text);
-  document.documentElement.style.setProperty('--primary-light', theme.light);
-  document.documentElement.style.setProperty('--main-bg', theme.bg);
-  document.documentElement.style.setProperty('--sidebar-bg', theme.sidebarBg);
-  document.documentElement.style.setProperty('--sidebar-text', theme.sidebarText);
-  document.documentElement.style.setProperty('--sidebar-text-muted', theme.sidebarText === '#E6E8EE' ? '#9CA3AF' : '#6B7280');
-}
-
-applyStatusCSSColors();
-try { applyThemeCSS(localStorage.getItem('onlyview_theme') || 'slate'); } catch(e) { applyThemeCSS('slate'); }
-
 window.openModal = function(id) { const el = document.getElementById(id); if (el) el.style.display = 'flex'; };
 window.closeModal = function(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
 
 function getSortIndicatorHtml(col) {
   if (sortColumn !== col || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
   return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
-}
-
-function updateChartModeButtonsUI() {
-  ['default', 'light', 'outline', 'theme'].forEach(m => {
-    const btn = document.getElementById(`btnChartMode_${m}`);
-    if (btn) {
-      btn.className = (m === currentChartMode)
-        ? "py-2 px-1 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-xs"
-        : "py-2 px-1 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
-    }
-  });
-}
-
-function getActiveChartColors() {
-  let activeKey = 'slate';
-  try { activeKey = localStorage.getItem('onlyview_theme') || 'slate'; } catch(e) {}
-  if (currentChartMode === 'theme') {
-    const preset = chartStylePalettes.themePreset[activeKey] || chartStylePalettes.themePreset.slate;
-    return { highlight: preset.highlight, main: preset.main, pending: preset.pending, isOutline: false };
-  }
-  if (currentChartMode === 'outline') return chartStylePalettes.outline;
-  if (currentChartMode === 'light') return chartStylePalettes.light;
-  return chartStylePalettes.default;
 }
 
 function applySidebarUI() {
@@ -292,7 +205,6 @@ function renderSettingsUI() {
   const codeElem = document.getElementById('myShareCode');
   if (codeElem) codeElem.innerText = myCustomCode || "------";
   updateShareSettlementUI();
-  updateChartModeButtonsUI();
   updateDeadlineButtons();
 }
 
@@ -358,28 +270,6 @@ window.selectPlatformChip = function(name, context = 'form') {
   const el = document.getElementById(inputId);
   if (el) el.value = name;
   window.renderAllPlatformComponents();
-};
-
-window.handleTablePlatformChange = async function(selectEl) {
-  if (selectEl.value === '__ADD_NEW__') {
-    const newSite = prompt("추가할 새 사이트명을 입력하세요:");
-    if (!newSite || !newSite.trim()) {
-      selectEl.value = '개별';
-      return;
-    }
-    const trimmed = newSite.trim();
-    if (!platformList.includes(trimmed)) {
-      platformList.push(trimmed);
-      try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-      if (currentUser && !isReadOnly && db) {
-        try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
-      }
-    }
-    window.renderAllPlatformComponents();
-    window.filterAndRender();
-    const updatedSelect = document.getElementById(selectEl.id);
-    if (updatedSelect) updatedSelect.value = trimmed;
-  }
 };
 
 function renderPlatformChipsContainer(containerId, inputId, context, isManaging) {
@@ -449,18 +339,11 @@ async function loadTargetUserSettings(uid) {
     const userSnap = await getDoc(doc(db, "users", uid));
     if (userSnap.exists()) {
       const d = userSnap.data();
-      if (d.statusColors) { 
-        Object.assign(customStatusColors, d.statusColors); 
-        try { localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors)); } catch(e) {}
-        applyStatusCSSColors(); 
-      }
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
         window.renderAllPlatformComponents();
       }
-      if (d.theme) { applyThemeCSS(d.theme); try { localStorage.setItem('onlyview_theme', d.theme); } catch(e) {} }
-      if (d.chartMode) { currentChartMode = d.chartMode; try { localStorage.setItem('onlyview_chartMode', d.chartMode); } catch(e) {} updateChartModeButtonsUI(); }
       if (d.deadlineAlertDays) { deadlineAlertDays = d.deadlineAlertDays; try { localStorage.setItem('onlyview_deadlineAlertDays', deadlineAlertDays.toString()); } catch(e) {} updateDeadlineButtons(); }
     }
   } catch (err) { console.error("설정 동기화 실패:", err); }
@@ -585,15 +468,6 @@ window.setListSubTab = function(type) {
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
   if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-theme text-white shadow-xs cursor-pointer text-center" : "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900 cursor-pointer text-center";
   if (btnS) btnS.className = (type === 'submitted') ? "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-theme text-white shadow-xs cursor-pointer text-center" : "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900 cursor-pointer text-center";
-  
-  // 탭 전환 시 표시 건수 리셋
-  completedVisibleCount = (completedPageSize === Infinity) ? Infinity : completedPageSize;
-  window.filterAndRender();
-};
-
-window.handleLoadMore = function() {
-  const step = completedPageSize === Infinity ? 20 : completedPageSize;
-  completedVisibleCount += step;
   window.filterAndRender();
 };
 
@@ -760,7 +634,6 @@ window.executeExcelExport = async function() {
 
     let tCnt = exportList.length, cCnt = 0, tSpon = 0, tPaid = 0, tRev = 0;
     const mSum = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, done: 0, revenue: 0 }));
-    const pMap = {};
 
     exportList.forEach(item => {
       const isDone = (getEffectiveStatus(item) === '제출' || getEffectiveStatus(item) === '완료');
@@ -773,12 +646,11 @@ window.executeExcelExport = async function() {
           const m = parseInt(refD.slice(5, 7));
           if (m >= 1 && m <= 12) { mSum[m - 1].done++; mSum[m - 1].revenue += calcRev; }
         }
-        const pN = item.platformName || '개별'; pMap[pN] = (pMap[pN] || 0) + calcRev;
       }
     });
 
     const sh1 = wb.addWorksheet('대시보드', { views: [{ showGridLines: true }] });
-    sh1.mergeCells('B2:H2');
+    sh1.mergeCells('B2:E2');
     const tCell = sh1.getCell('B2'); tCell.value = `온리뷰 (ONLYVIEW) 종합 리포트 [${targetYearStr}]`; tCell.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
     sh1.getCell('B3').value = `기준일시: ${dateStr}`;
 
@@ -789,153 +661,7 @@ window.executeExcelExport = async function() {
       v.value = k.v; v.font = { name: '맑은 고딕', size: 12, bold: true }; v.border = borderStyle;
     });
 
-    sh1.getCell('B8').value = '1. 월별 완료 실적'; sh1.getCell('B8').font = { name: '맑은 고딕', size: 11, bold: true };
-    ['월', '완료 건수', '실수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(66+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
-    mSum.forEach((m, i) => {
-      const r = 10 + i;
-      sh1.getCell(`B${r}`).value = `${m.month}월`; sh1.getCell(`C${r}`).value = m.done; sh1.getCell(`C${r}`).numFmt = '#,##0"건"'; sh1.getCell(`D${r}`).value = m.revenue; sh1.getCell(`D${r}`).numFmt = '#,##0"원"';
-      ['B','C','D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
-    });
-
-    sh1.getCell('F8').value = '2. 플랫폼 수익 랭킹'; sh1.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true };
-    ['플랫폼명', '총 수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(70+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
-    Object.entries(pMap).sort((a, b) => b[1] - a[1]).forEach(([n, v], i) => {
-      const r = 10 + i; sh1.getCell(`F${r}`).value = n; sh1.getCell(`G${r}`).value = v; sh1.getCell(`G${r}`).numFmt = '#,##0"원"';
-      ['F','G'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
-    });
-    sh1.columns = [{ width: 4 }, { width: 15 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 18 }];
-
-    const buildMonthlyBlockSheet = (sName, filterMode) => {
-      const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
-      const maxCol = filterMode === 'completed_detail' ? 'H' : 'M';
-
-      sh.mergeCells(`B2:${maxCol}2`);
-      const titleCell = sh.getCell('B2'); 
-      titleCell.value = `${sName} (1월 ~ 12월 월별 내역) [${targetYearStr}]`; 
-      titleCell.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
-      sh.getRow(2).height = 24;
-
-      let cols = [];
-      if (filterMode === 'completed_detail') {
-        cols = [
-          { h: '매장명 (업체명)', k: 'storeName', w: 24 }, { h: '사이트', k: 'platformName', w: 12 },
-          { h: '방문일', k: 'visitDate', w: 12 }, { h: '마감일', k: 'deadlineDate', w: 12 },
-          { h: '제공금액', k: 'sponsoredAmount', w: 14, cur: true }, { h: '결제금액', k: 'paidAmount', w: 14, cur: true },
-          { h: '실수익', k: 'revenue', w: 14, cur: true }
-        ];
-      } else {
-        cols = [
-          { h: '매장명 (업체명)', k: 'storeName', w: 22 }, { h: '진행 상태', k: 'status', w: 9 }, 
-          { h: '사이트', k: 'platformName', w: 11 }, { h: '방문일', k: 'visitDate', w: 12 }, 
-          { h: '방문시간', k: 'visitTime', w: 10 }, { h: '마감일', k: 'deadlineDate', w: 12 },
-          { h: '동반인원', k: 'companions', w: 14 }, { h: '업체 연락처', k: 'contact', w: 16 },
-          { h: '제공금액', k: 'sponsoredAmount', w: 13, cur: true }, { h: '결제금액', k: 'paidAmount', w: 13, cur: true },
-          { h: '실수익', k: 'revenue', w: 13, cur: true }, { h: '메모 (비고)', k: 'memo', w: 20 }
-        ];
-      }
-      sh.columns = [{ width: 3 }].concat(cols.map(c => ({ width: c.w })));
-
-      let dRowIdx = 4;
-      for (let m = 1; m <= 12; m++) {
-        const mItems = exportList.filter(it => {
-          const eff = getEffectiveStatus(it);
-          const isDone = (eff === '제출' || eff === '완료');
-          if (filterMode === 'completed_detail' || filterMode === 'completed_full') { if (!isDone) return false; } 
-          else { if (isDone) return false; }
-
-          const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
-          if (!refDate || refDate.length < 7) return false;
-          return parseInt(refDate.slice(5, 7)) === m;
-        }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
-
-        const mCount = mItems.length;
-        let mTotalRev = 0;
-        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv); });
-
-        sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-        const hdCell = sh.getCell(`B${dRowIdx}`);
-        hdCell.value = `■ ${m}월 내역  (건수: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
-        hdCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } };
-        hdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-        hdCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
-        sh.getRow(dRowIdx++).height = 24;
-
-        const hr = sh.getRow(dRowIdx); hr.height = 20;
-        cols.forEach((col, cIdx) => {
-          const c = hr.getCell(cIdx + 2);
-          c.value = col.h; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } };
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
-        });
-        dRowIdx++;
-
-        if (mCount === 0) {
-          sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-          const ec = sh.getCell(`B${dRowIdx}`); ec.value = '해당 월에 등록된 내역이 없습니다.'; ec.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; ec.border = borderStyle;
-          sh.getRow(dRowIdx++).height = 20;
-        } else {
-          const startRow = dRowIdx;
-          mItems.forEach(it => {
-            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
-            const r = sh.getRow(dRowIdx++); r.height = 19;
-
-            if (filterMode === 'completed_detail') {
-              r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
-              r.getCell(3).value = it.platformName || '개별';
-              r.getCell(4).value = formatCleanDate(it.visitDate) || '-';
-              r.getCell(5).value = formatCleanDate(it.deadlineDate) || '-';
-              r.getCell(6).value = sp; r.getCell(7).value = pd; r.getCell(8).value = calcRev;
-            } else {
-              r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
-              r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
-              r.getCell(4).value = it.platformName || '개별';
-              r.getCell(5).value = formatCleanDate(it.visitDate) || '-';
-              r.getCell(6).value = it.visitTime || '-';
-              r.getCell(7).value = formatCleanDate(it.deadlineDate) || '-';
-              r.getCell(8).value = it.companions || '-';
-              r.getCell(9).value = it.contact || '-';
-              r.getCell(10).value = sp; r.getCell(11).value = pd; r.getCell(12).value = calcRev;
-              r.getCell(13).value = it.memo || ''; r.getCell(13).alignment = { horizontal: 'left' };
-            }
-
-            cols.forEach((col, cIdx) => {
-              const c = r.getCell(cIdx + 2);
-              c.font = { name: '맑은 고딕', size: 9.5 }; c.border = borderStyle;
-              if (col.cur) { c.numFmt = '#,##0"원"'; c.alignment = { horizontal: 'right' }; }
-              else if (!c.alignment) { c.alignment = { horizontal: 'center' }; }
-            });
-          });
-
-          const subR = sh.getRow(dRowIdx++); subR.height = 21; 
-          if (filterMode === 'completed_detail') {
-            sh.mergeCells(`B${subR.number}:E${subR.number}`);
-            subR.getCell(2).value = `${m}월 소계`; subR.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-            subR.getCell(6).value = { formula: `SUM(F${startRow}:F${dRowIdx - 2})` };
-            subR.getCell(7).value = { formula: `SUM(G${startRow}:G${dRowIdx - 2})` };
-            subR.getCell(8).value = { formula: `SUM(H${startRow}:H${dRowIdx - 2})` };
-          } else {
-            sh.mergeCells(`B${subR.number}:I${subR.number}`);
-            subR.getCell(2).value = `${m}월 소계`; subR.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-            subR.getCell(10).value = { formula: `SUM(J${startRow}:J${dRowIdx - 2})` };
-            subR.getCell(11).value = { formula: `SUM(K${startRow}:K${dRowIdx - 2})` };
-            subR.getCell(12).value = { formula: `SUM(L${startRow}:L${dRowIdx - 2})` };
-          }
-
-          cols.forEach((col, cIdx) => {
-            const c = subR.getCell(cIdx + 2);
-            c.font = { name: '맑은 고딕', size: 9.5, bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-            c.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
-            if (col.cur) { c.numFmt = '#,##0"원"'; c.alignment = { horizontal: 'right' }; }
-          });
-        }
-        dRowIdx++;
-      }
-    };
-
-    buildMonthlyBlockSheet('정산 세부 내역', 'completed_detail');
-    buildMonthlyBlockSheet('진행중 체험단', 'ongoing_full');
-    buildMonthlyBlockSheet('완료 체험단', 'completed_full');
-
+    sh1.columns = [{ width: 4 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 20 }];
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
@@ -986,7 +712,7 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
-  // 정렬 적용 (미선택 시 기존 등록 순 원본 보존)
+  // 정렬 적용 (미지정 시 기존 등록 순 원본 보존)
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
@@ -995,18 +721,10 @@ window.filterAndRender = function() {
     });
   }
 
-  const totalFilteredCount = filtered.length;
-  let itemsToRender = filtered;
-
-  // 완료됨 탭일 때 분할 페이징 적용 (일괄 수정 모드 제외)
-  if (listSubTab === 'submitted' && !isBatchEditing) {
-    itemsToRender = filtered.slice(0, completedVisibleCount);
-  }
-
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  itemsToRender.forEach(item => {
+  filtered.forEach(item => {
     const effSt = getEffectiveStatus(item);
     const overdue = isItemOverdue(item);
     const isCompleted = (effSt === '제출' || effSt === '완료');
@@ -1047,7 +765,7 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 2분할 카드 (칸 깨짐 방지 레이아웃)
+    // 모바일 2분할 카드 뷰 (칸 깨짐 방지 레이아웃)
     const card = document.createElement('div');
     card.className = 'bg-white p-3.5 rounded-2xl shadow-xs border border-gray-100 flex items-center justify-between gap-2.5 w-full cursor-pointer hover:border-theme transition-colors min-h-[64px] box-border overflow-hidden';
     card.onclick = () => window.openDetailItemModal(item.id);
@@ -1081,18 +799,6 @@ window.filterAndRender = function() {
     
     cardList?.appendChild(card);
   });
-
-  // 하단 페이징 더보기 버튼 노출 제어
-  const loadMoreContainer = document.getElementById('loadMoreContainer');
-  const loadMoreBtn = document.getElementById('loadMoreBtn');
-  if (loadMoreContainer && loadMoreBtn) {
-    if (listSubTab === 'submitted' && !isBatchEditing && totalFilteredCount > itemsToRender.length) {
-      loadMoreContainer.classList.remove('hidden');
-      loadMoreBtn.innerText = `+ 더보기 (${itemsToRender.length}건 / ${totalFilteredCount}건)`;
-    } else {
-      loadMoreContainer.classList.add('hidden');
-    }
-  }
 
   if (filtered.length === 0 && !isBatchEditing) {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-8 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
@@ -1200,8 +906,8 @@ window.renderSettlementView = function() {
   const lbl = document.getElementById('yearlyAccumulatedLabel');
   if (lbl) lbl.innerText = selectedYearVal === 'ALL' ? '누적 총 수익' : `${targetYear}년 누적`;
 
-  const chartColors = getActiveChartColors();
-  let doneCount = 0, doneAmount = 0, planCount = 0, planAmount = 0, prevDoneAmount = 0, hasPrevYearData = false;
+  const chartColors = chartStylePalettes.default;
+  let doneCount = 0, doneAmount = 0, planCount = 0, planAmount = 0;
   const monthlyRevenues = new Array(12).fill(0), monthlyCounts = new Array(12).fill(0), platformMap = {};
   const monthlyDetailsData = {}; for(let m = 1; m <= 12; m++) monthlyDetailsData[m] = [];
 
@@ -1225,7 +931,6 @@ window.renderSettlementView = function() {
         }
       } else { planCount++; planAmount += calcRev; }
     }
-    if (iYear === targetYear - 1) { hasPrevYearData = true; if (isCompleted) prevDoneAmount += calcRev; }
   });
 
   const totalAmount = doneAmount + planAmount;
@@ -1234,29 +939,7 @@ window.renderSettlementView = function() {
   setT('yearlyDoneCount', doneCount + "건"); setT('yearlyDoneAmount', doneAmount.toLocaleString() + "원");
   setT('yearlyPlanCount', planCount + "건"); setT('yearlyPlanAmount', planAmount.toLocaleString() + "원");
 
-  const diffAmount = doneAmount - prevDoneAmount;
-  const cmpContainer = document.getElementById('yearlyCompareContainer');
-  if (cmpContainer) {
-    if (!hasPrevYearData) {
-      cmpContainer.innerHTML = '<div class="flex items-center gap-1.5"><span class="text-[10px] sm:text-[11px] text-gray-400 shrink-0">전년 대비</span><span class="text-[10px] sm:text-[11px] text-gray-400">데이터 없음</span></div>';
-    } else {
-      const rate = prevDoneAmount === 0 ? 100 : ((diffAmount / prevDoneAmount) * 100).toFixed(1);
-      cmpContainer.innerHTML = `
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] text-gray-400 font-normal">전년 대비 증가</span>
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="font-bold text-gray-900 text-xs sm:text-sm">${diffAmount >= 0 ? '+' : ''}${diffAmount.toLocaleString()}원</span>
-            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${diffAmount >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${diffAmount >= 0 ? '+' : ''}${rate}%</span>
-          </div>
-        </div>`;
-    }
-  }
-
   try {
-    let maxRevVal = 0, maxMonthIdx = 0;
-    monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
-    if (document.getElementById('monthlyBestMonthText')) document.getElementById('monthlyBestMonthText').innerText = maxRevVal === 0 ? '-' : `${maxMonthIdx + 1}월 · ${maxRevVal.toLocaleString()}원`;
-
     const ctxM = document.getElementById('monthlyBarChart')?.getContext('2d');
     if (ctxM) {
       if (monthlyChartInstance) monthlyChartInstance.destroy();
@@ -1270,10 +953,6 @@ window.renderSettlementView = function() {
   } catch(e) {}
 
   try {
-    let maxCountVal = 0, maxCountMonthIdx = 0;
-    monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
-    if (document.getElementById('monthlyAnalysisBestText')) document.getElementById('monthlyAnalysisBestText').innerText = maxCountVal === 0 ? '-' : `${maxCountMonthIdx + 1}월 · ${maxCountVal}건`;
-
     const ctxMA = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
     if (ctxMA) {
       if (monthlyAnalysisChartInstance) monthlyAnalysisChartInstance.destroy();
@@ -1309,54 +988,6 @@ window.renderSettlementView = function() {
         (idx < half ? pLeft : pRight).appendChild(itemD);
       });
       if (sortedP.length === 0) pLeft.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal col-span-2">데이터가 없습니다.</div>';
-    }
-  } catch(e) {}
-
-  try {
-    const mGrid = document.getElementById('monthlyDetailsGrid');
-    if (mGrid) {
-      mGrid.innerHTML = '';
-      for (let m = 1; m <= 12; m++) {
-        const list = monthlyDetailsData[m];
-        list.sort((a, b) => a.sortRefDate.localeCompare(b.sortRefDate));
-        const isCollapsed = monthlyDetailsCollapseState[m] !== false;
-        const totalC = list.length, totalR = list.reduce((s, i) => s + i.revenueAmount, 0);
-
-        const cardD = document.createElement('div');
-        cardD.className = "bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between";
-        let htm = `<div onclick="window.toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-          <span class="text-xs sm:text-sm font-bold text-gray-800">${m}월</span>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-900 font-normal">${totalC}건 · ${totalR.toLocaleString()}원</span>
-            <span class="text-xs text-gray-400 font-bold">${isCollapsed ? '▼' : '▲'}</span>
-          </div>
-        </div>`;
-
-        if (!isCollapsed) {
-          htm += '<div class="mt-2.5 flex-1 flex flex-col justify-between space-y-2">';
-          if (list.length === 0) {
-            htm += '<div class="text-center text-gray-300 font-normal py-6 text-xs">이 달의 완료된 체험이 없습니다.</div>';
-          } else {
-            htm += '<div class="flex items-center justify-between text-[10px] text-gray-400 font-normal pb-1 border-b border-gray-100"><span class="w-1/2 text-left">매장명</span><span class="w-1/4 text-right">제공금액</span><span class="w-1/4 text-right">결제금액</span></div>';
-            htm += '<div class="space-y-1.5 max-h-[200px] overflow-y-auto widget-scroll pr-1">';
-            list.forEach(i => {
-              htm += `<div class="flex justify-between items-center text-xs py-1 border-b border-dashed border-gray-50">
-                <span class="truncate w-1/2 font-medium text-gray-800" title="${i.storeName}">${i.storeName}</span>
-                <span class="w-1/4 text-right text-gray-500 text-[11px]">${i.sponsoredAmount.toLocaleString()}원</span>
-                <span class="w-1/4 text-right text-gray-900 font-bold text-xs">${Number(i.paidAmount || 0).toLocaleString()}원</span>
-              </div>`;
-            });
-            htm += '</div>';
-          }
-          htm += `<div class="mt-2.5 p-2.5 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
-            <span class="text-gray-500 font-normal text-[11px]">소계 <b class="text-gray-900 font-bold ml-1">${totalC}건</b></span>
-            <span class="text-gray-500 font-normal text-[11px]">실수익 <b class="text-gray-900 font-bold ml-1">${totalR.toLocaleString()}원</b></span>
-          </div>`;
-          htm += '</div>';
-        }
-        cardD.innerHTML = htm;
-        mGrid.appendChild(cardD);
-      }
     }
   } catch(e) {}
 };
@@ -1606,8 +1237,6 @@ window.switchTab = function(tabName, pushState = true) {
     document.getElementById('sectionDashboard')?.classList.remove('hidden'); window.renderDashboardView();
   } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
-    completedPageSize = 20; completedVisibleCount = 20;
-    const psEl = document.getElementById('filterPageSize'); if (psEl) psEl.value = '20';
     const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
     if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
     const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
@@ -1710,19 +1339,11 @@ onAuthStateChanged(auth, async (user) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById('loginInviteCodeInput')?.addEventListener('keyup', e => { if (e.key === 'Enter') window.enterWithInviteCode(); });
-  document.getElementById('searchInput')?.addEventListener('input', () => { completedVisibleCount = completedPageSize; window.filterAndRender(); });
-  document.getElementById('filterStatus')?.addEventListener('change', () => { completedVisibleCount = completedPageSize; window.filterAndRender(); });
-  document.getElementById('filterYear')?.addEventListener('change', () => { completedVisibleCount = completedPageSize; window.filterAndRender(); });
-  document.getElementById('filterMonth')?.addEventListener('change', () => { completedVisibleCount = completedPageSize; window.filterAndRender(); });
+  document.getElementById('searchInput')?.addEventListener('input', window.filterAndRender);
+  document.getElementById('filterStatus')?.addEventListener('change', window.filterAndRender);
+  document.getElementById('filterYear')?.addEventListener('change', window.filterAndRender);
+  document.getElementById('filterMonth')?.addEventListener('change', window.filterAndRender);
   document.getElementById('settlementYearSelect')?.addEventListener('change', window.renderSettlementView);
-
-  // 일회성 개수 선택 드롭다운 (휘발성 유지)
-  document.getElementById('filterPageSize')?.addEventListener('change', e => {
-    const val = e.target.value;
-    completedPageSize = (val === 'ALL') ? Infinity : Number(val);
-    completedVisibleCount = completedPageSize;
-    window.filterAndRender();
-  });
 
   document.getElementById('prevMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() - 1); window.renderDashboardView(); });
   document.getElementById('todayMonthBtn')?.addEventListener('click', () => { currentCalDate = new Date(); window.renderDashboardView(); });
