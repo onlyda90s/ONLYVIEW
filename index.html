@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>온리뷰 (ONLYVIEW) - 체험단 관리</title>
   
-  <!-- 글씨체 깨짐 방지: 프리텐다드(Pretendard) 공식 웹폰트 -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -32,7 +30,7 @@
       --color-status-fee: #9333EA;
     }
     * {
-      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       word-break: keep-all;
     }
     body { background-color: var(--main-bg); color: #1F2937; -webkit-tap-highlight-color: transparent; }
@@ -115,7 +113,7 @@
     <!-- 메인 컨텐츠 영역 -->
     <main class="flex-1 flex flex-col h-full overflow-y-auto pb-20 lg:pb-0">
       
-      <!-- 상단 컨트롤 헤더 (PC / 모바일 공통) -->
+      <!-- 상단 컨트롤 헤더 -->
       <header class="h-14 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 shrink-0 z-20">
         <div class="flex items-center gap-2">
           <span class="lg:hidden font-black text-lg text-theme tracking-tight">ONLYVIEW</span>
@@ -186,11 +184,11 @@
         </div>
       </section>
 
-      <!-- 2. 체험단 목록 섹션 (오리지널 레이아웃 복원) -->
+      <!-- 2. 체험단 목록 섹션 -->
       <section id="sectionList" class="hidden p-4 lg:p-8 space-y-4 max-w-7xl mx-auto w-full">
         <h2 class="text-xl font-extrabold text-theme tracking-tight">체험단 목록</h2>
         
-        <!-- 오리지널 상단 컨트롤 라인 (필터 - 세그먼트 탭 - + 추가) -->
+        <!-- 상단 컨트롤 라인 (필터 - 세그먼트 탭 - + 추가) -->
         <div class="flex items-center justify-between gap-2">
           <button id="filterToggleBtn" onclick="window.toggleFilterArea()" class="px-3.5 py-2 rounded-xl text-xs font-bold border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 shadow-xs cursor-pointer">
             ▼ 필터
@@ -214,7 +212,7 @@
           </div>
         </div>
 
-        <!-- 필터 박스 영역 (20/50/100/전체 개수 선택 옵션 포함) -->
+        <!-- 필터 박스 영역 -->
         <div id="filterBoxContainer" class="hidden flex-wrap items-center gap-2 p-3.5 bg-white rounded-2xl border border-gray-200/80 shadow-xs">
           <input type="text" id="searchInput" placeholder="매장명 또는 사이트 검색" class="py-2 px-3 border border-gray-200 rounded-xl text-xs bg-gray-50 outline-none flex-1 min-w-[130px] focus:bg-white focus:border-theme">
           <select id="filterStatus" class="py-2 px-3 border border-gray-200 rounded-xl text-xs bg-white text-gray-700 outline-none cursor-pointer">
@@ -236,13 +234,6 @@
             <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
             <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
             <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
-          </select>
-          <!-- 표시 개수 선택 드롭다운 (휘발성, 캐시/스토리지 미저장) -->
-          <select id="filterPageSize" class="py-2 px-3 border border-gray-200 rounded-xl text-xs bg-white text-gray-700 font-medium outline-none cursor-pointer">
-            <option value="20" selected>20개씩 보기</option>
-            <option value="50">50개씩 보기</option>
-            <option value="100">100개씩 보기</option>
-            <option value="ALL">전체 보기</option>
           </select>
         </div>
 
@@ -268,15 +259,8 @@
           </div>
         </div>
 
-        <!-- 모바일 카드 리스트 뷰 (칸 깨짐 방지 레이아웃) -->
+        <!-- 모바일 카드 리스트 뷰 -->
         <div id="campaignCardList" class="block sm:hidden space-y-2.5 w-full"></div>
-
-        <!-- 페이징 더보기 버튼 영역 (PC, 태블릿, 모바일 공통) -->
-        <div id="loadMoreContainer" class="hidden mt-4 pb-6 text-center">
-          <button id="loadMoreBtn" type="button" onclick="window.handleLoadMore()" class="w-full sm:w-auto px-8 py-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold shadow-xs transition-colors cursor-pointer">
-            + 더보기
-          </button>
-        </div>
       </section>
 
       <!-- 3. 체험단 등록 섹션 -->
@@ -450,7 +434,7 @@
 
     </main>
 
-    <!-- 모바일 하단 오리지널 네비게이션 (정품 벡터 라인 아이콘 복원) -->
+    <!-- 모바일 하단 네비게이션 (오리지널 정품 라인 아이콘) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-gray-100 flex items-center justify-around z-30 px-2 shadow-xs">
       <button id="bottom-nav-dashboard" onclick="window.switchTab('dashboard')" class="bottom-nav-item flex flex-col items-center justify-center gap-1 text-gray-400 cursor-pointer w-14">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
