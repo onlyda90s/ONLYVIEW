@@ -52,6 +52,10 @@ let yearlyChartInstance = null, monthlyChartInstance = null, monthlyAnalysisChar
 let isSidebarCollapsed = false;
 try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') === 'true'; } catch(e) {}
 
+// 페이징 및 표시 개수 관리 (기본 20개, 휘발성 유지)
+let completedPageSize = 20;
+let completedVisibleCount = 20;
+
 let monthlyDetailsCollapseState = {};
 let sortColumn = 'none';
 let sortAsc = true;
@@ -275,13 +279,6 @@ function applySidebarUI() {
   }
 }
 
-function renderStatusColorPickers() {
-  ['apply', 'select', 'visit', 'unsubmitted', 'submit', 'delivery', 'fee'].forEach(k => {
-    const badge = document.getElementById(`picker_badge_${k}`);
-    if (badge) badge.style.backgroundColor = customStatusColors[k] || '#6B7280';
-  });
-}
-
 function updateShareSettlementUI() {
   const label = document.getElementById('shareSettlementLabel');
   const btn = document.getElementById('toggleShareSettlementBtn');
@@ -295,7 +292,6 @@ function renderSettingsUI() {
   const codeElem = document.getElementById('myShareCode');
   if (codeElem) codeElem.innerText = myCustomCode || "------";
   updateShareSettlementUI();
-  renderStatusColorPickers();
   updateChartModeButtonsUI();
   updateDeadlineButtons();
 }
@@ -460,7 +456,6 @@ async function loadTargetUserSettings(uid) {
         Object.assign(customStatusColors, d.statusColors); 
         try { localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors)); } catch(e) {}
         applyStatusCSSColors(); 
-        renderStatusColorPickers(); 
       }
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
@@ -552,200 +547,6 @@ window.enterWithInviteCode = async function() {
   } catch (err) { alert("코드 조회 실패: " + err.message); }
 };
 
-window.updateCustomStatusColor = async function(key, val) {
-  if (isReadOnly) return;
-  customStatusColors[key] = val;
-  try { localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors)); } catch(e) {}
-  applyStatusCSSColors(); renderStatusColorPickers(); window.filterAndRender(); window.renderDashboardView(); window.closeModal('colorPickerModal');
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { statusColors: customStatusColors }, { merge: true }); } catch(e) {} }
-};
-
-window.openColorPickerModal = function(key, label) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  activeColorPickerKey = key;
-  const titleElem = document.getElementById('colorModalTitle');
-  if (titleElem) titleElem.innerText = `${label} 상태 글자 색상 선택`;
-  const grid = document.getElementById('colorPaletteGrid');
-  if (grid) {
-    grid.innerHTML = '';
-    const currentC = customStatusColors[key] || '#6B7280';
-    presetPalette.forEach(hex => {
-      const isSel = currentC.toLowerCase() === hex.toLowerCase();
-      const btn = document.createElement('button'); btn.type = 'button';
-      btn.className = `w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center ${isSel ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
-      btn.style.backgroundColor = hex;
-      if (isSel) btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
-      btn.onclick = () => window.updateCustomStatusColor(key, hex);
-      grid.appendChild(btn);
-    });
-  }
-  window.openModal('colorPickerModal');
-};
-
-window.setChartMode = async function(m) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  currentChartMode = m;
-  try { localStorage.setItem('onlyview_chartMode', m); } catch(e) {}
-  updateChartModeButtonsUI(); window.renderSettlementView();
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { chartMode: m }, { merge: true }); } catch(e) {} }
-};
-
-window.changeTheme = async function(k) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  applyThemeCSS(k);
-  try { localStorage.setItem('onlyview_theme', k); } catch(e) {}
-  if (currentChartMode === 'theme') window.renderSettlementView();
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { theme: k }, { merge: true }); } catch(e) {} }
-};
-
-window.toggleSidebar = function() {
-  isSidebarCollapsed = !isSidebarCollapsed;
-  try { localStorage.setItem('onlyview_sidebarCollapsed', isSidebarCollapsed.toString()); } catch(e) {}
-  applySidebarUI();
-};
-
-window.toggleFilterArea = function() {
-  isFilterExpanded = !isFilterExpanded;
-  const filterBox = document.getElementById('filterBoxContainer'), toggleBtn = document.getElementById('filterToggleBtn');
-  if (filterBox && toggleBtn) {
-    filterBox.classList.toggle('hidden', !isFilterExpanded); filterBox.classList.toggle('flex', isFilterExpanded);
-    toggleBtn.innerText = isFilterExpanded ? '▲ 필터' : '▼ 필터';
-  }
-};
-
-window.setSettlementSubTab = function(type) {
-  settlementSubTab = type;
-  const btnReport = document.getElementById('settlementSubTabReport'), btnDetail = document.getElementById('settlementSubTabDetail');
-  const panelReport = document.getElementById('settlementPanelReport'), panelDetail = document.getElementById('settlementPanelDetail');
-  if (type === 'report') {
-    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center";
-    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
-    panelReport?.classList.remove('hidden'); panelDetail?.classList.add('hidden');
-  } else {
-    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
-    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center";
-    panelDetail?.classList.remove('hidden'); panelReport?.classList.add('hidden');
-  }
-  window.renderSettlementView();
-};
-
-window.toggleMonthlyDetailsCard = function(m) { monthlyDetailsCollapseState[m] = !monthlyDetailsCollapseState[m]; window.renderSettlementView(); };
-
-window.switchTab = function(tabName, pushState = true) {
-  if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
-    if (!pushState) { window.switchTab('dashboard', false); return; } return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
-  }
-  if (isReadOnly && !isSettlementShared && tabName === 'settlement') {
-    if (!pushState) { window.switchTab('dashboard', false); return; } return alert("상대방이 정산 내역을 비공개로 설정했습니다.");
-  }
-
-  const mainViewport = document.querySelector('main');
-  if (mainViewport) mainViewport.scrollTop = 0;
-
-  ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
-  document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
-  const activeBtn = document.getElementById(`nav-${tabName}`);
-  if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
-  
-  document.querySelectorAll('.bottom-nav-item').forEach(btn => { btn.classList.remove('text-theme'); btn.classList.add('text-gray-400'); });
-  const activeBottomBtn = document.getElementById(`bottom-nav-${tabName}`);
-  if (activeBottomBtn) { activeBottomBtn.classList.remove('text-gray-400'); activeBottomBtn.classList.add('text-theme'); }
-  
-  if (pushState && window.location.hash !== `#${tabName}`) history.pushState({ tab: tabName }, '', `#${tabName}`);
-  ['dayModal', 'editModal', 'colorPickerModal', 'dashRegisterModal', 'excelExportModal'].forEach(id => window.closeModal(id));
-
-  if (tabName === 'dashboard') {
-    document.getElementById('sectionDashboard')?.classList.remove('hidden'); window.renderDashboardView();
-  } else if (tabName === 'list') {
-    isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
-    const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
-    if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
-    const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
-    const stEl = document.getElementById('filterStatus'); if (stEl) stEl.value = 'ALL';
-    const yrEl = document.getElementById('filterYear'); if (yrEl) yrEl.value = 'ALL';
-    const moEl = document.getElementById('filterMonth'); if (moEl) moEl.value = 'ALL';
-    document.getElementById('sectionList')?.classList.remove('hidden'); window.filterAndRender();
-  } else if (tabName === 'form') {
-    document.getElementById('campaignForm')?.reset(); isPlatformEditingForm = false; window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form');
-    document.getElementById('sectionForm')?.classList.remove('hidden'); document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
-  } else if (tabName === 'settlement') {
-    document.getElementById('sectionSettlement')?.classList.remove('hidden'); window.setSettlementSubTab('report');
-  } else if (tabName === 'settings') {
-    document.getElementById('sectionSettings')?.classList.remove('hidden'); renderSettingsUI();
-  }
-};
-
-window.addEventListener('popstate', () => {
-  const hash = (window.location.hash || '').replace('#', '');
-  window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
-});
-
-window.setStatusBtn = function(status) {
-  selectedStatus = status;
-  ['신청', '선정', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById(`btnStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
-  });
-  const sL = document.getElementById('storeNameLabel'), aL = document.getElementById('sponsoredAmountLabel');
-  const rApp = document.getElementById('rowApplyDate'), rDead = document.getElementById('rowDeadlineDate');
-  const rVis = document.getElementById('rowVisit'), rFin = document.getElementById('rowFinancial');
-  const rCon = document.getElementById('rowContact'), rMemo = document.getElementById('rowMemo');
-  if (status === '신청') {
-    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
-    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
-  } else {
-    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
-    if (status === '선정') {
-      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
-      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
-      if (!document.getElementById('visitTime')?.value) { const n = new Date(); document.getElementById('visitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
-    } else if (status === '배송') {
-      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
-      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
-    } else if (status === '원고료') {
-      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
-      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
-    }
-  }
-};
-
-window.setModalStatusBtn = function(status) {
-  modalSelectedStatus = status;
-  ['신청', '선정', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById(`btnModalStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-2 sm:py-1.5 px-3 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2 sm:py-1.5 px-3 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
-  });
-  const sL = document.getElementById('modalStoreNameLabel'), aL = document.getElementById('modalSponsoredAmountLabel');
-  const rApp = document.getElementById('modalRowApplyDate'), rDead = document.getElementById('modalRowDeadlineDate');
-  const rVis = document.getElementById('modalRowVisit'), rFin = document.getElementById('modalRowFinancial');
-  const rCon = document.getElementById('modalRowContact'), rMemo = document.getElementById('modalRowMemo');
-  if (status === '신청') {
-    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
-    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
-  } else {
-    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
-    if (status === '선정') {
-      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
-      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
-      if (!document.getElementById('modalVisitTime')?.value) { const n = new Date(); document.getElementById('modalVisitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
-    } else if (status === '배송') {
-      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
-      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
-    } else if (status === '원고료') {
-      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
-      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
-    }
-  }
-};
-
-window.setEditStatusBtn = function(status) {
-  editSelectedStatus = status;
-  ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
-    const btn = document.getElementById(`btnEditStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
-  });
-};
-
 window.setDeadlineDays = async function(days) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
   deadlineAlertDays = Number(days);
@@ -774,29 +575,6 @@ window.openDashRegisterModal = function() {
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-window.openNewCampaignFromModal = function() {
-  if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
-  editingId = null;
-  document.getElementById('editForm')?.reset();
-
-  const titleEl = document.querySelector('#editModal h3');
-  if (titleEl) titleEl.innerText = "새 체험 등록";
-
-  const submitBtn = document.querySelector('#editModal button[type="submit"]');
-  if (submitBtn) {
-    submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
-    submitBtn.innerText = "등록하기";
-  }
-
-  window.setEditStatusBtn('선정');
-  const pInput = document.getElementById('editPlatformName');
-  if (pInput) pInput.value = '개별';
-  isPlatformEditingEdit = false;
-  window.renderAllPlatformComponents();
-
-  window.openModal('editModal');
-};
-
 window.handleSort = function(col) {
   if (sortColumn === col) sortAsc = !sortAsc;
   else { sortColumn = col; sortAsc = true; }
@@ -810,8 +588,17 @@ window.handleSort = function(col) {
 window.setListSubTab = function(type) {
   listSubTab = type;
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
-  if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
-  if (btnS) btnS.className = (type === 'submitted') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
+  if (btnO) btnO.className = (type === 'ongoing') ? "py-1 px-3 rounded-lg bg-theme text-white shadow-sm cursor-pointer" : "py-1 px-3 rounded-lg text-gray-600 hover:text-gray-900 cursor-pointer";
+  if (btnS) btnS.className = (type === 'submitted') ? "py-1 px-3 rounded-lg bg-theme text-white shadow-sm cursor-pointer" : "py-1 px-3 rounded-lg text-gray-600 hover:text-gray-900 cursor-pointer";
+  
+  // 탭 전환 시 표시 카운트 리셋
+  completedVisibleCount = (completedPageSize === Infinity) ? Infinity : completedPageSize;
+  window.filterAndRender();
+};
+
+window.handleLoadMore = function() {
+  const step = completedPageSize === Infinity ? 20 : completedPageSize;
+  completedVisibleCount += step;
   window.filterAndRender();
 };
 
@@ -823,7 +610,6 @@ window.toggleBatchEdit = function() {
 };
 window.addNewBatchRow = function() { newBatchRows.unshift({ tempId: Date.now() + Math.random(), showTimeInput: false }); window.filterAndRender(); };
 window.removeNewBatchRow = function(i) { newBatchRows.splice(i, 1); window.filterAndRender(); };
-window.toggleNewRowTimeInput = function(i) { document.getElementById(`newTimeContainer_${i}`)?.classList.toggle('hidden'); };
 
 window.saveAllBatchEdits = async function() {
   if (isReadOnly || !currentUser) return;
@@ -906,15 +692,6 @@ window.openEditModalFromId = function(id) {
   if (!item) return;
   editingId = id;
   
-  const titleEl = document.querySelector('#editModal h3');
-  if (titleEl) titleEl.innerText = "체험 정보 수정";
-
-  const submitBtn = document.querySelector('#editModal button[type="submit"]');
-  if (submitBtn) {
-    submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
-    submitBtn.innerText = "수정 저장하기";
-  }
-
   const setVal = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val; };
   setVal('editStoreName', item.storeName || '');
   setVal('editPlatformName', item.platformName || '개별');
@@ -922,10 +699,8 @@ window.openEditModalFromId = function(id) {
   setVal('editDeadlineDate', formatCleanDate(item.deadlineDate || ''));
   setVal('editVisitDate', formatCleanDate(item.visitDate || ''));
   setVal('editVisitTime', item.visitTime || '');
-  setVal('editCompanions', item.companions || '');
   setVal('editSponsoredAmount', formatCurrencyInput(item.sponsoredAmount || 0));
   setVal('editPaidAmount', formatCurrencyInput(item.paidAmount || 0));
-  setVal('editRevenue', formatCurrencyInput(item.revenue || 0));
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
@@ -1029,192 +804,7 @@ window.executeExcelExport = async function() {
       ['B','C','D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
     });
 
-    sh1.getCell('F8').value = '2. 플랫폼 수익 랭킹'; sh1.getCell('F8').font = { name: '맑은 고딕', size: 11, bold: true };
-    ['플랫폼명', '총 수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(70+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
-    Object.entries(pMap).sort((a, b) => b[1] - a[1]).forEach(([n, v], i) => {
-      const r = 10 + i; sh1.getCell(`F${r}`).value = n; sh1.getCell(`G${r}`).value = v; sh1.getCell(`G${r}`).numFmt = '#,##0"원"';
-      ['F','G'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
-    });
     sh1.columns = [{ width: 4 }, { width: 15 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 18 }];
-
-    const buildMonthlyBlockSheet = (sName, filterMode) => {
-      const sh = wb.addWorksheet(sName, { views: [{ showGridLines: true }] });
-      const maxCol = filterMode === 'completed_detail' ? 'H' : 'M';
-
-      sh.mergeCells(`B2:${maxCol}2`);
-      const titleCell = sh.getCell('B2'); 
-      titleCell.value = `${sName} (1월 ~ 12월 월별 내역) [${targetYearStr}]`; 
-      titleCell.font = { name: '맑은 고딕', size: 14, bold: true, color: { argb: COLOR_PRIMARY } };
-      sh.getRow(2).height = 24;
-
-      let cols = [];
-      if (filterMode === 'completed_detail') {
-        cols = [
-          { h: '매장명 (업체명)', k: 'storeName', w: 24 }, { h: '사이트', k: 'platformName', w: 12 },
-          { h: '방문일', k: 'visitDate', w: 12 }, { h: '마감일', k: 'deadlineDate', w: 12 },
-          { h: '제공금액', k: 'sponsoredAmount', w: 14, cur: true }, { h: '결제금액', k: 'paidAmount', w: 14, cur: true },
-          { h: '실수익', k: 'revenue', w: 14, cur: true }
-        ];
-      } else {
-        cols = [
-          { h: '매장명 (업체명)', k: 'storeName', w: 22 }, { h: '진행 상태', k: 'status', w: 9 }, 
-          { h: '사이트', k: 'platformName', w: 11 }, { h: '방문일', k: 'visitDate', w: 12 }, 
-          { h: '방문시간', k: 'visitTime', w: 10 }, { h: '마감일', k: 'deadlineDate', w: 12 },
-          { h: '동반인원', k: 'companions', w: 14 }, { h: '업체 연락처', k: 'contact', w: 16 },
-          { h: '제공금액', k: 'sponsoredAmount', w: 13, cur: true }, { h: '결제금액', k: 'paidAmount', w: 13, cur: true },
-          { h: '실수익', k: 'revenue', w: 13, cur: true }, { h: '메모 (비고)', k: 'memo', w: 20 }
-        ];
-      }
-      sh.columns = [{ width: 3 }].concat(cols.map(c => ({ width: c.w })));
-
-      let dRowIdx = 4;
-
-      for (let m = 1; m <= 12; m++) {
-        const mItems = exportList.filter(it => {
-          const eff = getEffectiveStatus(it);
-          const isDone = (eff === '제출' || eff === '완료');
-          if (filterMode === 'completed_detail' || filterMode === 'completed_full') { if (!isDone) return false; } 
-          else { if (isDone) return false; }
-
-          const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
-          if (!refDate || refDate.length < 7) return false;
-          return parseInt(refDate.slice(5, 7)) === m;
-        }).sort((a, b) => (formatCleanDate(a.visitDate || a.deadlineDate) || '').localeCompare(formatCleanDate(b.visitDate || b.deadlineDate) || ''));
-
-        const mCount = mItems.length;
-        let mTotalRev = 0;
-        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv); });
-
-        sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-        const hdCell = sh.getCell(`B${dRowIdx}`);
-        hdCell.value = `■ ${m}월 내역  (건수: ${mCount}건 | 실수익 합계: ${mTotalRev.toLocaleString()}원)`;
-        hdCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: COLOR_PRIMARY } };
-        hdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_LIGHT } };
-        hdCell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
-        sh.getRow(dRowIdx++).height = 24;
-
-        const hr = sh.getRow(dRowIdx); hr.height = 20;
-        cols.forEach((col, cIdx) => {
-          const c = hr.getCell(cIdx + 2);
-          c.value = col.h; c.font = { name: '맑은 고딕', size: 9.5, bold: true, color: { argb: 'FF374151' } };
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; c.border = borderStyle;
-        });
-        dRowIdx++;
-
-        if (mCount === 0) {
-          sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-          const ec = sh.getCell(`B${dRowIdx}`); ec.value = '해당 월에 등록된 내역이 없습니다.'; ec.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; ec.border = borderStyle;
-          sh.getRow(dRowIdx++).height = 20;
-        } else {
-          const startRow = dRowIdx;
-          mItems.forEach(it => {
-            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
-            const r = sh.getRow(dRowIdx++); r.height = 19;
-
-            if (filterMode === 'completed_detail') {
-              r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
-              r.getCell(3).value = it.platformName || '개별';
-              r.getCell(4).value = formatCleanDate(it.visitDate) || '-';
-              r.getCell(5).value = formatCleanDate(it.deadlineDate) || '-';
-              r.getCell(6).value = sp; r.getCell(7).value = pd; r.getCell(8).value = calcRev;
-            } else {
-              r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
-              r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
-              r.getCell(4).value = it.platformName || '개별';
-              r.getCell(5).value = formatCleanDate(it.visitDate) || '-';
-              r.getCell(6).value = it.visitTime || '-';
-              r.getCell(7).value = formatCleanDate(it.deadlineDate) || '-';
-              r.getCell(8).value = it.companions || '-';
-              r.getCell(9).value = it.contact || '-';
-              r.getCell(10).value = sp; r.getCell(11).value = pd; r.getCell(12).value = calcRev;
-              r.getCell(13).value = it.memo || ''; r.getCell(13).alignment = { horizontal: 'left' };
-            }
-
-            cols.forEach((col, cIdx) => {
-              const c = r.getCell(cIdx + 2);
-              c.font = { name: '맑은 고딕', size: 9.5 }; c.border = borderStyle;
-              if (col.cur) { c.numFmt = '#,##0"원"'; c.alignment = { horizontal: 'right' }; }
-              else if (!c.alignment) { c.alignment = { horizontal: 'center' }; }
-            });
-          });
-
-          const subR = sh.getRow(dRowIdx++); subR.height = 21; 
-
-          if (filterMode === 'completed_detail') {
-            sh.mergeCells(`B${subR.number}:E${subR.number}`);
-            subR.getCell(2).value = `${m}월 소계`; subR.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-            subR.getCell(6).value = { formula: `SUM(F${startRow}:F${dRowIdx - 2})` };
-            subR.getCell(7).value = { formula: `SUM(G${startRow}:G${dRowIdx - 2})` };
-            subR.getCell(8).value = { formula: `SUM(H${startRow}:H${dRowIdx - 2})` };
-          } else {
-            sh.mergeCells(`B${subR.number}:I${subR.number}`);
-            subR.getCell(2).value = `${m}월 소계`; subR.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-            subR.getCell(10).value = { formula: `SUM(J${startRow}:J${dRowIdx - 2})` };
-            subR.getCell(11).value = { formula: `SUM(K${startRow}:K${dRowIdx - 2})` };
-            subR.getCell(12).value = { formula: `SUM(L${startRow}:L${dRowIdx - 2})` };
-          }
-
-          cols.forEach((col, cIdx) => {
-            const c = subR.getCell(cIdx + 2);
-            c.font = { name: '맑은 고딕', size: 9.5, bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-            c.border = { top: { style: 'thin' }, bottom: { style: 'double' } };
-            if (col.cur) { c.numFmt = '#,##0"원"'; c.alignment = { horizontal: 'right' }; }
-          });
-        }
-        dRowIdx++;
-      }
-
-      if (filterMode === 'ongoing_full') {
-        const unItems = exportList.filter(it => {
-          const eff = getEffectiveStatus(it);
-          if (eff === '제출' || eff === '완료') return false;
-          const refDate = formatCleanDate(it.visitDate || it.deadlineDate || it.applyDate || '');
-          return (!refDate || refDate.length < 7);
-        });
-
-        sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-        const unHeaderCell = sh.getCell(`B${dRowIdx}`);
-        unHeaderCell.value = `■ 일정 미정 / 예약 대기  (건수: ${unItems.length}건)`;
-        unHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: 'FF92400E' } };
-        unHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-        unHeaderCell.border = { top: { style: 'thin' }, bottom: { style: 'thin' } };
-        sh.getRow(dRowIdx++).height = 24;
-
-        if (unItems.length === 0) {
-          sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-          const ec = sh.getCell(`B${dRowIdx}`); ec.value = '일정 미정 항목이 없습니다.'; ec.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF9CA3AF' } }; ec.border = borderStyle;
-          sh.getRow(dRowIdx++).height = 20;
-        } else {
-          unItems.forEach(it => {
-            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
-            const r = sh.getRow(dRowIdx++); r.height = 19;
-            r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
-            r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
-            r.getCell(4).value = it.platformName || '개별';
-            r.getCell(5).value = '미정';
-            r.getCell(6).value = '-';
-            r.getCell(7).value = '미정';
-            r.getCell(8).value = it.companions || '-';
-            r.getCell(9).value = it.contact || '-';
-            r.getCell(10).value = sp; r.getCell(11).value = pd; r.getCell(12).value = calcRev;
-            r.getCell(13).value = it.memo || ''; r.getCell(13).alignment = { horizontal: 'left' };
-
-            cols.forEach((col, cIdx) => {
-              const c = r.getCell(cIdx + 2);
-              c.font = { name: '맑은 고딕', size: 9.5 }; c.border = borderStyle;
-              if (col.cur) { c.numFmt = '#,##0"원"'; c.alignment = { horizontal: 'right' }; }
-              else if (!c.alignment) { c.alignment = { horizontal: 'center' }; }
-            });
-          });
-        }
-      }
-    };
-
-    buildMonthlyBlockSheet('정산 세부 내역', 'completed_detail');
-    buildMonthlyBlockSheet('진행중 체험단', 'ongoing_full');
-    buildMonthlyBlockSheet('완료 체험단', 'completed_full');
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1270,12 +860,21 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
+  // 정렬 적용 (미선택 시 기존 등록 순 원형 보존)
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
       if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) { vA = Number(vA) || 0; vB = Number(vB) || 0; }
       return sortAsc ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
     });
+  }
+
+  const totalFilteredCount = filtered.length;
+  let itemsToRender = filtered;
+
+  // 완료됨 탭일 때 분할 페이징 적용 (일괄 수정 모드 제외)
+  if (listSubTab === 'submitted' && !isBatchEditing) {
+    itemsToRender = filtered.slice(0, completedVisibleCount);
   }
 
   if (tableBody) tableBody.innerHTML = '';
@@ -1305,7 +904,7 @@ window.filterAndRender = function() {
     });
   }
 
-  filtered.forEach(item => {
+  itemsToRender.forEach(item => {
     const effSt = getEffectiveStatus(item);
     const overdue = isItemOverdue(item);
     const isCompleted = (effSt === '제출' || effSt === '완료');
@@ -1350,7 +949,7 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // 모바일 전용 카드: 좌측 정보 블록과 우측 확대된 상태 박스 분할
+    // 모바일 2분할 카드 뷰 (좌측 풀 키워드 / 우측 확대 독립 상태 박스)
     const card = document.createElement('div');
     card.className = 'bg-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2.5 transition-colors w-full relative cursor-pointer hover:border-theme min-h-[64px]';
     card.onclick = () => window.openDetailItemModal(item.id);
@@ -1384,6 +983,18 @@ window.filterAndRender = function() {
     
     cardList?.appendChild(card);
   });
+
+  // 하단 더보기 버튼 처리
+  const loadMoreContainer = document.getElementById('loadMoreContainer');
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreContainer && loadMoreBtn) {
+    if (listSubTab === 'submitted' && !isBatchEditing && totalFilteredCount > itemsToRender.length) {
+      loadMoreContainer.classList.remove('hidden');
+      loadMoreBtn.innerText = `+ 더보기 (${itemsToRender.length}건 / ${totalFilteredCount}건)`;
+    } else {
+      loadMoreContainer.classList.add('hidden');
+    }
+  }
 
   if (filtered.length === 0 && !isBatchEditing) {
     if (tableBody) tableBody.innerHTML = '<tr><td colspan="9"><div class="p-8 text-center text-gray-400 text-xs font-normal">조건에 해당하는 체험단이 없습니다.</div></td></tr>';
@@ -1535,23 +1146,6 @@ window.renderSettlementView = function() {
   }
 
   try {
-    const ctxY = document.getElementById('yearlyDonutChart')?.getContext('2d');
-    if (ctxY) {
-      if (yearlyChartInstance) yearlyChartInstance.destroy();
-      yearlyChartInstance = new Chart(ctxY, {
-        type: 'doughnut',
-        data: { labels: ['정산 완료', '정산 예정'], datasets: [{ data: totalAmount === 0 ? [1, 0] : [doneAmount, planAmount], backgroundColor: totalAmount === 0 ? ['#E5E7EB', '#F3F4F6'] : [chartColors.main, chartColors.pending], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '72%', plugins: { legend: { display: false } } }
-      });
-    }
-  } catch(e) {}
-
-  try {
-    let maxRevVal = 0, maxMonthIdx = 0;
-    monthlyRevenues.forEach((v, idx) => { if (v > maxRevVal) { maxRevVal = v; maxMonthIdx = idx; } });
-    if (document.getElementById('monthlyBestMonthText')) document.getElementById('monthlyBestMonthText').innerText = maxRevVal === 0 ? '-' : `${maxMonthIdx + 1}월 · ${maxRevVal.toLocaleString()}원`;
-    if (document.getElementById('monthlyCurrentMonthText')) document.getElementById('monthlyCurrentMonthText').innerText = (isCurrentYear && totalAmount > 0) ? `${actualRealMonth}월 · ${(monthlyRevenues[actualRealMonth - 1] || 0).toLocaleString()}원` : '-';
-
     const ctxM = document.getElementById('monthlyBarChart')?.getContext('2d');
     if (ctxM) {
       if (monthlyChartInstance) monthlyChartInstance.destroy();
@@ -1559,17 +1153,12 @@ window.renderSettlementView = function() {
         type: 'bar',
         data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyRevenues.map(v => Number((v / 10000).toFixed(1))), backgroundColor: chartColors.main, borderRadius: 4, barPercentage: 0.65 }] },
         plugins: (window.ChartDataLabels ? [window.ChartDataLabels] : []),
-        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 2, right: 2 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280' } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
   } catch(e) {}
 
   try {
-    let maxCountVal = 0, maxCountMonthIdx = 0;
-    monthlyCounts.forEach((v, idx) => { if (v > maxCountVal) { maxCountVal = v; maxCountMonthIdx = idx; } });
-    if (document.getElementById('monthlyAnalysisBestText')) document.getElementById('monthlyAnalysisBestText').innerText = maxCountVal === 0 ? '-' : `${maxCountMonthIdx + 1}월 · ${maxCountVal}건`;
-    if (document.getElementById('monthlyAnalysisCurrentText')) document.getElementById('monthlyAnalysisCurrentText').innerText = isCurrentYear ? `${actualRealMonth}월 · ${monthlyCounts[actualRealMonth - 1] || 0}건` : '-';
-
     const ctxMA = document.getElementById('monthlyAnalysisLineChart')?.getContext('2d');
     if (ctxMA) {
       if (monthlyAnalysisChartInstance) monthlyAnalysisChartInstance.destroy();
@@ -1577,7 +1166,7 @@ window.renderSettlementView = function() {
         type: 'line',
         data: { labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'], datasets: [{ data: monthlyCounts, borderColor: chartColors.main, borderWidth: 2.2, pointBackgroundColor: chartColors.main, pointRadius: 3.5, tension: 0.25, fill: false }] },
         plugins: (window.ChartDataLabels ? [window.ChartDataLabels] : []),
-        options: { responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 16, bottom: 2, left: 4, right: 4 } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', padding: 2 } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280' } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 1, font: { size: 9 }, formatter: v => v > 0 ? v : '' } } }
       });
     }
   } catch(e) {}
@@ -1605,54 +1194,6 @@ window.renderSettlementView = function() {
         (idx < half ? pLeft : pRight).appendChild(itemD);
       });
       if (sortedP.length === 0) pLeft.innerHTML = '<div class="text-xs text-gray-400 py-6 text-center font-normal col-span-2">데이터가 없습니다.</div>';
-    }
-  } catch(e) {}
-
-  try {
-    const mGrid = document.getElementById('monthlyDetailsGrid');
-    if (mGrid) {
-      mGrid.innerHTML = '';
-      for (let m = 1; m <= 12; m++) {
-        const list = monthlyDetailsData[m];
-        list.sort((a, b) => a.sortRefDate.localeCompare(b.sortRefDate));
-        const isCollapsed = monthlyDetailsCollapseState[m] !== false;
-        const totalC = list.length, totalR = list.reduce((s, i) => s + i.revenueAmount, 0);
-
-        const cardD = document.createElement('div');
-        cardD.className = "bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between";
-        let htm = `<div onclick="window.toggleMonthlyDetailsCard(${m})" class="flex justify-between items-center h-[34px] pb-1.5 border-b border-gray-100 cursor-pointer select-none">
-          <span class="text-xs sm:text-sm font-bold text-gray-800">${m}월</span>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-900 font-normal">${totalC}건 · ${totalR.toLocaleString()}원</span>
-            <span class="text-xs text-gray-400 font-bold">${isCollapsed ? '▼' : '▲'}</span>
-          </div>
-        </div>`;
-
-        if (!isCollapsed) {
-          htm += '<div class="mt-2.5 flex-1 flex flex-col justify-between space-y-2">';
-          if (list.length === 0) {
-            htm += '<div class="text-center text-gray-300 font-normal py-6 text-xs">이 달의 완료된 체험이 없습니다.</div>';
-          } else {
-            htm += '<div class="flex items-center justify-between text-[10px] text-gray-400 font-normal pb-1 border-b border-gray-100"><span class="w-1/2 text-left">매장명</span><span class="w-1/4 text-right">제공금액</span><span class="w-1/4 text-right">결제금액</span></div>';
-            htm += '<div class="space-y-1.5 max-h-[200px] overflow-y-auto widget-scroll pr-1">';
-            list.forEach(i => {
-              htm += `<div class="flex justify-between items-center text-xs py-1 border-b border-dashed border-gray-50">
-                <span class="truncate w-1/2 font-medium text-gray-800" title="${i.storeName}">${i.storeName}</span>
-                <span class="w-1/4 text-right text-gray-500 text-[11px]">${i.sponsoredAmount.toLocaleString()}원</span>
-                <span class="w-1/4 text-right text-gray-900 font-bold text-xs">${Number(i.paidAmount || 0).toLocaleString()}원</span>
-              </div>`;
-            });
-            htm += '</div>';
-          }
-          htm += `<div class="mt-2.5 p-2.5 bg-gray-50/80 rounded-xl flex justify-between items-center border border-gray-100/60 shrink-0 px-3 text-xs">
-            <span class="text-gray-500 font-normal text-[11px]">소계 <b class="text-gray-900 font-bold ml-1">${totalC}건</b></span>
-            <span class="text-gray-500 font-normal text-[11px]">실수익 <b class="text-gray-900 font-bold ml-1">${totalR.toLocaleString()}원</b></span>
-          </div>`;
-          htm += '</div>';
-        }
-        cardD.innerHTML = htm;
-        mGrid.appendChild(cardD);
-      }
     }
   } catch(e) {}
 };
@@ -1832,12 +1373,6 @@ async function fetchUserCustomCode() {
       }
       if (d.theme) { applyThemeCSS(d.theme); try { localStorage.setItem('onlyview_theme', d.theme); } catch(e) {} }
       if (d.chartMode) { currentChartMode = d.chartMode; try { localStorage.setItem('onlyview_chartMode', d.chartMode); } catch(e) {} updateChartModeButtonsUI(); }
-      if (d.statusColors) { 
-        Object.assign(customStatusColors, d.statusColors); 
-        try { localStorage.setItem('onlyview_statusColors', JSON.stringify(customStatusColors)); } catch(e) {}
-        applyStatusCSSColors(); 
-        renderStatusColorPickers(); 
-      }
     } else {
       myCustomCode = Math.floor(100000 + Math.random() * 900000).toString();
       await setDoc(doc(db, "users", currentUser.uid), { customCode: myCustomCode, uid: currentUser.uid, shareSettlement: false, theme: 'slate', chartMode: 'default', platforms: platformList }, { merge: true });
@@ -1868,6 +1403,123 @@ async function loadCampaigns() {
   } catch (e) { console.error("데이터 로드 실패:", e); }
 }
 
+window.switchTab = function(tabName, pushState = true) {
+  if (isReadOnly && (tabName === 'form' || tabName === 'settings')) {
+    if (!pushState) { window.switchTab('dashboard', false); return; } return alert("읽기 전용 모드에서는 접근할 수 없습니다.");
+  }
+  if (isReadOnly && !isSettlementShared && tabName === 'settlement') {
+    if (!pushState) { window.switchTab('dashboard', false); return; } return alert("상대방이 정산 내역을 비공개로 설정했습니다.");
+  }
+
+  const mainViewport = document.querySelector('main');
+  if (mainViewport) mainViewport.scrollTop = 0;
+
+  ['sectionDashboard', 'sectionList', 'sectionForm', 'sectionSettlement', 'sectionSettings'].forEach(s => document.getElementById(s)?.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(btn => { btn.classList.remove('bg-theme', 'text-white'); btn.classList.add('text-sidebar', 'hover:bg-black/5'); });
+  const activeBtn = document.getElementById(`nav-${tabName}`);
+  if (activeBtn) { activeBtn.classList.remove('text-sidebar', 'hover:bg-black/5'); activeBtn.classList.add('bg-theme', 'text-white'); }
+  
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => { btn.classList.remove('text-theme'); btn.classList.add('text-gray-400'); });
+  const activeBottomBtn = document.getElementById(`bottom-nav-${tabName}`);
+  if (activeBottomBtn) { activeBottomBtn.classList.remove('text-gray-400'); activeBottomBtn.classList.add('text-theme'); }
+  
+  if (pushState && window.location.hash !== `#${tabName}`) history.pushState({ tab: tabName }, '', `#${tabName}`);
+  ['dayModal', 'editModal', 'dashRegisterModal', 'excelExportModal'].forEach(id => window.closeModal(id));
+
+  if (tabName === 'dashboard') {
+    document.getElementById('sectionDashboard')?.classList.remove('hidden'); window.renderDashboardView();
+  } else if (tabName === 'list') {
+    isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
+    completedPageSize = 20; completedVisibleCount = 20;
+    const psEl = document.getElementById('filterPageSize'); if (psEl) psEl.value = '20';
+    const filterBox = document.getElementById('filterBoxContainer'); const toggleBtn = document.getElementById('filterToggleBtn');
+    if (filterBox && toggleBtn) { filterBox.classList.add('hidden'); filterBox.classList.remove('flex'); toggleBtn.innerText = '▼ 필터'; }
+    const searchEl = document.getElementById('searchInput'); if (searchEl) searchEl.value = '';
+    const stEl = document.getElementById('filterStatus'); if (stEl) stEl.value = 'ALL';
+    const yrEl = document.getElementById('filterYear'); if (yrEl) yrEl.value = 'ALL';
+    const moEl = document.getElementById('filterMonth'); if (moEl) moEl.value = 'ALL';
+    document.getElementById('sectionList')?.classList.remove('hidden'); window.filterAndRender();
+  } else if (tabName === 'form') {
+    document.getElementById('campaignForm')?.reset(); isPlatformEditingForm = false; window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form');
+    document.getElementById('sectionForm')?.classList.remove('hidden'); document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
+  } else if (tabName === 'settlement') {
+    document.getElementById('sectionSettlement')?.classList.remove('hidden'); window.setSettlementSubTab('report');
+  } else if (tabName === 'settings') {
+    document.getElementById('sectionSettings')?.classList.remove('hidden'); renderSettingsUI();
+  }
+};
+
+window.addEventListener('popstate', () => {
+  const hash = (window.location.hash || '').replace('#', '');
+  window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
+});
+
+window.setStatusBtn = function(status) {
+  selectedStatus = status;
+  ['신청', '선정', '배송', '원고료'].forEach(s => {
+    const btn = document.getElementById(`btnStatus_${s}`);
+    if (btn) btn.className = (s === status) ? "py-2.5 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2.5 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
+  });
+  const sL = document.getElementById('storeNameLabel'), aL = document.getElementById('sponsoredAmountLabel');
+  const rApp = document.getElementById('rowApplyDate'), rDead = document.getElementById('rowDeadlineDate');
+  const rVis = document.getElementById('rowVisit'), rFin = document.getElementById('rowFinancial');
+  const rCon = document.getElementById('rowContact'), rMemo = document.getElementById('rowMemo');
+  if (status === '신청') {
+    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
+  } else {
+    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
+    if (status === '선정') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
+      if (!document.getElementById('visitTime')?.value) { const n = new Date(); document.getElementById('visitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+    } else if (status === '배송') {
+      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
+    } else if (status === '원고료') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
+    }
+  }
+};
+
+window.setModalStatusBtn = function(status) {
+  modalSelectedStatus = status;
+  ['신청', '선정', '배송', '원고료'].forEach(s => {
+    const btn = document.getElementById(`btnModalStatus_${s}`);
+    if (btn) btn.className = (s === status) ? "py-2.5 rounded-xl font-bold border border-theme bg-theme text-white text-xs text-center shadow-sm" : "py-2.5 rounded-xl font-normal border border-gray-200 bg-white text-gray-600 text-xs text-center hover:border-gray-300";
+  });
+  const sL = document.getElementById('modalStoreNameLabel'), aL = document.getElementById('modalSponsoredAmountLabel');
+  const rApp = document.getElementById('modalRowApplyDate'), rDead = document.getElementById('modalRowDeadlineDate');
+  const rVis = document.getElementById('modalRowVisit'), rFin = document.getElementById('modalRowFinancial');
+  const rCon = document.getElementById('modalRowContact'), rMemo = document.getElementById('modalRowMemo');
+  if (status === '신청') {
+    if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+    rApp?.classList.remove('hidden'); rDead?.classList.add('hidden'); rVis?.classList.add('hidden'); rFin?.classList.add('hidden'); rCon?.classList.add('hidden'); rMemo?.classList.add('hidden');
+  } else {
+    rApp?.classList.add('hidden'); rDead?.classList.remove('hidden'); rCon?.classList.remove('hidden'); rMemo?.classList.remove('hidden');
+    if (status === '선정') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.remove('hidden'); rFin?.classList.remove('hidden');
+      if (!document.getElementById('modalVisitTime')?.value) { const n = new Date(); document.getElementById('modalVisitTime').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+    } else if (status === '배송') {
+      if (sL) sL.innerText = "매장명 (제품명) *"; if (aL) aL.innerText = "제공금액 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.remove('hidden');
+    } else if (status === '원고료') {
+      if (sL) sL.innerText = "매장명 (업체명) *"; if (aL) aL.innerText = "원고료 (원)";
+      rVis?.classList.add('hidden'); rFin?.classList.add('hidden');
+    }
+  }
+};
+
+window.setEditStatusBtn = function(status) {
+  editSelectedStatus = status;
+  ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
+    const btn = document.getElementById(`btnEditStatus_${s}`);
+    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
+  });
+};
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     if (!currentUser || currentUser.uid !== user.uid) {
@@ -1892,11 +1544,19 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById('filterMonth')?.addEventListener('change', window.filterAndRender);
   document.getElementById('settlementYearSelect')?.addEventListener('change', window.renderSettlementView);
 
+  // 일회성 개수 선택 드롭다운 이벤트 바인딩
+  document.getElementById('filterPageSize')?.addEventListener('change', e => {
+    const val = e.target.value;
+    completedPageSize = (val === 'ALL') ? Infinity : Number(val);
+    completedVisibleCount = completedPageSize;
+    window.filterAndRender();
+  });
+
   document.getElementById('prevMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() - 1); window.renderDashboardView(); });
   document.getElementById('todayMonthBtn')?.addEventListener('click', () => { currentCalDate = new Date(); window.renderDashboardView(); });
   document.getElementById('nextMonthBtn')?.addEventListener('click', () => { currentCalDate.setMonth(currentCalDate.getMonth() + 1); window.renderDashboardView(); });
 
-  ['sponsoredAmount', 'paidAmount', 'revenue', 'editSponsoredAmount', 'editPaidAmount', 'editRevenue', 'modalSponsoredAmount', 'modalPaidAmount', 'modalRevenue'].forEach(id => {
+  ['sponsoredAmount', 'paidAmount', 'editSponsoredAmount', 'editPaidAmount', 'modalSponsoredAmount', 'modalPaidAmount'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', e => e.target.value = formatCurrencyInput(e.target.value));
   });
   ['contact', 'editContact', 'modalContact'].forEach(id => {
@@ -1911,8 +1571,8 @@ document.addEventListener("DOMContentLoaded", () => {
         userId: currentUser.uid, storeName: document.getElementById('storeName')?.value || '', platformName: document.getElementById('platformName')?.value || '개별',
         status: selectedStatus, applyDate: formatCleanDate(document.getElementById('applyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('deadlineDate')?.value || ''),
         visitDate: formatCleanDate(document.getElementById('visitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
-        companions: document.getElementById('companions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('sponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
+        sponsoredAmount: parseCurrencyValue(document.getElementById('sponsoredAmount')?.value),
+        paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: 0,
         contact: document.getElementById('contact')?.value || '', memo: document.getElementById('memo')?.value || '', createdAt: serverTimestamp()
       });
       alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form'); loadCampaigns();
@@ -1927,8 +1587,8 @@ document.addEventListener("DOMContentLoaded", () => {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
         visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
-        companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
-        paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
+        sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
+        paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: 0,
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
       });
       alert('등록되었습니다!'); window.closeModal('dashRegisterModal'); loadCampaigns();
@@ -1944,31 +1604,11 @@ document.addEventListener("DOMContentLoaded", () => {
           storeName: document.getElementById('editStoreName')?.value || '', platformName: document.getElementById('editPlatformName')?.value || '개별',
           status: editSelectedStatus, deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
           visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''), visitTime: document.getElementById('editVisitTime')?.value || '',
-          companions: document.getElementById('editCompanions')?.value || '',
           sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
-          paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
+          paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value), revenue: 0,
           contact: document.getElementById('editContact')?.value || '', memo: document.getElementById('editMemo')?.value || '',
         });
         alert('수정 저장되었습니다!');
-      } else {
-        await addDoc(collection(db, "campaigns"), {
-          userId: currentUser.uid,
-          storeName: document.getElementById('editStoreName')?.value || '',
-          platformName: document.getElementById('editPlatformName')?.value || '개별',
-          status: editSelectedStatus,
-          applyDate: formatCleanDate(new Date().toISOString().slice(0, 10)),
-          deadlineDate: formatCleanDate(document.getElementById('editDeadlineDate')?.value || ''),
-          visitDate: formatCleanDate(document.getElementById('editVisitDate')?.value || ''),
-          visitTime: document.getElementById('editVisitTime')?.value || '',
-          companions: document.getElementById('editCompanions')?.value || '',
-          sponsoredAmount: parseCurrencyValue(document.getElementById('editSponsoredAmount')?.value),
-          paidAmount: parseCurrencyValue(document.getElementById('editPaidAmount')?.value),
-          revenue: parseCurrencyValue(document.getElementById('editRevenue')?.value),
-          contact: document.getElementById('editContact')?.value || '',
-          memo: document.getElementById('editMemo')?.value || '',
-          createdAt: serverTimestamp()
-        });
-        alert('등록되었습니다!');
       }
       window.closeModal('editModal');
       editingId = null; 
