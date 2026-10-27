@@ -248,7 +248,7 @@ window.closeModal = function(id) {
   if (el) el.style.display = 'none';
 };
 
-// 정렬 인디케이터 (▲ / ▼ / ↕)
+// 정렬 인디케이터
 function getSortIndicatorHtml(col) {
   if (sortColumn !== col || sortColumn === 'none') return '<span class="text-gray-300 ml-0.5">↕</span>';
   return sortAsc ? '<span class="text-theme font-bold ml-0.5">▲</span>' : '<span class="text-theme font-bold ml-0.5">▼</span>';
@@ -441,7 +441,7 @@ window.renderAllPlatformComponents = function() {
 };
 
 // -------------------------------------------------------------
-// [PC/태블릿 목록 테이블] 드롭다운: + 새 사이트 추가만 유지 (삭제 관리 제거)
+// [PC/태블릿 목록 테이블] 드롭다운: + 새 사이트 추가만 유지
 // -------------------------------------------------------------
 window.handleTablePlatformChange = async function(selectEl) {
   if (selectEl.value === '__ADD_NEW__') {
@@ -1287,7 +1287,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1369,7 +1369,7 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
-  // 정렬 적용 (sortColumn이 'none'이면 기존 등록 순서 유지)
+  // 3단계 정렬 적용 (sortColumn === 'none'일 때는 초기 등록순 원본 유지)
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
@@ -1386,7 +1386,7 @@ window.filterAndRender = function() {
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
 
-    // 드롭다운: + 새 사이트 추가만 유지
+    // 드롭다운: + 새 사이트 추가만 유지 (삭제 관리 제거)
     const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
       + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
 
@@ -1454,10 +1454,12 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
+    // 모바일 2분할 카드 뷰 (좌측 정보 블록 / 우측 상하중앙 상태 드롭다운)
     const card = document.createElement('div');
-    card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 text-xs text-gray-900 transition-colors w-full relative';
+    card.className = 'bg-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2.5 w-full cursor-pointer hover:border-theme transition-colors min-h-[64px] box-border overflow-hidden';
+    card.onclick = () => window.openDetailItemModal(item.id);
     
-    const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs">
+    const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-xl px-2.5 py-2 sm:py-2.5 bg-gray-50 text-[11px] sm:text-xs outline-none cursor-pointer text-center shadow-xs shrink-0 min-w-[62px]">
       <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
       <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
       <option value="방문" ${effSt==='방문'?'selected':''}>방문</option>
@@ -1467,10 +1469,22 @@ window.filterAndRender = function() {
       <option value="원고료" ${effSt==='원고료'?'selected':''}>원고료</option>
     </select>`;
 
-    card.classList.add('cursor-pointer', 'hover:border-theme');
-    card.onclick = () => window.openDetailItemModal(item.id);
-    card.innerHTML = `<div class="flex justify-between items-center"><div class="flex items-center gap-1 min-w-0 pr-2"><h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}</div><span class="text-xs font-bold text-gray-900 shrink-0">${sp.toLocaleString()}원</span></div>`
-      + `<div class="flex justify-between items-center text-[11px] text-gray-500 font-normal"><div class="flex items-center gap-2">${mobileCardStatusSelect}<span>방문: ${formatShortDate(item.visitDate)}</span><span>마감: ${formatShortDate(item.deadlineDate)}</span></div><span class="text-gray-300">›</span></div>`;
+    card.innerHTML = `
+      <div class="flex-1 min-w-0 flex flex-col justify-center space-y-1 overflow-hidden">
+        <div class="flex items-center gap-1 min-w-0">
+          <h3 class="font-bold text-xs sm:text-sm text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}
+        </div>
+        <div class="flex items-center gap-1 text-[10px] sm:text-[11px] text-gray-500 font-normal leading-tight tracking-tight overflow-hidden">
+          <span class="shrink-0 whitespace-nowrap">방문일 ${formatShortDate(item.visitDate)}</span>
+          <span class="text-gray-300 shrink-0">·</span>
+          <span class="shrink-0 whitespace-nowrap">마감일 ${formatShortDate(item.deadlineDate)}</span>
+          <span class="text-gray-300 shrink-0">·</span>
+          <span class="truncate whitespace-nowrap">제공<span class="hidden min-[390px]:inline">금액</span> ${sp.toLocaleString()}원</span>
+        </div>
+      </div>
+      <div class="shrink-0 flex items-center">
+        ${mobileCardStatusSelect}
+      </div>`;
     
     cardList?.appendChild(card);
   });
@@ -1840,7 +1854,7 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치[cite: 2]
+// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
