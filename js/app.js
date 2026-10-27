@@ -60,7 +60,10 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-let isPlatformEditing = false, isModalPlatformEditing = false;
+// [4번] 사이트 관리 모드 상태 (등록탭, 빠른등록 모달, 수정 모달)
+let isPlatformEditingForm = false;
+let isPlatformEditingModal = false;
+let isPlatformEditingEdit = false;
 
 let platformList = ['개별', '리뷰노트', '레뷰', '디너의여왕'];
 try {
@@ -120,14 +123,12 @@ function formatCleanDate(d) {
     let y = p[0].replace(/[^0-9]/g, '');
     let m = p[1].replace(/[^0-9]/g, '').padStart(2, '0');
     let day = p[2].replace(/[^0-9]/g, '').padStart(2, '0');
-    
     if (y.length > 4) {
       if (y.startsWith("20") || y.startsWith("19")) y = y.slice(0, 4);
       else y = y.slice(-4);
     } else if (y.length === 2) {
       y = "20" + y;
     }
-    
     if (y.length === 4 && m && day) return `${y}-${m}-${day}`;
   }
   return s;
@@ -306,6 +307,142 @@ function renderSettingsUI() {
   updateDeadlineButtons();
 }
 
+// -------------------------------------------------------------
+// [4번 핵심] 전역 사이트 관리 및 실시간 상호 동기화 시스템
+// -------------------------------------------------------------
+window.selectPlatformChip = function(name, context = 'form') {
+  let inputId = 'platformName';
+  if (context === 'modal') inputId = 'modalPlatformName';
+  else if (context === 'edit') inputId = 'editPlatformName';
+  const el = document.getElementById(inputId);
+  if (el) el.value = name;
+  window.renderAllPlatformChips();
+};
+
+window.togglePlatformEdit = function(context = 'form') {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (context === 'form') isPlatformEditingForm = !isPlatformEditingForm;
+  else if (context === 'modal') isPlatformEditingModal = !isPlatformEditingModal;
+  else if (context === 'edit') isPlatformEditingEdit = !isPlatformEditingEdit;
+  window.renderAllPlatformChips();
+};
+
+window.addCustomPlatform = async function(context = 'form') {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  const newSite = prompt("추가할 사이트명을 입력하세요:");
+  if (!newSite || !newSite.trim()) return;
+  const t = newSite.trim();
+  
+  if (!platformList.includes(t)) {
+    platformList.push(t);
+    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+    if (currentUser && !isReadOnly && db) {
+      try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+    }
+  }
+
+  // 추가한 컨텍스트의 기본값을 새로 추가한 사이트로 선택
+  let inputId = 'platformName';
+  if (context === 'modal') inputId = 'modalPlatformName';
+  else if (context === 'edit') inputId = 'editPlatformName';
+  const el = document.getElementById(inputId);
+  if (el) el.value = t;
+
+  window.renderAllPlatformChips();
+  if (isBatchEditing) window.filterAndRender();
+};
+
+window.deleteCustomPlatform = async function(name) {
+  if (isReadOnly) return alert("읽기 전용 모드입니다.");
+  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
+  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
+
+  platformList = platformList.filter(p => p !== name);
+  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
+
+  // 삭제된 사이트를 가리키고 있던 모든 입력창을 '개별'로 자동 롤백
+  ['platformName', 'modalPlatformName', 'editPlatformName'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value === name) el.value = '개별';
+  });
+
+  if (currentUser && !isReadOnly && db) {
+    try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {}
+  }
+
+  window.renderAllPlatformChips();
+  if (isBatchEditing) window.filterAndRender();
+};
+
+function renderPlatformChipsContainer(containerId, inputId, context, isEditing) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const curVal = document.getElementById(inputId)?.value || '개별';
+
+  const displayList = [...platformList];
+  if (curVal && !displayList.includes(curVal)) {
+    displayList.push(curVal);
+  }
+
+  displayList.forEach(name => {
+    const isSelected = (name === curVal);
+    const chipWrap = document.createElement('div');
+    chipWrap.className = "relative inline-flex items-center";
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerText = name;
+    btn.className = isSelected
+      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors cursor-pointer"
+      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors cursor-pointer";
+    btn.onclick = () => window.selectPlatformChip(name, context);
+    chipWrap.appendChild(btn);
+
+    // 수정 모드일 때만 빨간색 ✕ 삭제 배지 노출
+    if (isEditing && name !== '개별') {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.innerHTML = '×';
+      delBtn.title = '사이트 삭제';
+      delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5 cursor-pointer";
+      delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
+      chipWrap.appendChild(delBtn);
+    }
+    container.appendChild(chipWrap);
+  });
+
+  // 단일 관리 버튼 제어
+  if (isEditing) {
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.innerText = '+ 추가';
+    addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors cursor-pointer";
+    addBtn.onclick = () => window.addCustomPlatform(context);
+    container.appendChild(addBtn);
+
+    const finishBtn = document.createElement('button');
+    finishBtn.type = 'button';
+    finishBtn.innerText = '완료';
+    finishBtn.className = "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer";
+    finishBtn.onclick = () => window.togglePlatformEdit(context);
+    container.appendChild(finishBtn);
+  } else {
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.innerText = '수정';
+    editBtn.className = "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
+    editBtn.onclick = () => window.togglePlatformEdit(context);
+    container.appendChild(editBtn);
+  }
+}
+
+window.renderAllPlatformChips = function() {
+  renderPlatformChipsContainer('platformChipsContainer', 'platformName', 'form', isPlatformEditingForm);
+  renderPlatformChipsContainer('modalPlatformChipsContainer', 'modalPlatformName', 'modal', isPlatformEditingModal);
+  renderPlatformChipsContainer('editPlatformChipsContainer', 'editPlatformName', 'edit', isPlatformEditingEdit);
+};
+
 async function loadTargetUserSettings(uid) {
   if (!uid || !db) return;
   try {
@@ -321,8 +458,7 @@ async function loadTargetUserSettings(uid) {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformChips();
       }
       if (d.theme) { 
         applyThemeCSS(d.theme); 
@@ -454,7 +590,7 @@ window.openColorPickerModal = function(key, label) {
     presetPalette.forEach(hex => {
       const isSel = currentC.toLowerCase() === hex.toLowerCase();
       const btn = document.createElement('button'); btn.type = 'button';
-      btn.className = `w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center ${isSel ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
+      btn.className = `w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center cursor-pointer ${isSel ? 'border-gray-900 ring-2 ring-gray-400 scale-110' : 'border-white'}`;
       btn.style.backgroundColor = hex;
       if (isSel) btn.innerHTML = '<span class="text-white text-xs font-bold">✓</span>';
       btn.onclick = () => window.updateCustomStatusColor(key, hex);
@@ -509,12 +645,12 @@ window.setSettlementSubTab = function(type) {
   const panelReport = document.getElementById('settlementPanelReport');
   const panelDetail = document.getElementById('settlementPanelDetail');
   if (type === 'report') {
-    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center";
-    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
+    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center cursor-pointer";
+    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center cursor-pointer";
     panelReport?.classList.remove('hidden'); panelDetail?.classList.add('hidden');
   } else {
-    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
-    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center";
+    if (btnReport) btnReport.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center cursor-pointer";
+    if (btnDetail) btnDetail.className = "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center cursor-pointer";
     panelDetail?.classList.remove('hidden'); panelReport?.classList.add('hidden');
   }
   window.renderSettlementView();
@@ -569,8 +705,8 @@ window.switchTab = function(tabName, pushState = true) {
     window.filterAndRender();
   } else if (tabName === 'form') {
     document.getElementById('campaignForm')?.reset();
-    isPlatformEditing = false;
-    window.setStatusBtn('신청'); window.selectPlatformChip('개별');
+    isPlatformEditingForm = false;
+    window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form');
     document.getElementById('sectionForm')?.classList.remove('hidden');
     document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
   } else if (tabName === 'settlement') {
@@ -587,7 +723,6 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -617,7 +752,6 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 4개 상태 버튼 제어 및 입력 항목 자동 숨김/표시
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -647,130 +781,13 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// 수정 모달 7개 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
     const btn = document.getElementById(`btnEditStatus_${s}`);
-    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs";
+    if (btn) btn.className = (s === status) ? "py-1.5 px-3 rounded-lg font-bold border border-theme bg-theme text-white text-xs cursor-pointer" : "py-1.5 px-3 rounded-lg font-normal border border-gray-200 bg-white text-gray-600 text-xs cursor-pointer";
   });
 };
-
-window.selectPlatformChip = function(name) {
-  const el = document.getElementById('platformName'); if (el) el.value = name;
-  renderPlatformChips();
-};
-
-window.togglePlatformEdit = function(isModal = false) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (isModal) isModalPlatformEditing = !isModalPlatformEditing;
-  else isPlatformEditing = !isPlatformEditing;
-  renderPlatformChips();
-};
-
-window.deleteCustomPlatform = async function(name) {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  if (name === '개별') return alert("'개별' 항목은 기본 사이트이므로 삭제할 수 없습니다.");
-  if (!confirm(`'${name}' 사이트를 목록에서 삭제하시겠습니까?\n(기존에 등록된 체험단 내역은 그대로 유지됩니다)`)) return;
-  platformList = platformList.filter(p => p !== name);
-  try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-  const pInput = document.getElementById('platformName'); if (pInput && pInput.value === name) pInput.value = '개별';
-  const mInput = document.getElementById('modalPlatformName'); if (mInput && mInput.value === name) mInput.value = '개별';
-  const eInput = document.getElementById('editPlatformName'); if (eInput && eInput.value === name) eInput.value = '개별';
-  renderPlatformChips();
-  renderEditPlatformChips();
-  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-};
-
-window.addCustomPlatform = async function() {
-  if (isReadOnly) return alert("읽기 전용 모드입니다.");
-  const newSite = prompt("추가할 사이트명을 입력하세요:");
-  if (!newSite || !newSite.trim()) return;
-  const t = newSite.trim();
-  if (!platformList.includes(t)) {
-    platformList.push(t); 
-    try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-    window.selectPlatformChip(t);
-    renderEditPlatformChips();
-    if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { platforms: platformList }, { merge: true }); } catch(e) {} }
-  } else { window.selectPlatformChip(t); }
-};
-
-function renderPlatformChips() {
-  const container = document.getElementById('platformChipsContainer');
-  const modalContainer = document.getElementById('modalPlatformChipsContainer');
-  const render = (target, isM) => {
-    if (!target) return;
-    target.innerHTML = '';
-    const inputId = isM ? 'modalPlatformName' : 'platformName';
-    const curVal = document.getElementById(inputId)?.value || platformList[0] || '개별';
-    const isEditing = isM ? isModalPlatformEditing : isPlatformEditing;
-
-    platformList.forEach(name => {
-      const isSelected = (name === curVal);
-      const chipWrap = document.createElement('div');
-      chipWrap.className = "relative inline-flex items-center";
-      const btn = document.createElement('button');
-      btn.type = 'button'; btn.innerText = name;
-      btn.className = isSelected ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-      btn.onclick = () => { const el = document.getElementById(inputId); if (el) el.value = name; renderPlatformChips(); };
-      chipWrap.appendChild(btn);
-
-      if (isEditing && name !== '개별') {
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button'; delBtn.innerHTML = '×'; delBtn.title = '사이트 삭제';
-        delBtn.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[12px] font-black flex items-center justify-center shadow-md hover:bg-rose-600 transition-colors leading-none pb-0.5";
-        delBtn.onclick = (e) => { e.stopPropagation(); window.deleteCustomPlatform(name); };
-        chipWrap.appendChild(delBtn);
-      }
-      target.appendChild(chipWrap);
-    });
-
-    if (isEditing) {
-      const addBtn = document.createElement('button');
-      addBtn.type = 'button'; addBtn.innerText = '+ 추가';
-      addBtn.className = "px-3 py-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-500 font-normal text-xs hover:bg-gray-100 transition-colors";
-      addBtn.onclick = window.addCustomPlatform;
-      target.appendChild(addBtn);
-    }
-    const editToggleBtn = document.createElement('button');
-    editToggleBtn.type = 'button';
-    editToggleBtn.innerText = isEditing ? '완료' : '수정';
-    editToggleBtn.className = isEditing ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors" : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors";
-    editToggleBtn.onclick = () => window.togglePlatformEdit(isM);
-    target.appendChild(editToggleBtn);
-  };
-  render(container, false);
-  render(modalContainer, true);
-}
-
-function renderEditPlatformChips() {
-  const container = document.getElementById('editPlatformChipsContainer');
-  if (!container) return;
-  container.innerHTML = '';
-  const curVal = document.getElementById('editPlatformName')?.value || '개별';
-  
-  const displayList = [...platformList];
-  if (curVal && !displayList.includes(curVal)) {
-    displayList.push(curVal);
-  }
-
-  displayList.forEach(name => {
-    const isSelected = (name === curVal);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.innerText = name;
-    btn.className = isSelected 
-      ? "platform-chip px-3 py-1.5 rounded-lg border border-theme bg-theme-light text-theme font-bold text-xs transition-colors" 
-      : "platform-chip px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 font-normal text-xs hover:border-gray-300 transition-colors";
-    btn.onclick = () => {
-      const el = document.getElementById('editPlatformName');
-      if (el) el.value = name;
-      renderEditPlatformChips();
-    };
-    container.appendChild(btn);
-  });
-}
 
 window.setDeadlineDays = async function(days) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 설정을 변경할 수 없습니다.");
@@ -778,9 +795,7 @@ window.setDeadlineDays = async function(days) {
   try { localStorage.setItem('onlyview_deadlineAlertDays', deadlineAlertDays.toString()); } catch(e) {}
   window.renderDashboardView(); 
   updateDeadlineButtons();
-  if (currentUser && !isReadOnly) {
-    try { await setDoc(doc(db, "users", currentUser.uid), { deadlineAlertDays }, { merge: true }); } catch(e) {}
-  }
+  if (currentUser && !isReadOnly) { try { await setDoc(doc(db, "users", currentUser.uid), { deadlineAlertDays }, { merge: true }); } catch(e) {} }
 };
 
 function updateDeadlineButtons() {
@@ -793,16 +808,15 @@ function updateDeadlineButtons() {
 window.openDashRegisterModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   document.getElementById('modalCampaignForm')?.reset();
-  isModalPlatformEditing = false;
+  isPlatformEditingModal = false;
   window.setModalStatusBtn('신청');
   const mApp = document.getElementById('modalApplyDate');
   if (mApp) mApp.value = new Date().toISOString().slice(0, 10);
-  renderPlatformChips();
+  window.selectPlatformChip('개별', 'modal');
   window.openModal('dashRegisterModal');
 };
 window.closeDashRegisterModal = function() { window.closeModal('dashRegisterModal'); };
 
-// 모바일 상단 [+ 추가] 버튼 전용 (수정 모달 서식 활용)
 window.openNewCampaignFromModal = function() {
   if (isReadOnly) return alert("읽기 전용 모드에서는 체험을 등록할 수 없습니다.");
   editingId = null;
@@ -811,7 +825,6 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
-  // 삭제 버튼 숨김 (신규 등록이므로 불필요)
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.style.display = 'none';
 
@@ -821,11 +834,9 @@ window.openNewCampaignFromModal = function() {
     submitBtn.innerText = "등록하기";
   }
 
+  isPlatformEditingEdit = false;
   window.setEditStatusBtn('선정');
-  const pInput = document.getElementById('editPlatformName');
-  if (pInput) pInput.value = '개별';
-  renderEditPlatformChips();
-
+  window.selectPlatformChip('개별', 'edit');
   window.openModal('editModal');
 };
 
@@ -932,7 +943,6 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// [수정 모달] 상세 정보 창에서 이미 삭제/수정을 선택했으므로, 삭제 버튼을 완전히 감추고 [수정 저장하기]만 100% 단독 배치
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -942,11 +952,9 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
-  // 삭제 버튼은 상세 팝업에 있으므로 수정 모달에서는 완전 숨김
   const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
   if (delBtn) delBtn.style.display = 'none';
 
-  // 수정 저장하기 버튼 100% 단독 배치
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -967,11 +975,11 @@ window.openEditModalFromId = function(id) {
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
-  renderEditPlatformChips();
+  isPlatformEditingEdit = false;
+  window.renderAllPlatformChips();
   window.openModal('editModal');
 };
 
-// 엑셀 내보내기 모달 및 다운로드
 window.openExcelExportModal = function() {
   if (!rawCampaignList || rawCampaignList.length === 0) return alert("내보낼 체험단 데이터가 없습니다.");
   
@@ -1233,7 +1241,7 @@ window.executeExcelExport = async function() {
         } else {
           unItems.forEach(it => {
             const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1282,7 +1290,6 @@ window.filterAndRender = function() {
 
   if (cardList) cardList.className = 'block sm:hidden space-y-2.5 w-full';
 
-  // PC/태블릿 전용 수정/저장 버튼 제어 (미디어쿼리 충돌 방지를 위해 인라인 display 강제 동기화)
   if (batchBtn && saveBatchBtn) {
     if (isBatchEditing) {
       batchBtn.className = "hidden sm:inline-flex px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-500 text-white shadow-sm shrink-0 cursor-pointer";
@@ -1327,7 +1334,6 @@ window.filterAndRender = function() {
   if (tableBody) tableBody.innerHTML = '';
   if (cardList) cardList.innerHTML = '';
 
-  // PC/태블릿 일괄 수정 모드일 때 최상단 추가 행 노출
   if (isBatchEditing) {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
@@ -1781,7 +1787,6 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// [상세 정보 팝업] 삭제/수정 버튼 1:1 비율 균일 배치 (PC, 태블릿, 모바일 동일 적용)[cite: 2]
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -1860,8 +1865,7 @@ async function fetchUserCustomCode() {
       if (d.platforms && Array.isArray(d.platforms) && d.platforms.length > 0) {
         platformList = d.platforms;
         try { localStorage.setItem('onlyview_platforms', JSON.stringify(platformList)); } catch(e) {}
-        renderPlatformChips();
-        renderEditPlatformChips();
+        window.renderAllPlatformChips();
       }
       if (d.theme) { applyThemeCSS(d.theme); try { localStorage.setItem('onlyview_theme', d.theme); } catch(e) {} }
       if (d.chartMode) { currentChartMode = d.chartMode; try { localStorage.setItem('onlyview_chartMode', d.chartMode); } catch(e) {} updateChartModeButtonsUI(); }
@@ -1947,7 +1951,7 @@ document.addEventListener("DOMContentLoaded", () => {
         paidAmount: parseCurrencyValue(document.getElementById('paidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('revenue')?.value),
         contact: document.getElementById('contact')?.value || '', memo: document.getElementById('memo')?.value || '', createdAt: serverTimestamp()
       });
-      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별'); loadCampaigns();
+      alert('등록되었습니다!'); document.getElementById('campaignForm')?.reset(); window.setStatusBtn('신청'); window.selectPlatformChip('개별', 'form'); loadCampaigns();
     } catch (err) { alert(err.message); }
   });
 
@@ -2051,5 +2055,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  applySidebarUI(); renderPlatformChips(); renderEditPlatformChips(); renderSettingsUI(); populateYearFilter();
+  applySidebarUI();
+  window.renderAllPlatformChips();
+  renderSettingsUI();
+  populateYearFilter();
 });
