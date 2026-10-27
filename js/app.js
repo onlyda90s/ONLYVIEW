@@ -21,6 +21,7 @@ try {
   setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
+// 7시간 절대 세션 만료 시스템
 const SESSION_TIMEOUT_MS = 7 * 60 * 60 * 1000;
 
 function checkAbsoluteSessionTimeout() {
@@ -679,7 +680,6 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 상태 버튼 변경 로직
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -1350,12 +1350,12 @@ window.filterAndRender = function() {
       tableBody?.appendChild(row);
     }
 
-    // [모바일 반응형 카드 레이아웃: 방안 B 적용]
+    // 모바일 전용 카드: 좌측 정보 블록과 우측 확대된 상태 박스 분할
     const card = document.createElement('div');
-    card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-1.5 transition-colors w-full relative cursor-pointer hover:border-theme min-h-[64px]';
+    card.className = 'bg-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-2.5 transition-colors w-full relative cursor-pointer hover:border-theme min-h-[64px]';
     card.onclick = () => window.openDetailItemModal(item.id);
     
-    const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-lg px-2 py-0.5 bg-gray-50 text-[11px] outline-none cursor-pointer text-center shadow-xs shrink-0">
+    const mobileCardStatusSelect = `<select onclick="event.stopPropagation()" onchange="event.stopPropagation(); window.quickUpdateStatus('${item.id}', this.value); this.style.color = window.getStatusColor(this.value);" style="color:${window.getStatusColor(effSt)}; font-weight:700;" class="border border-gray-200/80 rounded-xl px-2.5 py-2.5 bg-gray-50 text-xs outline-none cursor-pointer text-center shadow-xs shrink-0 min-w-[64px]">
       <option value="신청" ${effSt==='신청'?'selected':''}>신청</option>
       <option value="선정" ${effSt==='선정'?'selected':''}>선정</option>
       <option value="방문" ${effSt==='방문'?'selected':''}>방문</option>
@@ -1366,18 +1366,20 @@ window.filterAndRender = function() {
     </select>`;
 
     card.innerHTML = `
-      <div class="flex justify-between items-center mb-0.5">
-        <div class="flex items-center gap-1 min-w-0 pr-2">
-          <h3 class="font-bold text-xs text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}
+      <div class="flex-1 min-w-0 flex flex-col justify-center space-y-1">
+        <div class="flex items-center gap-1 min-w-0">
+          <h3 class="font-bold text-xs sm:text-sm text-gray-900 truncate">${item.storeName}</h3>${overdueBadge}
         </div>
-        ${mobileCardStatusSelect}
+        <div class="flex items-center gap-0.5 min-[380px]:gap-1 text-[9.5px] min-[390px]:text-[10px] text-gray-500 font-normal leading-tight tracking-tight">
+          <span class="whitespace-nowrap">방문일 ${formatShortDate(item.visitDate)}</span>
+          <span class="text-gray-300">·</span>
+          <span class="whitespace-nowrap">마감일 ${formatShortDate(item.deadlineDate)}</span>
+          <span class="text-gray-300">·</span>
+          <span class="whitespace-nowrap">제공<span class="hidden min-[395px]:inline">금액</span> ${sp.toLocaleString()}원</span>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5 text-[10px] text-gray-500 font-normal truncate">
-        <span class="truncate">방문 ${formatShortDate(item.visitDate)}</span>
-        <span class="text-gray-300">·</span>
-        <span class="truncate">마감 ${formatShortDate(item.deadlineDate)}</span>
-        <span class="text-gray-300">·</span>
-        <span class="truncate">제공 ${sp.toLocaleString()}원</span>
+      <div class="shrink-0 flex items-center">
+        ${mobileCardStatusSelect}
       </div>`;
     
     cardList?.appendChild(card);
