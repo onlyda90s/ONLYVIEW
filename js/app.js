@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, browserSessionPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -18,7 +18,8 @@ try {
   db = getFirestore(app);
   provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  setPersistence(auth, browserLocalPersistence).catch(e => console.error(e));
+  // 브라우저 닫을 시 자동 로그아웃 (세션 지속성)
+  setPersistence(auth, browserSessionPersistence).catch(e => console.error(e));
 } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
 let autoLogoutTimer;
@@ -60,7 +61,7 @@ let selectedStatus = "신청", modalSelectedStatus = "신청", editSelectedStatu
 let deadlineAlertDays = 7;
 try { deadlineAlertDays = Number(localStorage.getItem('onlyview_deadlineAlertDays')) || 7; } catch(e) {}
 
-// 플랫폼 통합 관리 상태 (각 모달별 관리 모드 분리)
+// 플랫폼 편집(관리) 모드 상태값 분리
 let isPlatformEditingForm = false;
 let isPlatformEditingModal = false;
 let isPlatformEditingEdit = false;
@@ -310,7 +311,7 @@ function renderSettingsUI() {
 }
 
 // -------------------------------------------------------------
-// [통합 플랫폼 관리 시스템: Single Source of Truth]
+// [플랫폼(사이트) 전역 통합 관리: 등록 탭, 등록 모달, 수정 모달, 테이블 일괄 수정 연동]
 // -------------------------------------------------------------
 window.addCustomPlatform = async function(activeContext = 'form') {
   if (isReadOnly) return alert("읽기 전용 모드입니다.");
@@ -326,7 +327,7 @@ window.addCustomPlatform = async function(activeContext = 'form') {
     }
   }
 
-  // 현재 모달/화면에 추가된 사이트를 즉시 선택 상태로 연결
+  // 작업 중인 폼의 hidden input 값 자동 갱신
   if (activeContext === 'form') {
     const el = document.getElementById('platformName'); if (el) el.value = trimmed;
   } else if (activeContext === 'modal') {
@@ -377,7 +378,7 @@ window.selectPlatformChip = function(name, context = 'form') {
   window.renderAllPlatformComponents();
 };
 
-// PC/태블릿 테이블 일괄 수정 드롭다운 전용 즉석 추가 핸들러
+// PC/태블릿 목록 테이블 일괄 수정 드롭다운 전용 핸들러
 window.handleTablePlatformChange = async function(selectEl) {
   if (selectEl.value === '__ADD_NEW__') {
     const newSite = prompt("추가할 새 사이트명을 입력하세요:");
@@ -400,6 +401,7 @@ window.handleTablePlatformChange = async function(selectEl) {
   }
 };
 
+// 칩 컨테이너 공통 렌더러 (+ 추가 및 수정/완료 버튼 포함)
 function renderPlatformChipsContainer(containerId, inputId, context, isManaging) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -440,7 +442,7 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
     container.appendChild(chipWrap);
   });
 
-  // '+ 추가' 버튼 상시 배치
+  // [+ 추가] 버튼
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.innerText = '+ 추가';
@@ -448,10 +450,10 @@ function renderPlatformChipsContainer(containerId, inputId, context, isManaging)
   addBtn.onclick = () => window.addCustomPlatform(context);
   container.appendChild(addBtn);
 
-  // '관리' / '완료' 모드 토글 버튼
+  // [수정] / [완료] 모드 토글 버튼
   const manageBtn = document.createElement('button');
   manageBtn.type = 'button';
-  manageBtn.innerText = isManaging ? '완료' : '관리';
+  manageBtn.innerText = isManaging ? '완료' : '수정';
   manageBtn.className = isManaging
     ? "px-3 py-1.5 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors cursor-pointer"
     : "px-3 py-1.5 rounded-lg font-normal text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer";
@@ -854,9 +856,6 @@ window.openNewCampaignFromModal = function() {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "새 체험 등록";
 
-  const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
-  if (delBtn) delBtn.style.display = 'none';
-
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -975,7 +974,7 @@ window.deleteCampaignFromModal = function() {
   window.deleteCampaign(editingId);
 };
 
-// [수정 모달] 삭제 버튼은 완전 제거, [수정 저장하기] 버튼만 100% 가로 폭으로 단독 배치
+// [수정 모달] 사이트 칩 관리(+ 추가, 수정) 활성화 및 수정 저장하기 100% 단독 배치
 window.openEditModalFromId = function(id) {
   if (isReadOnly) return alert("읽기 전용 모드에서는 수정할 수 없습니다.");
   const item = rawCampaignList.find(c => c.id === id);
@@ -985,11 +984,6 @@ window.openEditModalFromId = function(id) {
   const titleEl = document.querySelector('#editModal h3');
   if (titleEl) titleEl.innerText = "체험 정보 수정";
 
-  // 삭제 버튼 제거
-  const delBtn = document.querySelector('#editModal button[onclick*="deleteCampaignFromModal"]');
-  if (delBtn) delBtn.style.display = 'none';
-
-  // 수정 저장하기 100% 폭으로 세팅
   const submitBtn = document.querySelector('#editModal button[type="submit"]');
   if (submitBtn) {
     submitBtn.className = "w-full bg-theme bg-theme-hover text-white py-3.5 rounded-xl font-bold shadow-sm text-sm transition-colors cursor-pointer";
@@ -1010,6 +1004,7 @@ window.openEditModalFromId = function(id) {
   setVal('editContact', formatPhoneNumber(item.contact || ''));
   setVal('editMemo', item.memo || '');
   
+  // 수정 모달 전용 사이트 관리 상태 초기화 및 칩 렌더링
   isPlatformEditingEdit = false;
   window.renderAllPlatformComponents();
   window.openModal('editModal');
@@ -1263,7 +1258,6 @@ window.executeExcelExport = async function() {
         });
 
         sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
-        const unHeaderCell = sh.getCell(`B${dRowIdx}`);
         unHeaderCell.value = `■ 일정 미정 / 예약 대기  (건수: ${unItems.length}건)`;
         unHeaderCell.font = { name: '맑은 고딕', size: 10.5, bold: true, color: { argb: 'FF92400E' } };
         unHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
