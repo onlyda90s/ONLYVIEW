@@ -53,7 +53,6 @@ try { isSidebarCollapsed = localStorage.getItem('onlyview_sidebarCollapsed') ===
 
 let monthlyDetailsCollapseState = {};
 
-// 렌더링 표시 개수 및 더보기 카운트 관리
 let currentListPageSize = 20;
 let completedVisibleCount = 20;
 
@@ -716,8 +715,6 @@ window.switchTab = function(tabName, pushState = true) {
     window.renderDashboardView();
   } else if (tabName === 'list') {
     isBatchEditing = false; newBatchRows = []; isFilterExpanded = false;
-    
-    // 탭 이동 시 휘발성 설정 초기화
     currentListPageSize = 20; 
     completedVisibleCount = 20;
     
@@ -727,8 +724,6 @@ window.switchTab = function(tabName, pushState = true) {
     const stEl = document.getElementById('filterStatus'); if (stEl) stEl.value = 'ALL';
     const yrEl = document.getElementById('filterYear'); if (yrEl) yrEl.value = 'ALL';
     const moEl = document.getElementById('filterMonth'); if (moEl) moEl.value = 'ALL';
-    
-    // 드롭다운 값도 기본 '20'으로 리셋
     const psEl = document.getElementById('filterPageSize'); if (psEl) psEl.value = '20';
     
     document.getElementById('sectionList')?.classList.remove('hidden');
@@ -753,7 +748,6 @@ window.addEventListener('popstate', () => {
   window.switchTab(['dashboard', 'form', 'list', 'settlement', 'settings'].includes(hash) ? hash : 'dashboard', false);
 });
 
-// 등록 탭 상태 버튼 제어
 window.setStatusBtn = function(status) {
   selectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -783,7 +777,6 @@ window.setStatusBtn = function(status) {
   }
 };
 
-// 등록 모달 상태 버튼 제어
 window.setModalStatusBtn = function(status) {
   modalSelectedStatus = status;
   ['신청', '선정', '배송', '원고료'].forEach(s => {
@@ -813,7 +806,6 @@ window.setModalStatusBtn = function(status) {
   }
 };
 
-// 수정 모달 상태 버튼 제어
 window.setEditStatusBtn = function(status) {
   editSelectedStatus = status;
   ['신청', '선정', '방문', '미제출', '제출', '배송', '원고료'].forEach(s => {
@@ -900,7 +892,6 @@ window.handleSort = function(col) {
 
 window.setListSubTab = function(type) {
   listSubTab = type;
-  // 탭 이동 시에도 현재 선택된 표시 개수로 맞춰서 리셋 적용
   completedVisibleCount = currentListPageSize === 999999 ? 999999 : currentListPageSize; 
   const btnO = document.getElementById('subTabOngoing'), btnS = document.getElementById('subTabSubmitted');
   if (btnO) btnO.className = (type === 'ongoing') ? "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-bold text-xs bg-theme text-white shadow-sm transition-colors text-center" : "flex-1 sm:flex-initial py-1.5 px-3 rounded-lg font-normal text-xs bg-transparent hover:bg-gray-200 text-gray-700 transition-colors text-center";
@@ -1253,7 +1244,7 @@ window.executeExcelExport = async function() {
 
         const mCount = mItems.length;
         let mTotalRev = 0;
-        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rv); });
+        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rev = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); });
 
         sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
         const hdCell = sh.getCell(`B${dRowIdx}`);
@@ -1278,8 +1269,8 @@ window.executeExcelExport = async function() {
         } else {
           const startRow = dRowIdx;
           mItems.forEach(it => {
-            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
+            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rev = Number(it.revenue || 0);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
 
             if (filterMode === 'completed_detail') {
@@ -1357,8 +1348,8 @@ window.executeExcelExport = async function() {
           sh.getRow(dRowIdx++).height = 20;
         } else {
           unItems.forEach(it => {
-            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rv = Number(it.revenue || 0);
-            const calcRev = pd === 0 ? (sp > 0 ? sp : rv) : ((sp - pd) + rev);
+            const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rev = Number(it.revenue || 0);
+            const calcRev = pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev);
             const r = sh.getRow(dRowIdx++); r.height = 19;
             r.getCell(2).value = it.storeName || ''; r.getCell(2).alignment = { horizontal: 'left' };
             r.getCell(3).value = displayStatusName(getEffectiveStatus(it));
@@ -1464,9 +1455,6 @@ window.filterAndRender = function() {
     const addRow = document.createElement('tr');
     addRow.innerHTML = '<td colspan="9" class="p-2.5 text-center bg-gray-50/80 border-b border-gray-200"><button onclick="window.addNewBatchRow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer">+ 새 체험 추가</button></td>';
     tableBody?.appendChild(addRow);
-
-    const newRowPlatformOptions = platformList.map(p => `<option value="${p}" ${p === '개별' ? 'selected' : ''}>${p}</option>`).join('')
-      + '<option value="__ADD_NEW__" class="text-theme font-bold">+ 새 사이트 추가...</option>';
 
     newBatchRows.forEach((row, idx) => {
       const curPlat = row.platformName || '개별';
@@ -1953,7 +1941,6 @@ window.openDayModal = function(dateStr, items) {
   window.openModal('dayModal');
 };
 
-// 상세 정보 팝업 (삭제 / 수정 버튼 1:1 배치)
 window.openDetailItemModal = function(id) {
   const item = rawCampaignList.find(c => c.id === id); if (!item) return;
   const effSt = getEffectiveStatus(item);
@@ -2097,7 +2084,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById('filterMonth')?.addEventListener('change', window.filterAndRender);
   document.getElementById('settlementYearSelect')?.addEventListener('change', window.renderSettlementView);
 
-  // 새 드롭다운(표시 개수) 이벤트 리스너 추가
   document.getElementById('filterPageSize')?.addEventListener('change', (e) => {
     const val = e.target.value;
     currentListPageSize = val === 'ALL' ? 999999 : parseInt(val, 10);
@@ -2139,7 +2125,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(collection(db, "campaigns"), {
         userId: currentUser.uid, storeName: document.getElementById('modalStoreName')?.value || '', platformName: document.getElementById('modalPlatformName')?.value || '개별',
         status: modalSelectedStatus, applyDate: formatCleanDate(document.getElementById('modalApplyDate')?.value || ''), deadlineDate: formatCleanDate(document.getElementById('modalDeadlineDate')?.value || ''),
-        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('modalVisitTime')?.value || '',
+        visitDate: formatCleanDate(document.getElementById('modalVisitDate')?.value || ''), visitTime: document.getElementById('visitTime')?.value || '',
         companions: document.getElementById('modalCompanions')?.value || '', sponsoredAmount: parseCurrencyValue(document.getElementById('modalSponsoredAmount')?.value),
         paidAmount: parseCurrencyValue(document.getElementById('modalPaidAmount')?.value), revenue: parseCurrencyValue(document.getElementById('modalRevenue')?.value),
         contact: document.getElementById('modalContact')?.value || '', memo: document.getElementById('modalMemo')?.value || '', createdAt: serverTimestamp()
