@@ -1244,7 +1244,10 @@ window.executeExcelExport = async function() {
 
         const mCount = mItems.length;
         let mTotalRev = 0;
-        mItems.forEach(it => { const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rev = Number(it.revenue || 0); mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); });
+        mItems.forEach(it => { 
+          const sp = Number(it.sponsoredAmount || 0), pd = Number(it.paidAmount || 0), rev = Number(it.revenue || 0); 
+          mTotalRev += pd === 0 ? (sp > 0 ? sp : rev) : ((sp - pd) + rev); 
+        });
 
         sh.mergeCells(`B${dRowIdx}:${maxCol}${dRowIdx}`);
         const hdCell = sh.getCell(`B${dRowIdx}`);
