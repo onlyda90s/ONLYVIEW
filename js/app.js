@@ -1186,7 +1186,7 @@ window.executeExcelExport = async function() {
     ['월', '완료 건수', '실수익'].forEach((t, i) => { const c = sh1.getCell(`${String.fromCharCode(66+i)}9`); c.value = t; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } }; c.border = borderStyle; });
     mSum.forEach((m, i) => {
       const r = 10 + i;
-      sh1.getCell(`B${r}`).value = `${m.month}월`; sh1.getCell(`C${r}`).value = m.done; sh1.getCell(`C${r}`).numFmt = '#,##0"건"'; sh1.getCell(`D${r}`).value = m.revenue; sh1.getCell(`D${r}`).numFmt = '#,##0"원"';
+      sh1.getCell(`B${r}`).value = `${m}월`; sh1.getCell(`C${r}`).value = m.done; sh1.getCell(`C${r}`).numFmt = '#,##0"건"'; sh1.getCell(`D${r}`).value = m.revenue; sh1.getCell(`D${r}`).numFmt = '#,##0"원"';
       ['B','C','D'].forEach(c => sh1.getCell(`${c}${r}`).border = borderStyle);
     });
 
@@ -1434,12 +1434,30 @@ window.filterAndRender = function() {
     return mName && mStatus && mY && mM;
   });
 
+  // 정렬 적용 (수동 정렬 또는 기본 스마트 정렬)
   if (sortColumn !== 'none') {
     filtered.sort((a, b) => {
       let vA = a[sortColumn] || '', vB = b[sortColumn] || '';
       if (['sponsoredAmount', 'paidAmount', 'revenue'].includes(sortColumn)) { vA = Number(vA) || 0; vB = Number(vB) || 0; }
       return sortAsc ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
     });
+  } else {
+    // 기본 스마트 정렬 (모바일 및 기본 상태)
+    if (listSubTab === 'ongoing') {
+      // 진행중: 마감일 임박순 (오름차순, 미지정은 맨 뒤로)
+      filtered.sort((a, b) => {
+        const dateA = formatCleanDate(a.deadlineDate) || '9999-99-99';
+        const dateB = formatCleanDate(b.deadlineDate) || '9999-99-99';
+        return dateA.localeCompare(dateB);
+      });
+    } else if (listSubTab === 'submitted') {
+      // 완료됨: 방문일 최신순 (내림차순, 최근 방문이 맨 위로)
+      filtered.sort((a, b) => {
+        const dateA = formatCleanDate(a.visitDate || a.deadlineDate) || '0000-00-00';
+        const dateB = formatCleanDate(b.visitDate || b.deadlineDate) || '0000-00-00';
+        return dateB.localeCompare(dateA);
+      });
+    }
   }
 
   const totalFilteredCount = filtered.length;
